@@ -38,6 +38,15 @@ class Program
         _controlManager.Start();
         
         window.Load(initialUrl);
+
+        // Send local IP to UI for "Pairing Code" display
+        Task.Run(async () => {
+            await Task.Delay(2000); // Wait for UI to load
+            var host = System.Net.Dns.GetHostEntry(System.Net.Dns.GetHostName());
+            var ip = host.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
+            window.SendWebMessage(JsonSerializer.Serialize(new { type = "local_ip", ip }));
+        });
+
         window.WaitForClose();
 
         _controlManager.Stop();
@@ -55,7 +64,7 @@ class Program
                 case "start_discovery":
                     Task.Run(async () => {
                         var devices = await _discoveryService!.Browse();
-                        window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_results", devices }));
+                        window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
                     });
                     break;
                 case "service_toggle":

@@ -12,8 +12,11 @@ function App() {
           const data = JSON.parse(message);
           // Handle incoming data like discovered devices, clipboard sync, etc.
           if (data.type === 'discovery_result') {
-            // Update device list in global state or via events
             const event = new CustomEvent('nicodemous_discovery', { detail: data.devices });
+            window.dispatchEvent(event);
+          }
+          if (data.type === 'local_ip') {
+            const event = new CustomEvent('nicodemous_ip', { detail: data.ip });
             window.dispatchEvent(event);
           }
         } catch (e) {
