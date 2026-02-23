@@ -11,7 +11,6 @@ public class UniversalControlManager
     private readonly AudioReceiveService _audioReceiveService;
     
     private bool _isRemoteControlActive = false;
-    private int _screenWidth = 1920; 
 
     public UniversalControlManager()
     {
