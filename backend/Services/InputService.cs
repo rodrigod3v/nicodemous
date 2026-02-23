@@ -84,7 +84,6 @@ public class InputService
                 _virtualX = _screenWidth - entryBuffer;
             }
 
-            _virtualY = _screenHeight / 2.0;
             _accumulatedReturnDelta = 0;
             Console.WriteLine($"[INPUT] Remote Mode Enabled. Entering at Virtual Pos: {_virtualX},{_virtualY}");
         }
@@ -128,10 +127,12 @@ public class InputService
             // Check for edge hit to trigger remote mode
             if (e.Data.X >= _screenWidth - 1 && _activeEdge == ScreenEdge.Right)
             {
+                _virtualY = e.Data.Y; // Capture crossing height
                 OnEdgeHit?.Invoke(ScreenEdge.Right);
             }
             else if (e.Data.X <= 0 && _activeEdge == ScreenEdge.Left)
             {
+                _virtualY = e.Data.Y; // Capture crossing height
                 OnEdgeHit?.Invoke(ScreenEdge.Left);
             }
         }
