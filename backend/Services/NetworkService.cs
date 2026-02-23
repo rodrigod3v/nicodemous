@@ -22,7 +22,21 @@ public class NetworkService
 
     public void SetTarget(string ipAddress, int port)
     {
-        _targetEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+        if (string.IsNullOrWhiteSpace(ipAddress))
+        {
+            _targetEndPoint = null;
+            return;
+        }
+
+        if (IPAddress.TryParse(ipAddress, out var parsedAddr))
+        {
+            _targetEndPoint = new IPEndPoint(parsedAddr, port);
+        }
+        else
+        {
+            Console.WriteLine($"[NETWORK] Attempted to set invalid target IP: {ipAddress}");
+            _targetEndPoint = null;
+        }
     }
 
     public void StartListening(Action<byte[]> onDataReceived)

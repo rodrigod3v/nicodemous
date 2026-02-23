@@ -23,6 +23,8 @@ public class InputService
     private short _screenHeight = 1080;
     private ScreenEdge _activeEdge = ScreenEdge.Right; // Default: Right edge crosses to remote
     private bool _isInputLocked = true; // Default: Lock mouse to edge when in remote mode
+    private DateTime _lastReturnTime = DateTime.MinValue;
+    private const int CooldownMs = 1000;
 
     public event Action<ScreenEdge>? OnEdgeHit;
     public event Action? OnReturn;
@@ -89,6 +91,9 @@ public class InputService
         }
         else
         {
+            // Check for cooldown to avoid immediate re-entry when pulling back
+            if ((DateTime.Now - _lastReturnTime).TotalMilliseconds < CooldownMs) return;
+
             // Check for edge hit to trigger remote mode
             if (e.Data.X >= _screenWidth - 1 && _activeEdge == ScreenEdge.Right)
             {
@@ -108,11 +113,13 @@ public class InputService
 
         if (_activeEdge == ScreenEdge.Right && x < _screenWidth - returnThreshold)
         {
+            _lastReturnTime = DateTime.Now;
             OnReturn?.Invoke();
             return;
         }
         else if (_activeEdge == ScreenEdge.Left && x > returnThreshold)
         {
+            _lastReturnTime = DateTime.Now;
             OnReturn?.Invoke();
             return;
         }

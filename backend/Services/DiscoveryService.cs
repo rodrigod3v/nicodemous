@@ -158,8 +158,43 @@ public class DiscoveryService
 
     private string GetLocalIPAddress()
     {
-        var host = Dns.GetHostEntry(Dns.GetHostName());
-        return host.AddressList.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
+        try
+        {
+            var interfaces = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
+            foreach (var ni in interfaces)
+            {
+                // Skip virtual, loopback and non-up interfaces
+                if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
+                if (ni.Description.Contains("Virtual", StringComparison.OrdinalIgnoreCase)) continue;
+                if (ni.Description.Contains("Pseudo", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var props = ni.GetIPProperties();
+                foreach (var addr in props.UnicastAddresses)
+                {
+                    if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        string ip = addr.Address.ToString();
+                        if (!string.IsNullOrEmpty(ip) && ip != "127.0.0.1")
+                        {
+                            return ip;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DISCOVERY] IP Detection Error: {ex.Message}");
+        }
+
+        // Final fallback
+        try 
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+            return host.AddressList.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
+        }
+        catch { return "127.0.0.1"; }
     }
 }
 

@@ -131,7 +131,12 @@ public class UniversalControlManager
         }
         else
         {
-            Console.WriteLine($"[MANAGER] Connection FAILED for target: {target}. Not a discovered code nor a valid IP.");
+            string errorMsg = $"Connection FAILED for target: {target}. Not a discovered code nor a valid IP.";
+            Console.WriteLine($"[MANAGER] {errorMsg}");
+            if (window != null)
+            {
+                window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }));
+            }
         }
     }
 
