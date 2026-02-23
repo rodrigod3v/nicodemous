@@ -53,9 +53,18 @@ public class NetworkService : IDisposable
                 try
                 {
                     var incoming = await _listener.AcceptTcpClientAsync(_cts.Token);
+                    incoming.NoDelay = true;
                     Console.WriteLine($"[NETWORK] Accepted connection from {incoming.Client.RemoteEndPoint}");
-                    // Handle each incoming connection in its own loop
-                    _ = Task.Run(() => ReceiveLoop(incoming, onPacketReceived, _cts.Token));
+
+                    // Save the stream so Send() works bidirectionally from the listener side too.
+                    // Replaces any stale previous connection.
+                    DisconnectClient();
+                    _client = incoming;
+                    _sendStream = incoming.GetStream();
+                    OnConnected?.Invoke();
+
+                    // Handle receive in its own task
+                    _ = Task.Run(() => ReceiveLoop(incoming, _sendStream, onPacketReceived, _cts.Token));
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
@@ -67,9 +76,8 @@ public class NetworkService : IDisposable
         }, _cts.Token);
     }
 
-    private static async Task ReceiveLoop(TcpClient tcp, Action<byte[]> onPacket, CancellationToken ct)
+    private static async Task ReceiveLoop(TcpClient tcp, NetworkStream stream, Action<byte[]> onPacket, CancellationToken ct)
     {
-        using var stream = tcp.GetStream();
         byte[] lenBuf = new byte[4];
         try
         {
