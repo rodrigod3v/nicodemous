@@ -227,7 +227,7 @@ public class InputService
         {
             e.SuppressEvent = true;
             // Capture scroll delta. On Windows/Mac, this is usually ±120 per notch or similar.
-            _onData(PacketSerializer.SerializeMouseWheel((short)e.Data.Amount));
+            _onData(PacketSerializer.SerializeMouseWheel((short)e.Data.Rotation));
         }
     }
 
