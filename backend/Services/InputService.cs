@@ -26,6 +26,7 @@ public class InputService : IDisposable
     private readonly SimpleGlobalHook _hook;
     private readonly IEventSimulator _simulator;
     private readonly Action<byte[]> _onData;
+    private readonly ClipboardService _clipboard;
 
     private bool _isRemoteMode = false;
     private short _screenWidth  = 1920;
@@ -72,11 +73,12 @@ public class InputService : IDisposable
     // Construction & lifecycle
     // -----------------------------------------------------------------------
 
-    public InputService(Action<byte[]> onData)
+    public InputService(Action<byte[]> onData, ClipboardService clipboard)
     {
         _hook = new SimpleGlobalHook();
         _simulator = new EventSimulator();
         _onData = onData;
+        _clipboard = clipboard;
 
         _hook.MouseMoved    += OnMouseMoved;
         _hook.MouseDragged  += OnMouseMoved;  // Also fires during button-held moves
@@ -280,6 +282,29 @@ public class InputService : IDisposable
 
         if (!_isRemoteMode) return;
         e.SuppressEvent = true;
+
+        // --- Clipboard interception ---
+        // Ctrl+V (Windows) or Meta+V (macOS): push our local clipboard to the remote machine
+        bool ctrlOrMeta = _ctrlDown || _metaDown;
+        if (ctrlOrMeta && e.Data.KeyCode == KeyCode.VcV)
+        {
+            string localText = _clipboard.GetText();
+            if (!string.IsNullOrEmpty(localText))
+            {
+                Console.WriteLine($"[INPUT] Ctrl+V intercepted — pushing clipboard ({localText.Length} chars) to remote.");
+                _onData(PacketSerializer.SerializeClipboardPush(localText));
+            }
+            return; // do NOT forward as a keystroke
+        }
+
+        // Ctrl+C (Windows) or Meta+C (macOS): request the remote's current clipboard
+        if (ctrlOrMeta && e.Data.KeyCode == KeyCode.VcC)
+        {
+            Console.WriteLine("[INPUT] Ctrl+C intercepted — requesting remote clipboard.");
+            _onData(PacketSerializer.SerializeClipboardPull());
+            // Still forward Ctrl+C so the remote app copies its selection
+            // (fall through to normal keydown below)
+        }
 
         if (!KeyMap.KeyCodeToId.TryGetValue(e.Data.KeyCode, out ushort keyId))
         {

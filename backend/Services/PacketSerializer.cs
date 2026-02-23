@@ -24,6 +24,8 @@ public enum PacketType : byte
     KeyDown      = 10, // 4 bytes: ushort keyId, ushort modifiers
     KeyUp        = 11, // 4 bytes: ushort keyId, ushort modifiers
     MouseRelMove = 12, // 4 bytes: short dx, short dy
+    ClipboardPush = 13, // N bytes: UTF-8 text — sender pushes clipboard content to receiver
+    ClipboardPull = 14, // 0 bytes — receiver requests sender's clipboard content
 }
 
 // Data transfer objects
@@ -34,6 +36,7 @@ public class MouseWheelData   { public short XDelta { get; set; } public short Y
 public class KeyEventData     { public ushort KeyId { get; set; } public ushort Modifiers { get; set; } }
 public class HandshakeData    { public string MachineName { get; set; } = ""; }
 public class AudioFrameData   { public byte[] Data { get; set; } = Array.Empty<byte>(); }
+public class ClipboardData    { public string Text { get; set; } = ""; }
 
 public static class PacketSerializer
 {
@@ -140,6 +143,28 @@ public static class PacketSerializer
         return Frame(buf);
     }
 
+    /// <summary>
+    /// Pushes clipboard text to the other machine.
+    /// Payload: UTF-8 encoded string.
+    /// </summary>
+    public static byte[] SerializeClipboardPush(string text)
+    {
+        byte[] textBytes = Encoding.UTF8.GetBytes(text ?? "");
+        byte[] buf = new byte[1 + textBytes.Length];
+        buf[0] = (byte)PacketType.ClipboardPush;
+        textBytes.CopyTo(buf, 1);
+        return Frame(buf);
+    }
+
+    /// <summary>
+    /// Requests the remote machine's current clipboard content.
+    /// No payload.
+    /// </summary>
+    public static byte[] SerializeClipboardPull()
+    {
+        return Frame(new byte[] { (byte)PacketType.ClipboardPull });
+    }
+
     // --- Deserializer -----------------------------------------------------
 
     /// <summary>
@@ -194,8 +219,12 @@ public static class PacketSerializer
             case PacketType.AudioFrame:
                 return (type, new AudioFrameData { Data = payload.ToArray() });
 
+            case PacketType.ClipboardPush:
+                return (type, new ClipboardData { Text = Encoding.UTF8.GetString(payload) });
+
             case PacketType.HandshakeAck:
             case PacketType.Ping:
+            case PacketType.ClipboardPull:
             default:
                 return (type, new object());
         }

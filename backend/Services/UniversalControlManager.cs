@@ -8,12 +8,13 @@ namespace Nicodemous.Backend.Services;
 
 public class UniversalControlManager : IDisposable
 {
-    private readonly InputService     _inputService;
-    private readonly NetworkService   _networkService;
-    private readonly InjectionService _injectionService;
-    private readonly AudioService         _audioService;
-    private readonly AudioReceiveService  _audioReceiveService;
-    private readonly DiscoveryService     _discoveryService;
+    private readonly InputService        _inputService;
+    private readonly NetworkService      _networkService;
+    private readonly InjectionService    _injectionService;
+    private readonly ClipboardService    _clipboardService;
+    private readonly AudioService        _audioService;
+    private readonly AudioReceiveService _audioReceiveService;
+    private readonly DiscoveryService    _discoveryService;
 
     private bool _isRemoteControlActive = false;
     private PhotinoWindow? _window;
@@ -27,9 +28,10 @@ public class UniversalControlManager : IDisposable
 
     public UniversalControlManager()
     {
-        _injectionService    = new InjectionService();
+        _clipboardService    = new ClipboardService();
+        _injectionService    = new InjectionService(_clipboardService);
         _networkService      = new NetworkService(8890);
-        _inputService        = new InputService(SendLocalData);
+        _inputService        = new InputService(SendLocalData, _clipboardService);
         _audioService        = new AudioService(HandleAudioCaptured);
         _audioReceiveService = new AudioReceiveService();
         _discoveryService    = new DiscoveryService(Environment.MachineName);
@@ -246,6 +248,20 @@ public class UniversalControlManager : IDisposable
                     Console.WriteLine($"[MANAGER] Handshake from '{hs.MachineName}'. Sending ACK.");
                     _networkService.Send(PacketSerializer.SerializeHandshakeAck());
                     SendUiMessage("connection_status", $"Controlled by {hs.MachineName}");
+                    break;
+
+                case PacketType.ClipboardPush:
+                    // Remote is pushing clipboard text to us — write it to our local clipboard
+                    var cbPush = (ClipboardData)payload;
+                    Console.WriteLine($"[MANAGER] ClipboardPush received ({cbPush.Text.Length} chars).");
+                    _clipboardService.SetText(cbPush.Text);
+                    break;
+
+                case PacketType.ClipboardPull:
+                    // Remote is requesting our clipboard — send it back
+                    Console.WriteLine("[MANAGER] ClipboardPull received — sending our clipboard.");
+                    string ourClipboard = _clipboardService.GetText();
+                    _networkService.Send(PacketSerializer.SerializeClipboardPush(ourClipboard));
                     break;
 
                 case PacketType.HandshakeAck:

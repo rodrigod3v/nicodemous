@@ -1,82 +1,71 @@
-# if WINDOWS
+#if WINDOWS
 using System.Windows.Forms;
-# else
+#else
 using TextCopy;
-# endif
-using System.Text.Json;
+#endif
 
 namespace Nicodemous.Backend.Services;
 
+/// <summary>
+/// Cross-platform clipboard read/write.
+/// Polling has been removed — clipboard is now read on-demand (triggered by Ctrl+C/V interception).
+/// </summary>
 public class ClipboardService
 {
-    private readonly Action<string> _onClipboardChanged;
     private string _lastText = "";
-# if !WINDOWS
+
+#if !WINDOWS
     private readonly IClipboard _clipboard = new Clipboard();
-# endif
+#endif
 
-    public ClipboardService(Action<string> onClipboardChanged)
-    {
-        _onClipboardChanged = onClipboardChanged;
-    }
+    // -----------------------------------------------------------------------
+    // Public API
+    // -----------------------------------------------------------------------
 
-    public void StartMonitoring()
+    /// <summary>Returns the current clipboard text, or empty string if unavailable.</summary>
+    public string GetText()
     {
-        Task.Run(async () =>
-        {
-            while (true)
-            {
-                await Task.Delay(1000); // Poll every second for simplicity in this MVP
-                CheckClipboard();
-            }
-        });
-    }
-
-    private void CheckClipboard()
-    {
-# if WINDOWS
-        // Must be in STA thread for WinForms Clipboard access
+#if WINDOWS
+        string result = "";
         var thread = new Thread(() =>
         {
-            if (Clipboard.ContainsText())
-            {
-                string currentText = Clipboard.GetText();
-                if (currentText != _lastText)
-                {
-                    _lastText = currentText;
-                    var data = new { type = "clipboard", content = currentText };
-                    _onClipboardChanged(JsonSerializer.Serialize(data));
-                }
-            }
+            try { result = System.Windows.Forms.Clipboard.ContainsText()
+                    ? System.Windows.Forms.Clipboard.GetText()
+                    : ""; }
+            catch { result = ""; }
         });
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         thread.Join();
-# else
-        string? currentText = _clipboard.GetText();
-        if (currentText != null && currentText != _lastText)
-        {
-            _lastText = currentText;
-            var data = new { type = "clipboard", content = currentText };
-            _onClipboardChanged(JsonSerializer.Serialize(data));
-        }
-# endif
+        return result;
+#else
+        try { return _clipboard.GetText() ?? ""; }
+        catch { return ""; }
+#endif
     }
 
-    public void SetClipboard(string text)
+    /// <summary>
+    /// Writes text to the local clipboard.
+    /// Skips the write if the text matches what we last set (avoids feedback loops).
+    /// </summary>
+    public void SetText(string text)
     {
-# if WINDOWS
-        var thread = new Thread(() =>
-        {
-            Clipboard.SetText(text);
-            _lastText = text;
-        });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-# else
-        _clipboard.SetText(text);
+        if (text == _lastText) return;
         _lastText = text;
-# endif
+
+#if WINDOWS
+        var thread = new Thread(() =>
+        {
+            try { System.Windows.Forms.Clipboard.SetText(text); }
+            catch (Exception ex) { Console.WriteLine($"[CLIPBOARD] SetText error: {ex.Message}"); }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+#else
+        try { _clipboard.SetText(text); }
+        catch (Exception ex) { Console.WriteLine($"[CLIPBOARD] SetText error: {ex.Message}"); }
+#endif
+        Console.WriteLine($"[CLIPBOARD] Set ({text.Length} chars)");
     }
 }

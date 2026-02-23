@@ -14,18 +14,57 @@ namespace Nicodemous.Backend.Services;
 public class InjectionService
 {
     private readonly IEventSimulator _simulator;
+    private readonly ClipboardService _clipboardService;
     private short _screenWidth  = 1920;
     private short _screenHeight = 1080;
 
-    public InjectionService()
+    public InjectionService(ClipboardService clipboardService)
     {
-        _simulator = new EventSimulator();
+        _simulator        = new EventSimulator();
+        _clipboardService = clipboardService;
     }
 
     public void SetScreenSize(short w, short h)
     {
         _screenWidth = w;
         _screenHeight = h;
+    }
+
+    // -----------------------------------------------------------------------
+    // Clipboard
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Writes <paramref name="text"/> to the local clipboard then simulates
+    /// the platform-appropriate paste shortcut so the focused app receives it.
+    /// Windows: Ctrl+V / macOS: Cmd+V (Meta+V via SharpHook VcLeftMeta).
+    /// </summary>
+    public void InjectClipboardAndPaste(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        try
+        {
+            // 1. Write text to clipboard of this machine
+            _clipboardService.SetText(text);
+
+            // 2. Simulate the paste shortcut
+            Task.Delay(50).Wait(); // tiny delay so clipboard write completes
+
+            bool isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+            KeyCode modifier = isMac ? KeyCode.VcLeftMeta : KeyCode.VcLeftControl;
+
+            _simulator.SimulateKeyPress(modifier);
+            _simulator.SimulateKeyPress(KeyCode.VcV);
+            _simulator.SimulateKeyRelease(KeyCode.VcV);
+            _simulator.SimulateKeyRelease(modifier);
+
+            Console.WriteLine($"[INJECT] Clipboard paste injected ({text.Length} chars, {(isMac ? "Cmd" : "Ctrl")}+V)");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INJECT] InjectClipboardAndPaste error: {ex.Message}");
+        }
     }
 
     // -----------------------------------------------------------------------
