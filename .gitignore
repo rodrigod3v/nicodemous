@@ -39,3 +39,6 @@ Thumbs.db
 # --- Project Guides ---
 GUIDE_RELEASE.md
 GUIDE_LOCAL_SETUP.md
+
+# --- Artifacts ---
+publish/

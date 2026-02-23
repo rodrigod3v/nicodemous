@@ -15,8 +15,9 @@ if (!(Test-Path "frontend/node_modules")) {
 Write-Host "--- Iniciando Servidor Vite (Frontend)... ---" -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd frontend; npm run dev"
 
-# 3. Pequena pausa para o Vite preparar o servidor
-Start-Sleep -Seconds 2
+# 3. Aguardar Vite ficar pronto (importante!)
+Write-Host "--- Aguardando Vite inicializar (5s)... ---" -ForegroundColor Yellow
+Start-Sleep -Seconds 5
 
 # 4. Iniciar o Backend na janela atual
 Write-Host "--- Iniciando Backend (.NET)... ---" -ForegroundColor Green
