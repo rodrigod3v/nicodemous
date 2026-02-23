@@ -30,6 +30,7 @@ public class InputService
     private double _virtualY;
     private bool _isSuppressingEvents = false;
     private double _accumulatedReturnDelta = 0;
+    private double _sensitivity = 0.7; // Adjustable scaling for remote movement
 
     public event Action<ScreenEdge>? OnEdgeHit;
     public event Action? OnReturn;
@@ -55,6 +56,7 @@ public class InputService
         _hook.MouseMoved += OnMouseMoved;
         _hook.MousePressed += OnMousePressed;
         _hook.MouseReleased += OnMouseReleased;
+        _hook.MouseWheel += OnMouseWheel;
         _hook.KeyPressed += OnKeyPressed;
         _hook.KeyReleased += OnKeyReleased;
     }
@@ -150,9 +152,9 @@ public class InputService
         // If no movement relative to sticky point, nothing to do
         if (dx == 0 && dy == 0) return;
 
-        // Update virtual position
-        _virtualX += dx;
-        _virtualY += dy;
+        // Update virtual position with sensitivity scaling
+        _virtualX += dx * _sensitivity;
+        _virtualY += dy * _sensitivity;
 
         // Clamp virtual position to reasonable bounds (can go slightly off-screen if desired, 
         // but here we clamp to 0..Width/Height for simplicity)
@@ -219,6 +221,16 @@ public class InputService
         }
     }
 
+    private void OnMouseWheel(object? sender, MouseWheelHookEventArgs e)
+    {
+        if (_isRemoteMode)
+        {
+            e.SuppressEvent = true;
+            // Capture scroll delta. On Windows/Mac, this is usually ±120 per notch or similar.
+            _onData(PacketSerializer.SerializeMouseWheel((short)e.Data.Amount));
+        }
+    }
+
     private void OnKeyPressed(object? sender, KeyboardHookEventArgs e)
     {
         if (_isRemoteMode)
@@ -234,5 +246,11 @@ public class InputService
         {
             e.SuppressEvent = true;
         }
+    }
+
+    public void SetSensitivity(double sensitivity)
+    {
+        _sensitivity = sensitivity;
+        Console.WriteLine($"InputService: Sensitivity set to {sensitivity}");
     }
 }

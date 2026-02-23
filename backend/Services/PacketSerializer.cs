@@ -13,13 +13,15 @@ public enum PacketType : byte
     Handshake = 5,
     HandshakeAck = 6,
     MouseDown = 7,
-    MouseUp = 8
+    MouseUp = 8,
+    MouseWheel = 9
 }
 
 public class MouseMoveData { public ushort X { get; set; } public ushort Y { get; set; } }
 public class MouseClickData { public string Button { get; set; } = "Left"; }
 public class KeyPressData { public string Key { get; set; } = ""; }
 public class HandshakeData { public string MachineName { get; set; } = ""; }
+public class MouseWheelData { public short Delta { get; set; } }
 
 public static class PacketSerializer
 {
@@ -56,6 +58,14 @@ public static class PacketSerializer
         byte[] buffer = new byte[1 + buttonBytes.Length];
         buffer[0] = (byte)PacketType.MouseUp;
         Buffer.BlockCopy(buttonBytes, 0, buffer, 1, buttonBytes.Length);
+        return buffer;
+    }
+
+    public static byte[] SerializeMouseWheel(short delta)
+    {
+        byte[] buffer = new byte[3];
+        buffer[0] = (byte)PacketType.MouseWheel;
+        BitConverter.TryWriteBytes(buffer.AsSpan(1), delta);
         return buffer;
     }
 
@@ -112,6 +122,9 @@ public static class PacketSerializer
             case PacketType.MouseDown:
             case PacketType.MouseUp:
                 return (type, new MouseClickData { Button = Encoding.UTF8.GetString(payload) });
+
+            case PacketType.MouseWheel:
+                return (type, new MouseWheelData { Delta = BitConverter.ToInt16(payload) });
 
             default:
                 return (type, new { });

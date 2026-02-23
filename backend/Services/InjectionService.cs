@@ -53,6 +53,11 @@ public class InjectionService
                 string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
                 InjectMouseUp(button);
             }
+            else if (type == "mouse_wheel")
+            {
+                short delta = doc.RootElement.GetProperty("delta").GetInt16();
+                InjectMouseWheel(delta);
+            }
             else if (type == "key_press")
             {
                 string key = doc.RootElement.GetProperty("key").GetString() ?? "";
@@ -125,6 +130,19 @@ public class InjectionService
         catch (Exception ex)
         {
             Console.WriteLine($"[INJECT] Mouse Up Error: {ex.Message}");
+        }
+    }
+
+    public void InjectMouseWheel(short delta)
+    {
+        try 
+        {
+            Console.WriteLine($"[INJECT] Mouse Wheel: {delta}");
+            _simulator.SimulateMouseWheel(delta);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INJECT] Mouse Wheel Error: {ex.Message}");
         }
     }
 

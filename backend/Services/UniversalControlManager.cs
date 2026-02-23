@@ -263,6 +263,10 @@ public class UniversalControlManager
                 var upData = (MouseClickData)payload;
                 _injectionService.InjectMouseUp(upData.Button);
                 break;
+            case PacketType.MouseWheel:
+                var wheelData = (MouseWheelData)payload;
+                _injectionService.InjectMouseWheel(wheelData.Delta);
+                break;
             case PacketType.KeyPress:
                 var keyData = (KeyPressData)payload;
                 _injectionService.InjectKeyPress(keyData.Key);
@@ -304,10 +308,11 @@ public class UniversalControlManager
         }
     }
 
-    public void UpdateSettings(string edge, bool lockInput)
+    public void UpdateSettings(string edge, bool lockInput, double sensitivity = 0.7)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
+        _inputService.SetSensitivity(sensitivity);
     }
 
     public void SetRemoteControlState(bool active)

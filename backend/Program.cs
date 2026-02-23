@@ -88,7 +88,8 @@ class Program
                 case "update_settings":
                     string activeEdge = doc.RootElement.GetProperty("edge").GetString() ?? "Right";
                     bool lockInput = doc.RootElement.GetProperty("lockInput").GetBoolean();
-                    _controlManager!.UpdateSettings(activeEdge, lockInput);
+                    double sensitivity = doc.RootElement.TryGetProperty("sensitivity", out var sensProp) ? sensProp.GetDouble() : 0.7;
+                    _controlManager!.UpdateSettings(activeEdge, lockInput, sensitivity);
                     break;
             }
         }
