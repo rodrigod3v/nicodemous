@@ -15,13 +15,24 @@ public class UniversalControlManager
     private readonly DiscoveryService _discoveryService;
     
     private bool _isRemoteControlActive = false;
+    private PhotinoWindow? _window;
 
     public string PairingCode => _discoveryService.PairingCode;
+
+    public void SetWindow(PhotinoWindow window)
+    {
+        _window = window;
+        _discoveryService.OnDeviceDiscovered += (devices) => {
+            _window.Invoke(() => {
+                _window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
+            });
+        };
+    }
 
     public UniversalControlManager()
     {
         _injectionService = new InjectionService();
-        _networkService = new NetworkService(8888);
+        _networkService = new NetworkService(8890); // Switched to 8890 to avoid 8888 conflicts
         _inputService = new InputService(HandleLocalData);
         _audioService = new AudioService(HandleAudioCaptured);
         _audioReceiveService = new AudioReceiveService();
@@ -29,6 +40,7 @@ public class UniversalControlManager
 
         _networkService.StartListening(HandleRemoteData);
         _inputService.OnEdgeHit += HandleEdgeHit;
+        _inputService.OnReturn += () => SetRemoteControlState(false);
 
         // Detect Primary Screen Size based on OS
         DetectScreenSize();
@@ -57,11 +69,45 @@ public class UniversalControlManager
         }
         else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
         {
-            // On macOS, SharpHook or Photino could provide this, but for now we'll use a standard fallback or detect via Photino if possible.
-            // Photino doesn't expose Screen directly, so we use a common Mac resolution or ideally SharpHook's hook can tell us.
-            // For now, let's stick with 1920x1080 as default on Mac unless we implement a native P/Invoke.
-            width = 1440; // Common Retina base
-            height = 900;
+            try 
+            {
+                // Run system_profiler to get the actual display resolution on Mac
+                var proc = new System.Diagnostics.Process {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo {
+                        FileName = "system_profiler",
+                        Arguments = "SPDisplaysDataType",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                proc.Start();
+                string output = proc.StandardOutput.ReadToEnd();
+                proc.WaitForExit();
+
+                // Look for "Resolution: 2560 x 1600" or similar
+                var lines = output.Split('\n');
+                foreach (var line in lines)
+                {
+                    if (line.Contains("Resolution:"))
+                    {
+                        var parts = line.Split(':')[1].Trim().Split(' ');
+                        // Parts might be ["2560", "x", "1600"] or ["2560", "x", "1600", "@", "60Hz"]
+                        if (parts.Length >= 3)
+                        {
+                            width = short.Parse(parts[0]);
+                            height = short.Parse(parts[2]);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MANAGER] Mac Resolution Detection Failed: {ex.Message}. Using fallback 1440x900.");
+                width = 1440;
+                height = 900;
+            }
         }
 
         _inputService.SetScreenSize(width, height);
@@ -71,11 +117,10 @@ public class UniversalControlManager
 
     private void HandleEdgeHit(ScreenEdge edge)
     {
-        // When edge is hit, we AUTOMATICALLY enter remote mode if a device is connected
-        if (!_isRemoteControlActive)
+        // When edge is hit, we AUTOMATICALLY enter remote mode IF a target is set
+        if (!_isRemoteControlActive && _networkService.HasTarget)
         {
             SetRemoteControlState(true);
-            // Optionally send a "Focus" packet to remote
         }
     }
 
@@ -94,17 +139,48 @@ public class UniversalControlManager
         _discoveryService.Stop();
     }
 
-    public void ConnectByCode(string code, PhotinoWindow? window = null)
+    public void Connect(string target, PhotinoWindow? window = null)
     {
-        var device = _discoveryService.GetDiscoveredDevices().FirstOrDefault(d => d.Code == code);
+        string? ip = null;
+
+        // Try to resolve as Pairing Code first
+        var device = _discoveryService.GetDiscoveredDevices().FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
         if (device != null)
         {
-            _networkService.SetTarget(device.IPAddress, 8888);
+            ip = device.Ip;
+            Console.WriteLine($"Resolved Pairing Code {target} to {ip} ({device.Name})");
+        }
+        else if (System.Net.IPAddress.TryParse(target, out _))
+        {
+            // It's a valid IP address
+            ip = target;
+        }
+
+        if (ip != null)
+        {
+            _networkService.SetTarget(ip, 8890);
+            
+            // Send Handshake so the target knows we are controlling it
+            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
+
             if (window != null)
             {
-                window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
+                window.Invoke(() => {
+                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
+                });
             }
-            Console.WriteLine($"Connected to {device.Name} ({device.IPAddress}) via code {code}");
+            Console.WriteLine($"[MANAGER] Connection target set to {ip}");
+        }
+        else
+        {
+            string errorMsg = $"Connection FAILED for target: {target}. Not a discovered code nor a valid IP.";
+            Console.WriteLine($"[MANAGER] {errorMsg}");
+            if (window != null)
+            {
+                window.Invoke(() => {
+                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }));
+                });
+            }
         }
     }
 
@@ -124,7 +200,14 @@ public class UniversalControlManager
         }
     }
 
-    public List<DiscoveredDevice> GetDevices() => _discoveryService.GetDiscoveredDevices();
+    public List<DiscoveredDevice> GetDevices() 
+    {
+        // Trigger an immediate broadcast to refresh the network
+        _discoveryService.BroadcastNow();
+        
+        // Returning what we currently have
+        return _discoveryService.GetDiscoveredDevices();
+    }
 
     public void ToggleService(string name, bool enabled)
     {
@@ -145,6 +228,12 @@ public class UniversalControlManager
     {
         if (!_isRemoteControlActive) return;
         _networkService.Send(data);
+        
+        // Occasionally send a Handshake/Ping to keep the remote side aware of who is controlling it
+        if (DateTime.Now.Second % 5 == 0 && DateTime.Now.Millisecond < 50)
+        {
+             _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
+        }
     }
 
     private void HandleAudioCaptured(byte[] data)
@@ -159,21 +248,71 @@ public class UniversalControlManager
         switch (type)
         {
             case PacketType.MouseMove:
-                dynamic moveData = payload;
-                _injectionService.InjectMouseMove(moveData.x, moveData.y);
+                var moveData = (MouseMoveData)payload;
+                _injectionService.InjectMouseMove(moveData.X, moveData.Y);
                 break;
             case PacketType.MouseClick:
-                dynamic clickData = payload;
-                _injectionService.InjectMouseClick(clickData.button);
+                var clickData = (MouseClickData)payload;
+                _injectionService.InjectMouseClick(clickData.Button);
+                break;
+            case PacketType.MouseDown:
+                var downData = (MouseClickData)payload;
+                _injectionService.InjectMouseDown(downData.Button);
+                break;
+            case PacketType.MouseUp:
+                var upData = (MouseClickData)payload;
+                _injectionService.InjectMouseUp(upData.Button);
+                break;
+            case PacketType.MouseWheel:
+                var wheelData = (MouseWheelData)payload;
+                _injectionService.InjectMouseWheel(wheelData.Delta);
                 break;
             case PacketType.KeyPress:
-                dynamic keyData = payload;
-                _injectionService.InjectKeyPress(keyData.key);
+                var keyData = (KeyPressData)payload;
+                _injectionService.InjectKeyPress(keyData.Key);
                 break;
             case PacketType.AudioFrame:
                 _audioReceiveService.ProcessFrame((byte[])payload);
                 break;
+            case PacketType.Handshake:
+                var handshakeData = (HandshakeData)payload;
+                string remoteName = handshakeData.MachineName;
+                
+                if (_window != null)
+                {
+                    _window.Invoke(() => {
+                        _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                            type = "connection_status", 
+                            status = $"Controlled by {remoteName}" 
+                        }));
+                    });
+                }
+
+                // Send ACK back so the controller knows we received it
+                _networkService.Send(new byte[] { (byte)PacketType.HandshakeAck });
+                Console.WriteLine($"[MANAGER] Remote handshake received from: {remoteName}. Sending ACK.");
+                break;
+
+            case PacketType.HandshakeAck:
+                Console.WriteLine("[MANAGER] Handshake ACK received. Connection confirmed.");
+                if (_window != null)
+                {
+                    _window.Invoke(() => {
+                        _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                            type = "connection_status", 
+                            status = "Connected (Verified)" 
+                        }));
+                    });
+                }
+                break;
         }
+    }
+
+    public void UpdateSettings(string edge, bool lockInput, double sensitivity = 0.7)
+    {
+        _inputService.SetActiveEdge(edge);
+        _inputService.SetInputLock(lockInput);
+        _inputService.SetSensitivity(sensitivity);
     }
 
     public void SetRemoteControlState(bool active)

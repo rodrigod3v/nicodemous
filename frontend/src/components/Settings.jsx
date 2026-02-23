@@ -1,12 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const Settings = () => {
     const [config, setConfig] = useState({
-        primaryMonitor: 'Monitor 1 (1920x1080)',
+        primaryMonitor: 'Monitor 1 (Primary)',
         borderSide: 'Right',
         sensitivity: 'High',
-        autoConnect: true
+        autoConnect: true,
+        lockInput: true
     });
+
+    // Sync settings with backend whenever they change
+    useEffect(() => {
+        const message = JSON.stringify({
+            type: 'update_settings',
+            edge: config.borderSide,
+            lockInput: config.lockInput
+        });
+
+        if (window.external && window.external.sendMessage) {
+            window.external.sendMessage(message);
+        } else if (window.photino && window.photino.send) {
+            window.photino.send(message);
+        } else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+            window.chrome.webview.postMessage(message);
+        }
+    }, [config.borderSide, config.lockInput]);
+
+    const toggleLock = () => {
+        setConfig(prev => ({ ...prev, lockInput: !prev.lockInput }));
+    };
 
     return (
         <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
@@ -82,10 +104,21 @@ const Settings = () => {
                     <h3 style={{ margin: 0 }}>Advanced Input Locking</h3>
                     <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Prevent local mouse movement while controlling remote.</p>
                 </div>
-                <div style={{
-                    width: '52px', height: '28px', borderRadius: '30px', backgroundColor: 'var(--accent-primary)', position: 'relative', cursor: 'pointer'
-                }}>
-                    <div style={{ width: '20px', height: '20px', borderRadius: '50%', backgroundColor: 'white', position: 'absolute', top: '4px', right: '4px' }} />
+                <div
+                    onClick={toggleLock}
+                    style={{
+                        width: '52px', height: '28px', borderRadius: '30px',
+                        backgroundColor: config.lockInput ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
+                        position: 'relative', cursor: 'pointer',
+                        transition: 'background-color 0.3s ease'
+                    }}
+                >
+                    <div style={{
+                        width: '20px', height: '20px', borderRadius: '50%', backgroundColor: 'white',
+                        position: 'absolute', top: '4px',
+                        left: config.lockInput ? '28px' : '4px',
+                        transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }} />
                 </div>
             </div>
         </div>

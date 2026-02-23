@@ -14,6 +14,9 @@ public class DiscoveryService
     private readonly string _pairingCode;
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
+    private CancellationTokenSource? _broadcastCts;
+
+    public event Action<List<DiscoveredDevice>>? OnDeviceDiscovered;
 
     public string PairingCode => _pairingCode;
 
@@ -34,32 +37,55 @@ public class DiscoveryService
     {
         if (_isRunning) return;
         _isRunning = true;
+        _broadcastCts = new CancellationTokenSource();
 
-        Task.Run(RunBroadcaster);
+        Task.Run(() => RunBroadcaster(_broadcastCts.Token));
         Task.Run(RunListener);
+    }
+
+    public void BroadcastNow()
+    {
+        _broadcastCts?.Cancel();
     }
 
     public void Stop()
     {
         _isRunning = false;
+        _broadcastCts?.Cancel();
     }
 
-    private async Task RunBroadcaster()
+    private async Task RunBroadcaster(CancellationToken token)
     {
-        using var client = new UdpClient();
         var endPoint = new IPEndPoint(IPAddress.Parse(MulticastGroup), DiscoveryPort);
         
-        var packet = JsonSerializer.Serialize(new { 
-            name = _deviceName, 
-            code = _pairingCode, 
-            ip = GetLocalIPAddress() 
-        });
-        byte[] data = Encoding.UTF8.GetBytes(packet);
-
         while (_isRunning)
         {
-            await client.SendAsync(data, data.Length, endPoint);
-            await Task.Delay(5000); // Broadcast every 5s
+            try 
+            {
+                using var client = new UdpClient();
+                var packet = JsonSerializer.Serialize(new { 
+                    name = _deviceName, 
+                    code = _pairingCode, 
+                    ip = GetLocalIPAddress() 
+                });
+                byte[] data = Encoding.UTF8.GetBytes(packet);
+
+                await client.SendAsync(data, data.Length, endPoint);
+                
+                // Wait 5s or until broadcast is manually triggered
+                await Task.Delay(5000, token);
+            }
+            catch (TaskCanceledException)
+            {
+                // Reset CTS for next manual trigger
+                _broadcastCts = new CancellationTokenSource();
+                token = _broadcastCts.Token;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Broadcast Error: {ex.Message}");
+                await Task.Delay(1000); // Backoff
+            }
         }
     }
 
@@ -80,11 +106,25 @@ public class DiscoveryService
                 
                 if (device != null && device.Code != _pairingCode)
                 {
+                    bool listChanged = false;
                     lock (_discoveredDevices)
                     {
                         var existing = _discoveredDevices.FirstOrDefault(d => d.Code == device.Code);
-                        if (existing == null) _discoveredDevices.Add(device);
-                        else existing.IPAddress = device.IPAddress;
+                        if (existing == null) 
+                        {
+                            _discoveredDevices.Add(device);
+                            listChanged = true;
+                        }
+                        else if (existing.Ip != device.Ip)
+                        {
+                            existing.Ip = device.Ip;
+                            listChanged = true;
+                        }
+                    }
+
+                    if (listChanged)
+                    {
+                        OnDeviceDiscovered?.Invoke(GetDiscoveredDevices());
                     }
                 }
             }
@@ -96,7 +136,7 @@ public class DiscoveryService
     {
         lock (_discoveredDevices)
         {
-            return _discoveredDevices.FirstOrDefault(d => d.Code.Equals(code, StringComparison.OrdinalIgnoreCase))?.IPAddress;
+            return _discoveredDevices.FirstOrDefault(d => d.Code.Equals(code, StringComparison.OrdinalIgnoreCase))?.Ip;
         }
     }
 
@@ -108,16 +148,59 @@ public class DiscoveryService
         }
     }
 
+    public void ClearDiscoveredDevices()
+    {
+        lock (_discoveredDevices)
+        {
+            _discoveredDevices.Clear();
+        }
+    }
+
     private string GetLocalIPAddress()
     {
-        var host = Dns.GetHostEntry(Dns.GetHostName());
-        return host.AddressList.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
+        try
+        {
+            var interfaces = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
+            foreach (var ni in interfaces)
+            {
+                // Skip virtual, loopback and non-up interfaces
+                if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
+                if (ni.Description.Contains("Virtual", StringComparison.OrdinalIgnoreCase)) continue;
+                if (ni.Description.Contains("Pseudo", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var props = ni.GetIPProperties();
+                foreach (var addr in props.UnicastAddresses)
+                {
+                    if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        string ip = addr.Address.ToString();
+                        if (!string.IsNullOrEmpty(ip) && ip != "127.0.0.1")
+                        {
+                            return ip;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DISCOVERY] IP Detection Error: {ex.Message}");
+        }
+
+        // Final fallback
+        try 
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+            return host.AddressList.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)?.ToString() ?? "127.0.0.1";
+        }
+        catch { return "127.0.0.1"; }
     }
 }
 
 public class DiscoveredDevice
 {
     public string Name { get; set; } = "";
-    public string IPAddress { get; set; } = "";
+    public string Ip { get; set; } = "";
     public string Code { get; set; } = "";
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using Photino.NET;
@@ -30,6 +30,7 @@ class Program
 
         // Initialize Central Manager
         _controlManager = new UniversalControlManager();
+        _controlManager.SetWindow(window);
 
         // UI Callbacks
         window.RegisterWebMessageReceivedHandler((object? sender, string message) => 
@@ -58,14 +59,17 @@ class Program
 
     private static void ProcessUiMessage(string message, PhotinoWindow window)
     {
+        Console.WriteLine($"[BACKEND] Received UI Message: {message}");
         try 
         {
             var doc = JsonDocument.Parse(message);
             string? type = doc.RootElement.GetProperty("type").GetString();
+            Console.WriteLine($"[BACKEND] Message Type: {type}");
 
             switch (type)
             {
                 case "start_discovery":
+                    Console.WriteLine("[BACKEND] Starting device discovery...");
                     var devices = _controlManager!.GetDevices();
                     window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
                     break;
@@ -78,8 +82,14 @@ class Program
                     string ipOrCode = doc.RootElement.TryGetProperty("ip", out var ipProp) ? ipProp.GetString() ?? "" : "";
                     if (!string.IsNullOrEmpty(ipOrCode))
                     {
-                        _controlManager!.ConnectByCode(ipOrCode, window);
+                        _controlManager!.Connect(ipOrCode, window);
                     }
+                    break;
+                case "update_settings":
+                    string activeEdge = doc.RootElement.GetProperty("edge").GetString() ?? "Right";
+                    bool lockInput = doc.RootElement.GetProperty("lockInput").GetBoolean();
+                    double sensitivity = doc.RootElement.TryGetProperty("sensitivity", out var sensProp) ? sensProp.GetDouble() : 0.7;
+                    _controlManager!.UpdateSettings(activeEdge, lockInput, sensitivity);
                     break;
             }
         }

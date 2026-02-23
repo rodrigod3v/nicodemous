@@ -21,5 +21,5 @@ Start-Sleep -Seconds 5
 
 # 4. Iniciar o Backend na janela atual
 Write-Host "--- Iniciando Backend (.NET)... ---" -ForegroundColor Green
-Set-Location backend
+cd backend
 dotnet run -f net8.0-windows
