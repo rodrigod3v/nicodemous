@@ -9,6 +9,7 @@ task_boundary_history.json
 # --- .NET / Backend ---
 [Bb]in/
 [Oo]bj/
+[Ww]wwroot/
 *.user
 *.userosscache
 *.sln.docstates
@@ -34,3 +35,7 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
+
+# --- Project Guides ---
+GUIDE_RELEASE.md
+GUIDE_LOCAL_SETUP.md

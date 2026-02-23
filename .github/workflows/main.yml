@@ -19,6 +19,24 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Prepare wwwroot
+        run: |
+          mkdir -p backend/wwwroot
+          cp -r frontend/dist/* backend/wwwroot/
+
       - name: Publish Windows Standalone
         run: dotnet publish backend/nicodemous_backend.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -f net8.0-windows -o ./publish/win
 
@@ -38,6 +56,24 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Prepare wwwroot
+        run: |
+          mkdir -p backend/wwwroot
+          cp -r frontend/dist/* backend/wwwroot/
 
       - name: Publish macOS Standalone
         run: dotnet publish backend/nicodemous_backend.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -f net8.0 -o ./publish/mac

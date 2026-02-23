@@ -15,7 +15,12 @@ class Program
     static void Main(string[] args)
     {
         string windowTitle = "Nicodemous - Universal Control";
+        
+#if DEBUG
         string initialUrl = "http://localhost:5173"; 
+#else
+        string initialUrl = "wwwroot/index.html";
+#endif
 
         var window = new PhotinoWindow()
             .SetTitle(windowTitle)
