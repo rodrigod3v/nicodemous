@@ -1,4 +1,8 @@
+# if WINDOWS
 using System.Windows.Forms;
+# else
+using TextCopy;
+# endif
 using System.Text.Json;
 
 namespace Nicodemous.Backend.Services;
@@ -7,6 +11,9 @@ public class ClipboardService
 {
     private readonly Action<string> _onClipboardChanged;
     private string _lastText = "";
+# if !WINDOWS
+    private readonly IClipboard _clipboard = new Clipboard();
+# endif
 
     public ClipboardService(Action<string> onClipboardChanged)
     {
@@ -27,6 +34,7 @@ public class ClipboardService
 
     private void CheckClipboard()
     {
+# if WINDOWS
         // Must be in STA thread for WinForms Clipboard access
         var thread = new Thread(() =>
         {
@@ -44,10 +52,20 @@ public class ClipboardService
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         thread.Join();
+# else
+        string? currentText = _clipboard.GetText();
+        if (currentText != null && currentText != _lastText)
+        {
+            _lastText = currentText;
+            var data = new { type = "clipboard", content = currentText };
+            _onClipboardChanged(JsonSerializer.Serialize(data));
+        }
+# endif
     }
 
     public void SetClipboard(string text)
     {
+# if WINDOWS
         var thread = new Thread(() =>
         {
             Clipboard.SetText(text);
@@ -56,5 +74,9 @@ public class ClipboardService
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         thread.Join();
+# else
+        _clipboard.SetText(text);
+        _lastText = text;
+# endif
     }
 }
