@@ -81,6 +81,11 @@ class Program
                         _controlManager!.ConnectByCode(ipOrCode, window);
                     }
                     break;
+                case "update_settings":
+                    string activeEdge = doc.RootElement.GetProperty("edge").GetString() ?? "Right";
+                    bool lockInput = doc.RootElement.GetProperty("lockInput").GetBoolean();
+                    _controlManager!.UpdateSettings(activeEdge, lockInput);
+                    break;
             }
         }
         catch (Exception ex)

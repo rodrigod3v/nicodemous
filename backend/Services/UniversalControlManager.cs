@@ -176,6 +176,12 @@ public class UniversalControlManager
         }
     }
 
+    public void UpdateSettings(string edge, bool lockInput)
+    {
+        _inputService.SetActiveEdge(edge);
+        _inputService.SetInputLock(lockInput);
+    }
+
     public void SetRemoteControlState(bool active)
     {
         _isRemoteControlActive = active;

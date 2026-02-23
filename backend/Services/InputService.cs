@@ -22,8 +22,21 @@ public class InputService
     private short _screenWidth = 1920;
     private short _screenHeight = 1080;
     private ScreenEdge _activeEdge = ScreenEdge.Right; // Default: Right edge crosses to remote
+    private bool _isInputLocked = true; // Default: Lock mouse to edge when in remote mode
 
     public event Action<ScreenEdge>? OnEdgeHit;
+
+    public void SetActiveEdge(string edge)
+    {
+        _activeEdge = Enum.TryParse<ScreenEdge>(edge, true, out var result) ? result : ScreenEdge.Right;
+        Console.WriteLine($"InputService: Active Edge set to {_activeEdge}");
+    }
+
+    public void SetInputLock(bool locked)
+    {
+        _isInputLocked = locked;
+        Console.WriteLine($"InputService: Input Lock set to {locked}");
+    }
 
     public InputService(Action<byte[]> onData)
     {
@@ -89,6 +102,8 @@ public class InputService
 
     private void HandleMouseLock(short x, short y)
     {
+        if (!_isInputLocked) return;
+
         // Simple lock: if in remote mode, keep mouse at the edge it crossed
         if (_activeEdge == ScreenEdge.Right && x < _screenWidth - 100)
         {
