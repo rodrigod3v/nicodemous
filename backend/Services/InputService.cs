@@ -70,7 +70,7 @@ public class InputService
         {
             // Invert logic: If we hit PC's RIGHT edge, start at Mac's LEFT edge (+ buffer)
             // If we hit PC's LEFT edge, start at Mac's RIGHT edge (- buffer)
-            const int entryBuffer = 10;
+            const int entryBuffer = 50;
             if (_activeEdge == ScreenEdge.Right)
             {
                 _virtualX = entryBuffer;
@@ -155,21 +155,33 @@ public class InputService
         _virtualY = Math.Clamp(_virtualY, 0, _screenHeight);
 
         // Return detection: track how much the user is pulling BACK from the edge
-        if (_activeEdge == ScreenEdge.Right && dx < 0)
+        // Only start accumulating return delta IF virtual position is already at the edge 
+        // that faces the primary computer. This creates a "sticky wall" effect.
+        bool isAtReturnEdge = (_activeEdge == ScreenEdge.Right && _virtualX <= 0) || 
+                              (_activeEdge == ScreenEdge.Left && _virtualX >= _screenWidth);
+
+        if (isAtReturnEdge)
         {
-            _accumulatedReturnDelta += Math.Abs(dx);
+            if (_activeEdge == ScreenEdge.Right && dx < 0)
+            {
+                _accumulatedReturnDelta += Math.Abs(dx);
+            }
+            else if (_activeEdge == ScreenEdge.Left && dx > 0)
+            {
+                _accumulatedReturnDelta += Math.Abs(dx);
+            }
+            else if (dx != 0)
+            {
+                // Reset accumulated return if moving AWAY from the return edge
+                _accumulatedReturnDelta = 0;
+            }
         }
-        else if (_activeEdge == ScreenEdge.Left && dx > 0)
+        else
         {
-            _accumulatedReturnDelta += Math.Abs(dx);
-        }
-        else if (dx != 0)
-        {
-            // Reset accumulated return if moving AWAY from the return edge
             _accumulatedReturnDelta = 0;
         }
 
-        const int returnThreshold = 150; 
+        const int returnThreshold = 400; 
         if (_accumulatedReturnDelta > returnThreshold)
         {
             Console.WriteLine($"[INPUT] Return detected! Accumulated Delta: {_accumulatedReturnDelta}");

@@ -23,7 +23,9 @@ public class UniversalControlManager
     {
         _window = window;
         _discoveryService.OnDeviceDiscovered += (devices) => {
-            _window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
+            _window.Invoke(() => {
+                _window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
+            });
         };
     }
 
@@ -129,7 +131,9 @@ public class UniversalControlManager
 
             if (window != null)
             {
-                window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
+                window.Invoke(() => {
+                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
+                });
             }
             Console.WriteLine($"[MANAGER] Connection target set to {ip}");
         }
@@ -139,7 +143,9 @@ public class UniversalControlManager
             Console.WriteLine($"[MANAGER] {errorMsg}");
             if (window != null)
             {
-                window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }));
+                window.Invoke(() => {
+                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }));
+                });
             }
         }
     }
@@ -228,10 +234,12 @@ public class UniversalControlManager
                 
                 if (_window != null)
                 {
-                    _window.SendWebMessage(JsonSerializer.Serialize(new { 
-                        type = "connection_status", 
-                        status = $"Controlled by {remoteName}" 
-                    }));
+                    _window.Invoke(() => {
+                        _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                            type = "connection_status", 
+                            status = $"Controlled by {remoteName}" 
+                        }));
+                    });
                 }
 
                 // Send ACK back so the controller knows we received it
@@ -243,10 +251,12 @@ public class UniversalControlManager
                 Console.WriteLine("[MANAGER] Handshake ACK received. Connection confirmed.");
                 if (_window != null)
                 {
-                    _window.SendWebMessage(JsonSerializer.Serialize(new { 
-                        type = "connection_status", 
-                        status = "Connected (Verified)" 
-                    }));
+                    _window.Invoke(() => {
+                        _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                            type = "connection_status", 
+                            status = "Connected (Verified)" 
+                        }));
+                    });
                 }
                 break;
         }
