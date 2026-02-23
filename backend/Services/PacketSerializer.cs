@@ -11,7 +11,9 @@ public enum PacketType : byte
     AudioFrame = 3,
     Ping = 4,
     Handshake = 5,
-    HandshakeAck = 6
+    HandshakeAck = 6,
+    MouseDown = 7,
+    MouseUp = 8
 }
 
 public class MouseMoveData { public ushort X { get; set; } public ushort Y { get; set; } }
@@ -35,6 +37,24 @@ public static class PacketSerializer
         byte[] buttonBytes = Encoding.UTF8.GetBytes(button);
         byte[] buffer = new byte[1 + buttonBytes.Length];
         buffer[0] = (byte)PacketType.MouseClick;
+        Buffer.BlockCopy(buttonBytes, 0, buffer, 1, buttonBytes.Length);
+        return buffer;
+    }
+
+    public static byte[] SerializeMouseDown(string button)
+    {
+        byte[] buttonBytes = Encoding.UTF8.GetBytes(button);
+        byte[] buffer = new byte[1 + buttonBytes.Length];
+        buffer[0] = (byte)PacketType.MouseDown;
+        Buffer.BlockCopy(buttonBytes, 0, buffer, 1, buttonBytes.Length);
+        return buffer;
+    }
+
+    public static byte[] SerializeMouseUp(string button)
+    {
+        byte[] buttonBytes = Encoding.UTF8.GetBytes(button);
+        byte[] buffer = new byte[1 + buttonBytes.Length];
+        buffer[0] = (byte)PacketType.MouseUp;
         Buffer.BlockCopy(buttonBytes, 0, buffer, 1, buttonBytes.Length);
         return buffer;
     }
@@ -89,8 +109,12 @@ public static class PacketSerializer
             case PacketType.Handshake:
                 return (type, new HandshakeData { MachineName = Encoding.UTF8.GetString(payload) });
 
+            case PacketType.MouseDown:
+            case PacketType.MouseUp:
+                return (type, new MouseClickData { Button = Encoding.UTF8.GetString(payload) });
+
             default:
-                return (PacketType.Ping, new { });
+                return (type, new { });
         }
     }
 }

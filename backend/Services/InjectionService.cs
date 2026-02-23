@@ -1,6 +1,9 @@
 using SharpHook;
 using SharpHook.Native;
+using SharpHook.Data;
+using System;
 using System.Text.Json;
+using System.Threading;
 
 namespace Nicodemous.Backend.Services;
 
@@ -35,11 +38,20 @@ public class InjectionService
                 ushort normY = doc.RootElement.GetProperty("y").GetUInt16();
                 InjectMouseMove(normX, normY);
             }
-// ... rest of the switch logic
             else if (type == "mouse_click")
             {
                 string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
                 InjectMouseClick(button);
+            }
+            else if (type == "mouse_down")
+            {
+                string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
+                InjectMouseDown(button);
+            }
+            else if (type == "mouse_up")
+            {
+                string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
+                InjectMouseUp(button);
             }
             else if (type == "key_press")
             {
@@ -57,12 +69,10 @@ public class InjectionService
     {
         try 
         {
-            // Convert normalized percentages (0-65535) back to pixel coordinates
             short x = (short)((double)normX / 65535 * _screenWidth);
             short y = (short)((double)normY / 65535 * _screenHeight);
             
-            // Log occasionally to avoid spam but confirm activity
-            if (normX % 2000 == 0) Console.WriteLine($"[INJECT] Mouse Move to {x},{y} (Screen: {_screenWidth}x{_screenHeight})");
+            if (normX % 2000 == 0) Console.WriteLine($"[INJECT] Mouse Move to {x},{y}");
             
             _simulator.SimulateMouseMovement(x, y);
         }
@@ -76,19 +86,53 @@ public class InjectionService
     {
         try 
         {
-            var assembly = typeof(SharpHook.IEventSimulator).Assembly;
-            var buttonType = assembly.GetType("SharpHook.Native.MouseButton");
-            if (buttonType != null)
-            {
-                var button = Enum.Parse(buttonType, buttonStr == "Left" || buttonStr == "Button1" ? "Button1" : "Button2");
-                ((dynamic)_simulator).SimulateMousePress((dynamic)button);
-                ((dynamic)_simulator).SimulateMouseRelease((dynamic)button);
-            }
+            Console.WriteLine($"[INJECT] Mouse Click: {buttonStr}");
+            InjectMouseDown(buttonStr);
+            Thread.Sleep(50); 
+            InjectMouseUp(buttonStr);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[INJECT] Click Error: {ex.Message}");
         }
+    }
+
+    public void InjectMouseDown(string buttonStr)
+    {
+        try 
+        {
+            var button = ParseButton(buttonStr);
+            Console.WriteLine($"[INJECT] Mouse Down: {button}");
+            _simulator.SimulateMousePress(button);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INJECT] Mouse Down Error: {ex.Message}");
+        }
+    }
+
+    public void InjectMouseUp(string buttonStr)
+    {
+        try 
+        {
+            var button = ParseButton(buttonStr);
+            Console.WriteLine($"[INJECT] Mouse Up: {button}");
+            _simulator.SimulateMouseRelease(button);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[INJECT] Mouse Up Error: {ex.Message}");
+        }
+    }
+
+    private MouseButton ParseButton(string buttonStr)
+    {
+        if (buttonStr == "Left" || buttonStr == "Button1") return MouseButton.Button1;
+        if (buttonStr == "Right" || buttonStr == "Button2") return MouseButton.Button2;
+        if (buttonStr == "Middle" || buttonStr == "Button3") return MouseButton.Button3;
+        
+        if (Enum.TryParse<MouseButton>(buttonStr, out var result)) return result;
+        return MouseButton.Button1;
     }
 
     public void InjectKeyPress(string keyStr)

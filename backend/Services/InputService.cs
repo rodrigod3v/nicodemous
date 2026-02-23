@@ -206,7 +206,7 @@ public class InputService
         if (_isRemoteMode)
         {
             e.SuppressEvent = true;
-            _onData(PacketSerializer.SerializeMouseClick(e.Data.Button.ToString()));
+            _onData(PacketSerializer.SerializeMouseDown(e.Data.Button.ToString()));
         }
     }
 
@@ -215,6 +215,7 @@ public class InputService
         if (_isRemoteMode)
         {
             e.SuppressEvent = true;
+            _onData(PacketSerializer.SerializeMouseUp(e.Data.Button.ToString()));
         }
     }
 

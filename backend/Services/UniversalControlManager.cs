@@ -221,6 +221,14 @@ public class UniversalControlManager
                 var clickData = (MouseClickData)payload;
                 _injectionService.InjectMouseClick(clickData.Button);
                 break;
+            case PacketType.MouseDown:
+                var downData = (MouseClickData)payload;
+                _injectionService.InjectMouseDown(downData.Button);
+                break;
+            case PacketType.MouseUp:
+                var upData = (MouseClickData)payload;
+                _injectionService.InjectMouseUp(upData.Button);
+                break;
             case PacketType.KeyPress:
                 var keyData = (KeyPressData)payload;
                 _injectionService.InjectKeyPress(keyData.Key);
