@@ -107,7 +107,7 @@ public class InputService
             if (_screenWidth == 0 || _screenHeight == 0) return;
 
             // Suppress the event locally
-            e.Reserved = (ushort)NativeResult.Suppress;
+            e.SuppressEvent = true;
 
             HandleMouseLock(e.Data.X, e.Data.Y);
 
@@ -205,7 +205,7 @@ public class InputService
     {
         if (_isRemoteMode)
         {
-            e.Reserved = (ushort)NativeResult.Suppress;
+            e.SuppressEvent = true;
             _onData(PacketSerializer.SerializeMouseClick(e.Data.Button.ToString()));
         }
     }
@@ -214,7 +214,7 @@ public class InputService
     {
         if (_isRemoteMode)
         {
-            e.Reserved = (ushort)NativeResult.Suppress;
+            e.SuppressEvent = true;
         }
     }
 
@@ -222,7 +222,7 @@ public class InputService
     {
         if (_isRemoteMode)
         {
-            e.Reserved = (ushort)NativeResult.Suppress;
+            e.SuppressEvent = true;
             _onData(PacketSerializer.SerializeKeyPress(e.Data.KeyCode.ToString()));
         }
     }
@@ -231,7 +231,7 @@ public class InputService
     {
         if (_isRemoteMode)
         {
-            e.Reserved = (ushort)NativeResult.Suppress;
+            e.SuppressEvent = true;
         }
     }
 }
