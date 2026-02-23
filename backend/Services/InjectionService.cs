@@ -1,178 +1,235 @@
 using SharpHook;
 using SharpHook.Native;
 using SharpHook.Data;
-using System;
-using System.Text.Json;
-using System.Threading;
+using System.Runtime.InteropServices;
 
 namespace Nicodemous.Backend.Services;
 
+/// <summary>
+/// Injects synthesized mouse and keyboard events on the receiving (secondary) machine.
+/// Uses KeyMap for stable KeyID ↔ SharpHook KeyCode translation — no reflection.
+/// Relative mouse movement uses GetCursorPos (Windows) to find current cursor,
+/// then moves delta from that position.
+/// </summary>
 public class InjectionService
 {
     private readonly IEventSimulator _simulator;
+    private short _screenWidth  = 1920;
+    private short _screenHeight = 1080;
 
     public InjectionService()
     {
         _simulator = new EventSimulator();
     }
 
-    private short _screenWidth = 1920;
-    private short _screenHeight = 1080;
-
-    public void SetScreenSize(short width, short height)
+    public void SetScreenSize(short w, short h)
     {
-        _screenWidth = width;
-        _screenHeight = height;
+        _screenWidth = w;
+        _screenHeight = h;
     }
 
-    public void Inject(string json)
-    {
-        try 
-        {
-            var doc = JsonDocument.Parse(json);
-            string? type = doc.RootElement.GetProperty("type").GetString();
+    // -----------------------------------------------------------------------
+    // Mouse — Relative Movement
+    // -----------------------------------------------------------------------
 
-            if (type == "mouse_move")
-            {
-                ushort normX = doc.RootElement.GetProperty("x").GetUInt16();
-                ushort normY = doc.RootElement.GetProperty("y").GetUInt16();
-                InjectMouseMove(normX, normY);
-            }
-            else if (type == "mouse_click")
-            {
-                string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
-                InjectMouseClick(button);
-            }
-            else if (type == "mouse_down")
-            {
-                string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
-                InjectMouseDown(button);
-            }
-            else if (type == "mouse_up")
-            {
-                string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
-                InjectMouseUp(button);
-            }
-            else if (type == "mouse_wheel")
-            {
-                short delta = doc.RootElement.GetProperty("delta").GetInt16();
-                InjectMouseWheel(delta);
-            }
-            else if (type == "key_press")
-            {
-                string key = doc.RootElement.GetProperty("key").GetString() ?? "";
-                InjectKeyPress(key);
-            }
+    /// <summary>
+    /// Applies relative delta to the current cursor position.
+    /// Clamps to screen bounds.
+    /// </summary>
+    public void InjectMouseRelMove(short dx, short dy)
+    {
+        try
+        {
+            var (cx, cy) = GetCurrentCursorPos();
+            int newX = Math.Clamp(cx + dx, 0, _screenWidth  - 1);
+            int newY = Math.Clamp(cy + dy, 0, _screenHeight - 1);
+            _simulator.SimulateMouseMovement((short)newX, (short)newY);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Injection Error: {ex.Message}");
+            Console.WriteLine($"[INJECT] RelMove error: {ex.Message}");
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Mouse — Absolute Movement (kept for initial screen-enter positioning)
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Positions the cursor at an absolute normalized coordinate (0-65535 range).
+    /// </summary>
     public void InjectMouseMove(ushort normX, ushort normY)
     {
-        try 
+        try
         {
-            // Convert normalized percentages (0-65535) back to pixel coordinates
-            // Use (size - 1) to ensure we can hit the exact edge pixel (e.g., 1079 for 1080p)
-            short x = (short)((double)normX / 65535 * (_screenWidth - 1));
+            short x = (short)((double)normX / 65535 * (_screenWidth  - 1));
             short y = (short)((double)normY / 65535 * (_screenHeight - 1));
-            
-            // Log occasionally to avoid spam but confirm activity
-            if (normX % 2000 == 0) Console.WriteLine($"[INJECT] Mouse Move to {x},{y} (Screen: {_screenWidth}x{_screenHeight})");
-            
             _simulator.SimulateMouseMovement(x, y);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[INJECT] Mouse Move Error: {ex.Message}");
+            Console.WriteLine($"[INJECT] AbsMove error: {ex.Message}");
         }
     }
 
-    public void InjectMouseClick(string buttonStr)
+    // -----------------------------------------------------------------------
+    // Mouse — Buttons
+    // -----------------------------------------------------------------------
+
+    public void InjectMouseDown(byte buttonId)
     {
-        try 
+        try
         {
-            Console.WriteLine($"[INJECT] Mouse Click: {buttonStr}");
-            InjectMouseDown(buttonStr);
-            Thread.Sleep(50); 
-            InjectMouseUp(buttonStr);
+            var btn = ButtonFromId(buttonId);
+            _simulator.SimulateMousePress(btn);
         }
-        catch (Exception ex)
+        catch (Exception ex) { Console.WriteLine($"[INJECT] MouseDown error: {ex.Message}"); }
+    }
+
+    public void InjectMouseUp(byte buttonId)
+    {
+        try
         {
-            Console.WriteLine($"[INJECT] Click Error: {ex.Message}");
+            var btn = ButtonFromId(buttonId);
+            _simulator.SimulateMouseRelease(btn);
+        }
+        catch (Exception ex) { Console.WriteLine($"[INJECT] MouseUp error: {ex.Message}"); }
+    }
+
+    // -----------------------------------------------------------------------
+    // Mouse — Wheel
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Injects a wheel scroll event.
+    /// delta follows Input Leap convention: +120 = one notch forward/up, -120 = one notch back/down.
+    /// SharpHook SimulateMouseWheel expects the same ±120 unit, so we pass through directly.
+    /// </summary>
+    public void InjectMouseWheel(short xDelta, short yDelta)
+    {
+        try
+        {
+            if (yDelta != 0) _simulator.SimulateMouseWheel(yDelta);
+            // Horizontal scroll: SharpHook doesn't expose a public horizontal API directly;
+            // if needed in future, can use WinAPI SendInput with MOUSEEVENTF_HWHEEL.
+        }
+        catch (Exception ex) { Console.WriteLine($"[INJECT] Wheel error: {ex.Message}"); }
+    }
+
+    // -----------------------------------------------------------------------
+    // Keyboard
+    // -----------------------------------------------------------------------
+
+    public void InjectKeyDown(ushort keyId, ushort modifiers)
+    {
+        // Apply modifier keys first, then the main key
+        ApplyModifiers(modifiers, press: true);
+
+        if (KeyMap.IdToKeyCode.TryGetValue(keyId, out var code))
+        {
+            try { _simulator.SimulateKeyPress(code); }
+            catch (Exception ex) { Console.WriteLine($"[INJECT] KeyDown error (keyId={keyId:X4}): {ex.Message}"); }
+        }
+        else
+        {
+            Console.WriteLine($"[INJECT] Unknown keyId {keyId:X4} — skipping.");
         }
     }
 
-    public void InjectMouseDown(string buttonStr)
+    public void InjectKeyUp(ushort keyId, ushort modifiers)
     {
-        try 
+        if (KeyMap.IdToKeyCode.TryGetValue(keyId, out var code))
         {
-            var button = ParseButton(buttonStr);
-            Console.WriteLine($"[INJECT] Mouse Down: {button}");
-            _simulator.SimulateMousePress(button);
+            try { _simulator.SimulateKeyRelease(code); }
+            catch (Exception ex) { Console.WriteLine($"[INJECT] KeyUp error (keyId={keyId:X4}): {ex.Message}"); }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[INJECT] Mouse Down Error: {ex.Message}");
-        }
+
+        // Release modifier keys after the main key
+        ApplyModifiers(modifiers, press: false);
     }
 
-    public void InjectMouseUp(string buttonStr)
-    {
-        try 
-        {
-            var button = ParseButton(buttonStr);
-            Console.WriteLine($"[INJECT] Mouse Up: {button}");
-            _simulator.SimulateMouseRelease(button);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[INJECT] Mouse Up Error: {ex.Message}");
-        }
-    }
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
 
-    public void InjectMouseWheel(short delta)
+    private void ApplyModifiers(ushort modifiers, bool press)
     {
-        try 
+        void Act(KeyCode kc)
         {
-            Console.WriteLine($"[INJECT] Mouse Wheel: {delta}");
-            _simulator.SimulateMouseWheel(delta);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[INJECT] Mouse Wheel Error: {ex.Message}");
-        }
-    }
-
-    private MouseButton ParseButton(string buttonStr)
-    {
-        if (buttonStr == "Left" || buttonStr == "Button1") return MouseButton.Button1;
-        if (buttonStr == "Right" || buttonStr == "Button2") return MouseButton.Button2;
-        if (buttonStr == "Middle" || buttonStr == "Button3") return MouseButton.Button3;
-        
-        if (Enum.TryParse<MouseButton>(buttonStr, out var result)) return result;
-        return MouseButton.Button1;
-    }
-
-    public void InjectKeyPress(string keyStr)
-    {
-        try 
-        {
-            var assembly = typeof(SharpHook.IEventSimulator).Assembly;
-            var keyCodeType = assembly.GetType("SharpHook.Native.KeyCode");
-            if (keyCodeType != null)
+            try
             {
-                string mappedKey = keyStr.Length == 1 ? "Vc" + keyStr.ToUpper() : keyStr;
-                var keyCode = Enum.Parse(keyCodeType, mappedKey);
-                ((dynamic)_simulator).SimulateKeyPress((dynamic)keyCode);
-                ((dynamic)_simulator).SimulateKeyRelease((dynamic)keyCode);
+                if (press) _simulator.SimulateKeyPress(kc);
+                else        _simulator.SimulateKeyRelease(kc);
             }
+            catch { /* ignore individual modifier errors */ }
         }
-        catch (Exception ex)
+
+        if ((modifiers & KeyMap.ModShift)   != 0) Act(KeyCode.VcLeftShift);
+        if ((modifiers & KeyMap.ModControl) != 0) Act(KeyCode.VcLeftControl);
+        if ((modifiers & KeyMap.ModAlt)     != 0) Act(KeyCode.VcLeftAlt);
+        if ((modifiers & KeyMap.ModMeta)    != 0) Act(KeyCode.VcLeftMeta);
+    }
+
+    private static MouseButton ButtonFromId(byte id) => id switch
+    {
+        1 => MouseButton.Button1, // Left
+        2 => MouseButton.Button2, // Right
+        3 => MouseButton.Button3, // Middle
+        4 => MouseButton.Button4,
+        5 => MouseButton.Button5,
+        _ => MouseButton.Button1,
+    };
+
+    // -----------------------------------------------------------------------
+    // Platform cursor position
+    // -----------------------------------------------------------------------
+
+    private (int x, int y) GetCurrentCursorPos()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return GetCursorPosWindows();
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            return GetCursorPosMacOS();
+
+        return (_screenWidth / 2, _screenHeight / 2);
+    }
+
+    // --- Windows ---
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT pt);
+
+    private static (int x, int y) GetCursorPosWindows()
+    {
+        if (GetCursorPos(out var pt)) return (pt.X, pt.Y);
+        return (0, 0);
+    }
+
+    // --- macOS (CoreGraphics) ---
+    [DllImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private static extern IntPtr CGEventCreate(IntPtr src);
+
+    [DllImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private static extern CGPoint CGEventGetLocation(IntPtr evt);
+
+    [DllImport("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation")]
+    private static extern void CFRelease(IntPtr obj);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct CGPoint { public double X; public double Y; }
+
+    private static (int x, int y) GetCursorPosMacOS()
+    {
+        try
         {
-            Console.WriteLine($"[INJECT] Key Error: {ex.Message}");
+            IntPtr evt = CGEventCreate(IntPtr.Zero);
+            var pt = CGEventGetLocation(evt);
+            CFRelease(evt);
+            return ((int)pt.X, (int)pt.Y);
         }
+        catch { return (0, 0); }
     }
 }
