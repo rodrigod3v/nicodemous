@@ -68,11 +68,21 @@ public class InputService
         _isRemoteMode = enabled;
         if (enabled)
         {
-            // Initialize virtual position at the edge we just hit
-            _virtualX = (_activeEdge == ScreenEdge.Right) ? _screenWidth - 1 : 0;
+            // Invert logic: If we hit PC's RIGHT edge, start at Mac's LEFT edge (+ buffer)
+            // If we hit PC's LEFT edge, start at Mac's RIGHT edge (- buffer)
+            const int entryBuffer = 10;
+            if (_activeEdge == ScreenEdge.Right)
+            {
+                _virtualX = entryBuffer;
+            }
+            else
+            {
+                _virtualX = _screenWidth - entryBuffer;
+            }
+
             _virtualY = _screenHeight / 2.0;
             _accumulatedReturnDelta = 0;
-            Console.WriteLine($"[INPUT] Remote Mode Enabled. Virtual Pos: {_virtualX},{_virtualY}");
+            Console.WriteLine($"[INPUT] Remote Mode Enabled. Entering at Virtual Pos: {_virtualX},{_virtualY}");
         }
     }
 
