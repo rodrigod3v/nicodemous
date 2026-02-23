@@ -210,15 +210,15 @@ const Dashboard = () => {
                         </div>
 
                         <div className="grid-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-                            {discoveredDevices.length > 0 ? (
+                            {discoveredDevices && discoveredDevices.length > 0 ? (
                                 discoveredDevices.map((dev, i) => (
                                     <DeviceCard
                                         key={i}
-                                        name={dev.Name}
-                                        ip={dev.IPAddress}
-                                        code={dev.Code}
+                                        name={dev.Name || 'Unknown Device'}
+                                        ip={dev.Ip || dev.IPAddress || 'No IP'}
+                                        code={dev.Code || 'No Code'}
                                         status={connectionStatus === 'Connected' && !isConnecting ? 'Connected' : 'Available'}
-                                        isConnecting={isConnecting === dev.Code || isConnecting === dev.IPAddress}
+                                        isConnecting={isConnecting === dev.Code || (dev.Ip && isConnecting === dev.Ip) || (dev.IPAddress && isConnecting === dev.IPAddress)}
                                         onConnect={() => connectToDevice(dev.Code)}
                                     />
                                 ))

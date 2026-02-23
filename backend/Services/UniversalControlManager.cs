@@ -111,7 +111,7 @@ public class UniversalControlManager
         var device = _discoveryService.GetDiscoveredDevices().FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
         if (device != null)
         {
-            ip = device.IPAddress;
+            ip = device.Ip;
             Console.WriteLine($"Resolved Pairing Code {target} to {ip} ({device.Name})");
         }
         else if (System.Net.IPAddress.TryParse(target, out _))

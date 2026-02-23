@@ -115,9 +115,9 @@ public class DiscoveryService
                             _discoveredDevices.Add(device);
                             listChanged = true;
                         }
-                        else if (existing.IPAddress != device.IPAddress)
+                        else if (existing.Ip != device.Ip)
                         {
-                            existing.IPAddress = device.IPAddress;
+                            existing.Ip = device.Ip;
                             listChanged = true;
                         }
                     }
@@ -136,7 +136,7 @@ public class DiscoveryService
     {
         lock (_discoveredDevices)
         {
-            return _discoveredDevices.FirstOrDefault(d => d.Code.Equals(code, StringComparison.OrdinalIgnoreCase))?.IPAddress;
+            return _discoveredDevices.FirstOrDefault(d => d.Code.Equals(code, StringComparison.OrdinalIgnoreCase))?.Ip;
         }
     }
 
@@ -166,6 +166,6 @@ public class DiscoveryService
 public class DiscoveredDevice
 {
     public string Name { get; set; } = "";
-    public string IPAddress { get; set; } = "";
+    public string Ip { get; set; } = "";
     public string Code { get; set; } = "";
 }
