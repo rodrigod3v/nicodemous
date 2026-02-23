@@ -1,53 +1,75 @@
-name: Nicodemous CI
+name: Nicodemous CI/CD
 
 on:
-    push:
-        branches: ["main"]
-    pull_request:
-        branches: ["main"]
+  push:
+    branches: ["main", "server/client"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
-    backend:
-        name: Build Backend (.NET)
-        runs-on: windows-latest
-        steps:
-            - uses: actions/checkout@v4
+  build-windows:
+    name: Build Windows (win-x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Setup .NET
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: 8.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-            - name: Restore dependencies
-              run: dotnet restore backend/nicodemous_backend.csproj
+      - name: Publish Windows Standalone
+        run: dotnet publish backend/nicodemous_backend.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -f net8.0-windows -o ./publish/win
 
-            - name: Build
-              run: dotnet build backend/nicodemous_backend.csproj --configuration Release --no-restore
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nicodemous-windows
+          path: ./publish/win/nicodemous_backend.exe
 
-    frontend:
-        name: Build Frontend (React)
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
+  build-macos:
+    name: Build macOS (osx-arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 20
-                  cache: "npm"
-                  cache-dependency-path: frontend/package-lock.json
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
 
-            - name: Install dependencies
-              run: |
-                  cd frontend
-                  npm install
+      - name: Publish macOS Standalone
+        run: dotnet publish backend/nicodemous_backend.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -f net8.0 -o ./publish/mac
 
-            - name: Lint
-              run: |
-                  cd frontend
-                  npm run lint
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nicodemous-macos
+          path: ./publish/mac/nicodemous_backend
 
-            - name: Build
-              run: |
-                  cd frontend
-                  npm run build
+  release:
+    name: Create Release
+    needs: [build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nicodemous-windows
+          path: ./release
+
+      - name: Download macOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nicodemous-macos
+          path: ./release
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./release/nicodemous_backend.exe
+            ./release/nicodemous_backend
+          generate_release_notes: true

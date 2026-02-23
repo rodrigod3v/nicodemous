@@ -57,10 +57,37 @@ const Dashboard = () => {
                     NICODEMOUS<span style={{ color: 'var(--accent-primary)' }}>.</span>
                 </div>
 
-                <div style={{ padding: '8px 12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.2)', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ padding: '8px 12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.2)', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Pairing Code</span>
                     <span style={{ fontSize: '13px', fontWeight: '600', color: 'white' }}>{localIp}</span>
                 </div>
+
+                <a
+                    href="https://github.com/rodrigod3v/nicodemous/releases/latest"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="glass"
+                    style={{
+                        padding: '12px',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        marginBottom: '30px',
+                        textDecoration: 'none',
+                        color: 'white',
+                        fontSize: '13px',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" />
+                    </svg>
+                    Download Latest App
+                </a>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexGrow: 1 }}>
                     <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} label="Overview" icon="M3 9.5L12 4l9 5.5M19 9v10a2 2 0 01-2 2H7a2 2 0 01-2-2V9" />
