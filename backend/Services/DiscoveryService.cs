@@ -14,6 +14,7 @@ public class DiscoveryService
     private readonly string _pairingCode;
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
+    private CancellationTokenSource? _broadcastCts;
 
     public event Action<List<DiscoveredDevice>>? OnDeviceDiscovered;
 
@@ -36,32 +37,55 @@ public class DiscoveryService
     {
         if (_isRunning) return;
         _isRunning = true;
+        _broadcastCts = new CancellationTokenSource();
 
-        Task.Run(RunBroadcaster);
+        Task.Run(() => RunBroadcaster(_broadcastCts.Token));
         Task.Run(RunListener);
+    }
+
+    public void BroadcastNow()
+    {
+        _broadcastCts?.Cancel();
     }
 
     public void Stop()
     {
         _isRunning = false;
+        _broadcastCts?.Cancel();
     }
 
-    private async Task RunBroadcaster()
+    private async Task RunBroadcaster(CancellationToken token)
     {
-        using var client = new UdpClient();
         var endPoint = new IPEndPoint(IPAddress.Parse(MulticastGroup), DiscoveryPort);
         
-        var packet = JsonSerializer.Serialize(new { 
-            name = _deviceName, 
-            code = _pairingCode, 
-            ip = GetLocalIPAddress() 
-        });
-        byte[] data = Encoding.UTF8.GetBytes(packet);
-
         while (_isRunning)
         {
-            await client.SendAsync(data, data.Length, endPoint);
-            await Task.Delay(5000); // Broadcast every 5s
+            try 
+            {
+                using var client = new UdpClient();
+                var packet = JsonSerializer.Serialize(new { 
+                    name = _deviceName, 
+                    code = _pairingCode, 
+                    ip = GetLocalIPAddress() 
+                });
+                byte[] data = Encoding.UTF8.GetBytes(packet);
+
+                await client.SendAsync(data, data.Length, endPoint);
+                
+                // Wait 5s or until broadcast is manually triggered
+                await Task.Delay(5000, token);
+            }
+            catch (TaskCanceledException)
+            {
+                // Reset CTS for next manual trigger
+                _broadcastCts = new CancellationTokenSource();
+                token = _broadcastCts.Token;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Broadcast Error: {ex.Message}");
+                await Task.Delay(1000); // Backoff
+            }
         }
     }
 

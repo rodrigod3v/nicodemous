@@ -153,8 +153,10 @@ public class UniversalControlManager
 
     public List<DiscoveredDevice> GetDevices() 
     {
-        // Don't clear here, start_discovery clears in the frontend logic.
-        // Returning what we currently have.
+        // Trigger an immediate broadcast to refresh the network
+        _discoveryService.BroadcastNow();
+        
+        // Returning what we currently have
         return _discoveryService.GetDiscoveredDevices();
     }
 

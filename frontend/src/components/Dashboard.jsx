@@ -13,6 +13,29 @@ const Dashboard = () => {
     const [discoveredDevices, setDiscoveredDevices] = useState([]);
     const [manualIp, setManualIp] = useState('');
     const [localCode, setLocalCode] = useState('......');
+    const [isConnecting, setIsConnecting] = useState(null); // stores the IP/Code of the device being connected
+
+    const sendToBackend = (type, data = {}) => {
+        const message = JSON.stringify({ type, ...data });
+        console.log(`[FRONTEND] Sending to Backend:`, message);
+
+        try {
+            if (window.external && window.external.sendMessage) {
+                window.external.sendMessage(message);
+                console.log('[FRONTEND] Sent via window.external.sendMessage');
+            } else if (window.photino && window.photino.send) {
+                window.photino.send(message);
+                console.log('[FRONTEND] Sent via window.photino.send');
+            } else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+                window.chrome.webview.postMessage(message);
+                console.log('[FRONTEND] Sent via window.chrome.webview.postMessage');
+            } else {
+                console.warn('[FRONTEND] No backend interop found. Running in browser?');
+            }
+        } catch (err) {
+            console.error('[FRONTEND] Failed to send message:', err);
+        }
+    };
 
     useEffect(() => {
         const handleDiscovery = (e) => {
@@ -20,7 +43,12 @@ const Dashboard = () => {
             // If we were scanning and found something, or just scanning, we keep it for a bit
         };
         const handleIp = (e) => setLocalCode(e.detail);
-        const handleStatus = (e) => setConnectionStatus(e.detail);
+        const handleStatus = (e) => {
+            setConnectionStatus(e.detail);
+            if (e.detail === 'Connected' || e.detail === 'Disconnected') {
+                setIsConnecting(null);
+            }
+        };
 
         window.addEventListener('nicodemous_discovery', handleDiscovery);
         window.addEventListener('nicodemous_ip', handleIp);
@@ -36,33 +64,26 @@ const Dashboard = () => {
     const toggleService = (name) => {
         const newState = !services[name];
         setServices(prev => ({ ...prev, [name]: newState }));
-
-        if (window.external && window.external.sendMessage) {
-            window.external.sendMessage(JSON.stringify({
-                type: 'service_toggle',
-                service: name,
-                enabled: newState
-            }));
-        }
+        sendToBackend('service_toggle', { service: name, enabled: newState });
     };
 
     const startDiscovery = () => {
         setIsScanning(true);
         setDiscoveredDevices([]); // Clear local list to show scanning
-
-        if (window.external && window.external.sendMessage) {
-            window.external.sendMessage(JSON.stringify({ type: 'start_discovery' }));
-        }
-
+        sendToBackend('start_discovery');
         // Stop scanning animation after 10s (the backend listener keeps running but UI looks cleaner)
         setTimeout(() => setIsScanning(false), 10000);
     };
 
     const connectToDevice = (target) => {
-        setConnectionStatus('Connecting...');
-        if (window.external && window.external.sendMessage) {
-            window.external.sendMessage(JSON.stringify({ type: 'connect_device', ip: target }));
+        if (!target || target.trim() === '') {
+            console.warn('[FRONTEND] Cannot connect: target is empty');
+            return;
         }
+        console.log(`[FRONTEND] Attempting connection to: ${target}`);
+        setConnectionStatus('Connecting...');
+        setIsConnecting(target);
+        sendToBackend('connect_device', { ip: target.trim() });
     };
 
     return (
@@ -179,7 +200,13 @@ const Dashboard = () => {
                                     style={{ width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '15px 20px', borderRadius: '12px', color: 'white', fontSize: '15px' }}
                                 />
                             </div>
-                            <button className="glow-button" onClick={() => connectToDevice(manualIp)}>Quick Connect</button>
+                            <button
+                                className={`glow-button ${isConnecting === manualIp ? 'loading' : ''}`}
+                                onClick={() => connectToDevice(manualIp)}
+                                disabled={isConnecting === manualIp}
+                            >
+                                {isConnecting === manualIp ? <div className="spinner"></div> : 'Quick Connect'}
+                            </button>
                         </div>
 
                         <div className="grid-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
@@ -190,7 +217,8 @@ const Dashboard = () => {
                                         name={dev.Name}
                                         ip={dev.IPAddress}
                                         code={dev.Code}
-                                        status={connectionStatus === 'Connected' ? 'Connected' : 'Available'}
+                                        status={connectionStatus === 'Connected' && !isConnecting ? 'Connected' : 'Available'}
+                                        isConnecting={isConnecting === dev.Code || isConnecting === dev.IPAddress}
                                         onConnect={() => connectToDevice(dev.Code)}
                                     />
                                 ))
@@ -283,7 +311,7 @@ const ServiceCard = ({ title, description, enabled, onToggle, icon }) => (
     </div>
 );
 
-const DeviceCard = ({ name, ip, code, status, onConnect }) => {
+const DeviceCard = ({ name, ip, code, status, isConnecting, onConnect }) => {
     const isConnected = status === 'Connected';
 
     return (
@@ -312,11 +340,17 @@ const DeviceCard = ({ name, ip, code, status, onConnect }) => {
                 </div>
             </div>
             <button
-                className={isConnected ? "secondary-button" : "glow-button"}
-                style={{ width: '100%', padding: '10px', fontSize: '14px' }}
+                className={isConnected ? "secondary-button" : `glow-button ${isConnecting ? 'loading' : ''}`}
+                style={{ width: '100%', padding: '10px', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                 onClick={onConnect}
+                disabled={isConnecting}
             >
-                {isConnected ? 'Disconnect' : 'Request Access'}
+                {isConnecting ? (
+                    <>
+                        <div className="spinner"></div>
+                        Connecting...
+                    </>
+                ) : (isConnected ? 'Disconnect' : 'Request Access')}
             </button>
         </div>
     );

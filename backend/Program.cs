@@ -63,10 +63,8 @@ class Program
         try 
         {
             var doc = JsonDocument.Parse(message);
-            Console.WriteLine($"[BACKEND] UI Message: {message}"); // Added line
             string? type = doc.RootElement.GetProperty("type").GetString();
             Console.WriteLine($"[BACKEND] Message Type: {type}");
-            Console.WriteLine($"[BACKEND] UI Message Type: {type}");
 
             switch (type)
             {
