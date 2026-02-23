@@ -1,0 +1,36 @@
+# Nicodemous Git Ignore
+
+# --- Agentic Info (Sensitive/Internal) ---
+.agent/
+.gemini/
+.serena/
+task_boundary_history.json
+
+# --- .NET / Backend ---
+[Bb]in/
+[Oo]bj/
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+# --- Node / Frontend ---
+frontend/node_modules/
+node_modules/
+frontend/dist/
+dist/
+.eslintcache
+*.log
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Environment ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
