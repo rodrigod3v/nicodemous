@@ -28,18 +28,43 @@ public class UniversalControlManager
         _networkService.StartListening(HandleRemoteData);
         _inputService.OnEdgeHit += HandleEdgeHit;
 
-        // Detect Primary Screen Size (Windows focused)
-#if WINDOWS
-        try 
+        // Detect Primary Screen Size based on OS
+        DetectScreenSize();
+    }
+
+    private void DetectScreenSize()
+    {
+        // Default fallback
+        short width = 1920;
+        short height = 1080;
+
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
         {
-            var screen = System.Windows.Forms.Screen.PrimaryScreen;
-            if (screen != null)
+#if WINDOWS
+            try 
             {
-                _inputService.SetScreenSize((short)screen.Bounds.Width, (short)screen.Bounds.Height);
+                var screen = System.Windows.Forms.Screen.PrimaryScreen;
+                if (screen != null)
+                {
+                    width = (short)screen.Bounds.Width;
+                    height = (short)screen.Bounds.Height;
+                }
             }
-        }
-        catch { /* Fallback to 1920x1080 */ }
+            catch { }
 #endif
+        }
+        else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
+        {
+            // On macOS, SharpHook or Photino could provide this, but for now we'll use a standard fallback or detect via Photino if possible.
+            // Photino doesn't expose Screen directly, so we use a common Mac resolution or ideally SharpHook's hook can tell us.
+            // For now, let's stick with 1920x1080 as default on Mac unless we implement a native P/Invoke.
+            width = 1440; // Common Retina base
+            height = 900;
+        }
+
+        _inputService.SetScreenSize(width, height);
+        _injectionService.SetScreenSize(width, height);
+        Console.WriteLine($"System Resolution Detected: {width}x{height}");
     }
 
     private void HandleEdgeHit(ScreenEdge edge)

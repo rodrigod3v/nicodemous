@@ -61,11 +61,16 @@ public class InputService
     {
         if (_isRemoteMode)
         {
-            // Send relative/absolute movement to remote
-            _onData(PacketSerializer.SerializeMouseMove(e.Data.X, e.Data.Y));
+            if (_screenWidth == 0 || _screenHeight == 0) return;
+
+            // Normalize current position to 0-65535 range
+            ushort normX = (ushort)((double)e.Data.X / _screenWidth * 65535);
+            ushort normY = (ushort)((double)e.Data.Y / _screenHeight * 65535);
+
+            // Send normalized coordinates to remote
+            _onData(PacketSerializer.SerializeMouseMove(normX, normY));
 
             // Lock mouse to center or edge to prevent it from interacting locally
-            // For now, let's keep it simple: if mouse moves too far from edge, warp it back
             HandleMouseLock(e.Data.X, e.Data.Y);
         }
         else

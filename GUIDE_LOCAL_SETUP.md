@@ -63,7 +63,20 @@ O arquivo final estará na pasta `backend/bin/Release/.../publish`.
 
 ---
 
-## 🔍 5. Dicas de Debug e Logs
+## 🍎 5. Notas Específicas para macOS (Permissões)
+
+Para que o Nicodemous consiga injetar movimentos de mouse e teclado no Mac, você **precisa** conceder permissões de acessibilidade:
+
+1. Vá em **Ajustes do Sistema** > **Privacidade e Segurança** > **Acessibilidade**.
+2. Clique no ícone de `+` e adicione o seu Terminal (ex: `iTerm` ou `Terminal`) ou o executável do `Nicodemous`.
+3. Certifique-se de que a chave está **Ativada**.
+
+> [!IMPORTANT]
+> Sem essa permissão, o sistema de controle remoto não funcionará no macOS devido às proteções de segurança nativas da Apple.
+
+---
+
+## 🔍 6. Dicas de Debug e Logs
 
 1.  **Console do Chrome**: Como a interface é baseada em Photino, você pode clicar com o botão direito na janela do app e selecionar "Inspecionar" para ver os logs do React.
 2.  **Logs do Terminal**: O backend imprime logs de descoberta e conexão diretamente no terminal onde você rodou o `dotnet run`.

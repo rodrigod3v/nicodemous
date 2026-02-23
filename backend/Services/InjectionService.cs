@@ -13,6 +13,15 @@ public class InjectionService
         _simulator = new EventSimulator();
     }
 
+    private short _screenWidth = 1920;
+    private short _screenHeight = 1080;
+
+    public void SetScreenSize(short width, short height)
+    {
+        _screenWidth = width;
+        _screenHeight = height;
+    }
+
     public void Inject(string json)
     {
         try 
@@ -22,10 +31,11 @@ public class InjectionService
 
             if (type == "mouse_move")
             {
-                short x = doc.RootElement.GetProperty("x").GetInt16();
-                short y = doc.RootElement.GetProperty("y").GetInt16();
-                InjectMouseMove(x, y);
+                ushort normX = doc.RootElement.GetProperty("x").GetUInt16();
+                ushort normY = doc.RootElement.GetProperty("y").GetUInt16();
+                InjectMouseMove(normX, normY);
             }
+// ... rest of the switch logic
             else if (type == "mouse_click")
             {
                 string button = doc.RootElement.GetProperty("button").GetString() ?? "Left";
@@ -43,8 +53,11 @@ public class InjectionService
         }
     }
 
-    public void InjectMouseMove(short x, short y)
+    public void InjectMouseMove(ushort normX, ushort normY)
     {
+        // Convert normalized percentages (0-65535) back to pixel coordinates
+        short x = (short)((double)normX / 65535 * _screenWidth);
+        short y = (short)((double)normY / 65535 * _screenHeight);
         _simulator.SimulateMouseMovement(x, y);
     }
 

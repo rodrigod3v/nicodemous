@@ -14,7 +14,7 @@ public enum PacketType : byte
 
 public static class PacketSerializer
 {
-    public static byte[] SerializeMouseMove(short x, short y)
+    public static byte[] SerializeMouseMove(ushort x, ushort y)
     {
         byte[] buffer = new byte[5];
         buffer[0] = (byte)PacketType.MouseMove;
@@ -57,8 +57,8 @@ public static class PacketSerializer
         switch (type)
         {
             case PacketType.MouseMove:
-                short x = BitConverter.ToInt16(payload.Slice(0, 2));
-                short y = BitConverter.ToInt16(payload.Slice(2, 2));
+                ushort x = BitConverter.ToUInt16(payload.Slice(0, 2));
+                ushort y = BitConverter.ToUInt16(payload.Slice(2, 2));
                 return (type, new { x, y });
             
             case PacketType.MouseClick:
