@@ -37,7 +37,9 @@ public class InputService : IDisposable
     private bool _isSuppressingEvents = false;
     private short _lastRawX, _lastRawY; // Last raw position before suppression
     private double _accumulatedReturnDelta = 0;
-    private const int ReturnThreshold = 400;
+    private DateTime _lastReturnAccumulateTime = DateTime.MinValue;
+    private const int ReturnThreshold        = 1500; // px of deliberate push needed to return
+    private const int ReturnDecayMs          = 300;  // accumulator resets if no push for this long
     private DateTime _lastReturnTime = DateTime.MinValue;
     private const int CooldownMs = 800;
 
@@ -167,17 +169,26 @@ public class InputService : IDisposable
 
         if (dx == 0 && dy == 0) return;
 
-        // Accumulate return gesture (moving back towards the home screen)
+        // Accumulate return gesture (moving back deliberately towards the home screen).
+        // The accumulator decays if the user stops pushing for ReturnDecayMs, preventing
+        // accidental exits during normal remote usage.
         bool movingBack = (_activeEdge == ScreenEdge.Right && dx < 0) ||
                           (_activeEdge == ScreenEdge.Left  && dx > 0);
 
         if (movingBack)
         {
+            // Time-based decay: if too much time passed since last accumulation, reset first
+            if ((DateTime.Now - _lastReturnAccumulateTime).TotalMilliseconds > ReturnDecayMs)
+                _accumulatedReturnDelta = 0;
+
             _accumulatedReturnDelta += Math.Abs(dx);
+            _lastReturnAccumulateTime = DateTime.Now;
+
             if (_accumulatedReturnDelta >= ReturnThreshold)
             {
                 Console.WriteLine($"[INPUT] Return gesture detected (accumulated {_accumulatedReturnDelta}px).");
                 _lastReturnTime = DateTime.Now;
+                _accumulatedReturnDelta = 0;
                 OnReturn?.Invoke();
                 return;
             }

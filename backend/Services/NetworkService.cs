@@ -28,6 +28,7 @@ public class NetworkService : IDisposable
 
     public bool IsConnected => _client?.Connected == true && _sendStream != null;
 
+    public event Action? OnConnected;
     public event Action? OnDisconnected;
 
     public NetworkService(int port)
@@ -140,6 +141,7 @@ public class NetworkService : IDisposable
                     _client = tcp;
                     _sendStream = tcp.GetStream();
                     Console.WriteLine($"[NETWORK] Connected to {ipAddress}:{port}");
+                    OnConnected?.Invoke();
                     return;
                 }
                 catch (Exception ex)

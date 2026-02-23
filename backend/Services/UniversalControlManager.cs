@@ -36,6 +36,13 @@ public class UniversalControlManager : IDisposable
 
         // Network
         _networkService.StartListening(HandleRemoteData);
+        _networkService.OnConnected += () =>
+        {
+            // TCP is now ready — send handshake so the remote knows who controls it
+            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
+            Console.WriteLine("[MANAGER] Handshake sent after TCP connection established.");
+            SendUiMessage("connection_status", "Handshaking...");
+        };
         _networkService.OnDisconnected += () =>
         {
             Console.WriteLine("[MANAGER] Remote disconnected.");
@@ -124,11 +131,9 @@ public class UniversalControlManager : IDisposable
         }
 
         _networkService.SetTarget(ip, 8890);
+        // Handshake is sent inside OnConnected (after TCP is actually ready)
 
-        // Send handshake so the remote knows who is controlling it
-        _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
-
-        Console.WriteLine($"[MANAGER] Connection target set to {ip}");
+        Console.WriteLine($"[MANAGER] Connecting to {ip}...");
         (window ?? _window)?.Invoke(() =>
             (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." })));
     }
