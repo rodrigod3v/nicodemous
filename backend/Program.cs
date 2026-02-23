@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using Photino.NET;
@@ -59,14 +59,19 @@ class Program
 
     private static void ProcessUiMessage(string message, PhotinoWindow window)
     {
+        Console.WriteLine($"[BACKEND] Received UI Message: {message}");
         try 
         {
             var doc = JsonDocument.Parse(message);
+            Console.WriteLine($"[BACKEND] UI Message: {message}"); // Added line
             string? type = doc.RootElement.GetProperty("type").GetString();
+            Console.WriteLine($"[BACKEND] Message Type: {type}");
+            Console.WriteLine($"[BACKEND] UI Message Type: {type}");
 
             switch (type)
             {
                 case "start_discovery":
+                    Console.WriteLine("[BACKEND] Starting device discovery...");
                     var devices = _controlManager!.GetDevices();
                     window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
                     break;

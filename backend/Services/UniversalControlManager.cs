@@ -127,11 +127,11 @@ public class UniversalControlManager
             {
                 window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
             }
-            Console.WriteLine($"Connection target set to {ip}");
+            Console.WriteLine($"[MANAGER] Connection target set to {ip}");
         }
         else
         {
-            Console.WriteLine($"Unrecognized target: {target}. Not a discovered code nor a valid IP.");
+            Console.WriteLine($"[MANAGER] Connection FAILED for target: {target}. Not a discovered code nor a valid IP.");
         }
     }
 
@@ -153,8 +153,8 @@ public class UniversalControlManager
 
     public List<DiscoveredDevice> GetDevices() 
     {
-        _discoveryService.ClearDiscoveredDevices();
-        // Since broadcaster/listener are always running, clearing will allow fresh items to populate
+        // Don't clear here, start_discovery clears in the frontend logic.
+        // Returning what we currently have.
         return _discoveryService.GetDiscoveredDevices();
     }
 
