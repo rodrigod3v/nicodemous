@@ -15,7 +15,7 @@ public enum ScreenEdge
 
 public class InputService
 {
-    private readonly TaskPoolGlobalHook _hook;
+    private readonly SimpleGlobalHook _hook;
     private readonly IEventSimulator _simulator;
     private readonly Action<byte[]> _onData;
     private bool _isRemoteMode = false;
@@ -48,13 +48,15 @@ public class InputService
 
     public InputService(Action<byte[]> onData)
     {
-        _hook = new TaskPoolGlobalHook();
+        _hook = new SimpleGlobalHook();
         _simulator = new EventSimulator();
         _onData = onData;
 
         _hook.MouseMoved += OnMouseMoved;
-        _hook.MouseClicked += OnMouseClicked;
-        _hook.KeyTyped += OnKeyTyped;
+        _hook.MousePressed += OnMousePressed;
+        _hook.MouseReleased += OnMouseReleased;
+        _hook.KeyPressed += OnKeyPressed;
+        _hook.KeyReleased += OnKeyReleased;
     }
 
     public void SetScreenSize(short width, short height)
@@ -103,6 +105,9 @@ public class InputService
         if (_isRemoteMode)
         {
             if (_screenWidth == 0 || _screenHeight == 0) return;
+
+            // Suppress the event locally
+            e.Reserved = (ushort)NativeResult.Suppress;
 
             HandleMouseLock(e.Data.X, e.Data.Y);
 
@@ -196,19 +201,37 @@ public class InputService
         _isSuppressingEvents = false;
     }
 
-    private void OnMouseClicked(object? sender, MouseHookEventArgs e)
+    private void OnMousePressed(object? sender, MouseHookEventArgs e)
     {
         if (_isRemoteMode)
         {
+            e.Reserved = (ushort)NativeResult.Suppress;
             _onData(PacketSerializer.SerializeMouseClick(e.Data.Button.ToString()));
         }
     }
 
-    private void OnKeyTyped(object? sender, KeyboardHookEventArgs e)
+    private void OnMouseReleased(object? sender, MouseHookEventArgs e)
     {
         if (_isRemoteMode)
         {
+            e.Reserved = (ushort)NativeResult.Suppress;
+        }
+    }
+
+    private void OnKeyPressed(object? sender, KeyboardHookEventArgs e)
+    {
+        if (_isRemoteMode)
+        {
+            e.Reserved = (ushort)NativeResult.Suppress;
             _onData(PacketSerializer.SerializeKeyPress(e.Data.KeyCode.ToString()));
+        }
+    }
+
+    private void OnKeyReleased(object? sender, KeyboardHookEventArgs e)
+    {
+        if (_isRemoteMode)
+        {
+            e.Reserved = (ushort)NativeResult.Suppress;
         }
     }
 }
