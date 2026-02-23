@@ -83,6 +83,9 @@ public class InputService
             ushort normX = (ushort)((double)e.Data.X / _screenWidth * 65535);
             ushort normY = (ushort)((double)e.Data.Y / _screenHeight * 65535);
 
+            // Log occasionally to verify coordinates
+            if (e.Data.X % 500 == 0) Console.WriteLine($"[INPUT] Mouse at {e.Data.X},{e.Data.Y} -> Norm {normX},{normY}");
+
             // Send normalized coordinates to remote
             _onData(PacketSerializer.SerializeMouseMove(normX, normY));
 
@@ -108,17 +111,19 @@ public class InputService
 
     private void HandleMouseLock(short x, short y)
     {
-        // Return detection: if user pulls mouse far enough away from the edge, we EXIT remote mode
-        const int returnThreshold = 100; // Reduced for better responsiveness
+        // Return detection: use a wider buffer (150px) to make return more deliberate
+        const int returnThreshold = 150; 
 
         if (_activeEdge == ScreenEdge.Right && x < _screenWidth - returnThreshold)
         {
+            Console.WriteLine($"[INPUT] Return detected at X={x} (Threshold={_screenWidth - returnThreshold})");
             _lastReturnTime = DateTime.Now;
             OnReturn?.Invoke();
             return;
         }
         else if (_activeEdge == ScreenEdge.Left && x > returnThreshold)
         {
+            Console.WriteLine($"[INPUT] Return detected at X={x} (Threshold={returnThreshold})");
             _lastReturnTime = DateTime.Now;
             OnReturn?.Invoke();
             return;
@@ -126,8 +131,7 @@ public class InputService
 
         if (!_isInputLocked) return;
 
-        // SOFT LOCK: Only snap if we haven't crossed the exit threshold
-        // We snap to Offset 2 to avoid absolute OS boundaries which can cause coordinate jitter
+        // SOFT LOCK: Stay close to the edge but don't hit the absolute wall (which can cause OS jitter)
         if (_activeEdge == ScreenEdge.Right && x < _screenWidth - 2)
         {
             _simulator.SimulateMouseMovement((short)(_screenWidth - 2), y);

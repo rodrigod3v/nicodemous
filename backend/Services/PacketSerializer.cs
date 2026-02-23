@@ -10,8 +10,14 @@ public enum PacketType : byte
     KeyPress = 2,
     AudioFrame = 3,
     Ping = 4,
-    Handshake = 5
+    Handshake = 5,
+    HandshakeAck = 6
 }
+
+public class MouseMoveData { public ushort X { get; set; } public ushort Y { get; set; } }
+public class MouseClickData { public string Button { get; set; } = "Left"; }
+public class KeyPressData { public string Key { get; set; } = ""; }
+public class HandshakeData { public string MachineName { get; set; } = ""; }
 
 public static class PacketSerializer
 {
@@ -69,19 +75,19 @@ public static class PacketSerializer
             case PacketType.MouseMove:
                 ushort x = BitConverter.ToUInt16(payload.Slice(0, 2));
                 ushort y = BitConverter.ToUInt16(payload.Slice(2, 2));
-                return (type, new { x, y });
+                return (type, new MouseMoveData { X = x, Y = y });
             
             case PacketType.MouseClick:
-                return (type, new { button = Encoding.UTF8.GetString(payload) });
+                return (type, new MouseClickData { Button = Encoding.UTF8.GetString(payload) });
 
             case PacketType.KeyPress:
-                return (type, new { key = Encoding.UTF8.GetString(payload) });
+                return (type, new KeyPressData { Key = Encoding.UTF8.GetString(payload) });
 
             case PacketType.AudioFrame:
                 return (type, payload.ToArray());
 
             case PacketType.Handshake:
-                return (type, new { machineName = Encoding.UTF8.GetString(payload) });
+                return (type, new HandshakeData { MachineName = Encoding.UTF8.GetString(payload) });
 
             default:
                 return (PacketType.Ping, new { });

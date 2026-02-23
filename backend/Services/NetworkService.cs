@@ -18,6 +18,13 @@ public class NetworkService
     {
         _port = port;
         _udpClient = new UdpClient(_port);
+        
+        // On Windows, ignore "Connection Reset" error from ICMP Port Unreachable
+        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        {
+            const int SIO_UDP_CONNRESET = -1744830452;
+            _udpClient.Client.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, null);
+        }
     }
 
     public void SetTarget(string ipAddress, int port)
@@ -44,16 +51,26 @@ public class NetworkService
         _isRunning = true;
         Task.Run(async () =>
         {
+            Console.WriteLine($"[NETWORK] Listener started on port {_port}");
             while (_isRunning)
             {
                 try
                 {
                     var result = await _udpClient.ReceiveAsync();
-                    onDataReceived(result.Buffer);
+                    if (result.Buffer.Length > 0)
+                    {
+                        // Trace log for specific packet types to verify flow
+                        byte type = result.Buffer[0];
+                        if (type != 0) // Don't spam mouse moves, but log Handshake/Clicks
+                        {
+                            Console.WriteLine($"[NETWORK] Packet received from {result.RemoteEndPoint}: Type {type}, Size {result.Buffer.Length}");
+                        }
+                        onDataReceived(result.Buffer);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"UDP Receive Error: {ex.Message}");
+                    if (_isRunning) Console.WriteLine($"[NETWORK] UDP Receive Error: {ex.Message}");
                 }
             }
         });

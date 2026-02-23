@@ -30,7 +30,7 @@ public class UniversalControlManager
     public UniversalControlManager()
     {
         _injectionService = new InjectionService();
-        _networkService = new NetworkService(8888);
+        _networkService = new NetworkService(8890); // Switched to 8890 to avoid 8888 conflicts
         _inputService = new InputService(HandleLocalData);
         _audioService = new AudioService(HandleAudioCaptured);
         _audioReceiveService = new AudioReceiveService();
@@ -122,7 +122,7 @@ public class UniversalControlManager
 
         if (ip != null)
         {
-            _networkService.SetTarget(ip, 8888);
+            _networkService.SetTarget(ip, 8890);
             
             // Send Handshake so the target knows we are controlling it
             _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
@@ -188,6 +188,12 @@ public class UniversalControlManager
     {
         if (!_isRemoteControlActive) return;
         _networkService.Send(data);
+        
+        // Occasionally send a Handshake/Ping to keep the remote side aware of who is controlling it
+        if (DateTime.Now.Second % 5 == 0 && DateTime.Now.Millisecond < 50)
+        {
+             _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
+        }
     }
 
     private void HandleAudioCaptured(byte[] data)
@@ -202,28 +208,46 @@ public class UniversalControlManager
         switch (type)
         {
             case PacketType.MouseMove:
-                dynamic moveData = payload;
-                _injectionService.InjectMouseMove(moveData.x, moveData.y);
+                var moveData = (MouseMoveData)payload;
+                _injectionService.InjectMouseMove(moveData.X, moveData.Y);
                 break;
             case PacketType.MouseClick:
-                dynamic clickData = payload;
-                _injectionService.InjectMouseClick(clickData.button);
+                var clickData = (MouseClickData)payload;
+                _injectionService.InjectMouseClick(clickData.Button);
                 break;
             case PacketType.KeyPress:
-                dynamic keyData = payload;
-                _injectionService.InjectKeyPress(keyData.key);
+                var keyData = (KeyPressData)payload;
+                _injectionService.InjectKeyPress(keyData.Key);
                 break;
             case PacketType.AudioFrame:
                 _audioReceiveService.ProcessFrame((byte[])payload);
                 break;
             case PacketType.Handshake:
-                dynamic handshakeData = payload;
-                string remoteName = handshakeData.machineName;
-                Console.WriteLine($"[MANAGER] Remote handshake received from: {remoteName}");
-                _window?.SendWebMessage(JsonSerializer.Serialize(new { 
-                    type = "connection_status", 
-                    status = $"Controlled by {remoteName}" 
-                }));
+                var handshakeData = (HandshakeData)payload;
+                string remoteName = handshakeData.MachineName;
+                
+                if (_window != null)
+                {
+                    _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                        type = "connection_status", 
+                        status = $"Controlled by {remoteName}" 
+                    }));
+                }
+
+                // Send ACK back so the controller knows we received it
+                _networkService.Send(new byte[] { (byte)PacketType.HandshakeAck });
+                Console.WriteLine($"[MANAGER] Remote handshake received from: {remoteName}. Sending ACK.");
+                break;
+
+            case PacketType.HandshakeAck:
+                Console.WriteLine("[MANAGER] Handshake ACK received. Connection confirmed.");
+                if (_window != null)
+                {
+                    _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                        type = "connection_status", 
+                        status = "Connected (Verified)" 
+                    }));
+                }
                 break;
         }
     }
