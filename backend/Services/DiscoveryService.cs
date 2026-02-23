@@ -23,6 +23,7 @@ public class DiscoveryService
         // or just announce via UDP Multicast if Zeroconf doesn't provide a direct "Announce" API.
         // For now, we simulate the logic as we will refine it with a specific mDNS advertiser package if needed.
         Console.WriteLine($"Advertising Nicodemous service: {_deviceName} at port {_port}");
+        await Task.CompletedTask;
     }
 
     public async Task<List<DiscoveredDevice>> Browse()

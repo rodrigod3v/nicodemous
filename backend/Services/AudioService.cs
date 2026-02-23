@@ -1,4 +1,5 @@
 using NAudio.Wave;
+using Concentus;
 using Concentus.Enums;
 using Concentus.Structs;
 using System.Net.Sockets;
@@ -8,7 +9,7 @@ namespace Nicodemous.Backend.Services;
 public class AudioService
 {
     private WasapiLoopbackCapture? _capture;
-    private OpusEncoder? _encoder;
+    private IOpusEncoder? _encoder;
     private readonly Action<byte[]> _onAudioEncoded;
     private bool _isStreaming = false;
 
@@ -16,7 +17,7 @@ public class AudioService
     {
         _onAudioEncoded = onAudioEncoded;
         // Opus setup: 48kHz, Stereo, VoIP mode
-        _encoder = new OpusEncoder(48000, 2, OpusApplication.OPUS_APPLICATION_VOIP);
+        _encoder = OpusCodecFactory.CreateEncoder(48000, 2, OpusApplication.OPUS_APPLICATION_VOIP);
     }
 
     public void StartCapture()
