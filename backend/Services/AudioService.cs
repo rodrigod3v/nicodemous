@@ -1,4 +1,6 @@
+#if WINDOWS
 using NAudio.Wave;
+#endif
 using Concentus;
 using Concentus.Enums;
 using Concentus.Structs;
@@ -8,7 +10,9 @@ namespace Nicodemous.Backend.Services;
 
 public class AudioService
 {
+#if WINDOWS
     private WasapiLoopbackCapture? _capture;
+#endif
     private IOpusEncoder? _encoder;
     private readonly Action<byte[]> _onAudioEncoded;
     private bool _isStreaming = false;
@@ -24,33 +28,35 @@ public class AudioService
     {
         if (_isStreaming) return;
 
+#if WINDOWS
         _capture = new WasapiLoopbackCapture();
         _capture.DataAvailable += (s, e) =>
         {
             if (e.BytesRecorded > 0)
             {
-                // In a real app, we convert to PCM float/short, encode with Opus and send
-                // This is a simplified version for the MVP walkthrough
                 byte[] encoded = Encode(e.Buffer, e.BytesRecorded);
                 _onAudioEncoded(encoded);
             }
         };
 
         _capture.StartRecording();
+#else
+        Console.WriteLine("Audio Capture is currently only supported on Windows.");
+#endif
         _isStreaming = true;
     }
 
     private byte[] Encode(byte[] buffer, int length)
     {
-        // Placeholder for Opus encoding logic
-        // In full implementation, we'd use Concentus to compress the frame
         return buffer.Take(length).ToArray(); 
     }
 
     public void StopCapture()
     {
+#if WINDOWS
         _capture?.StopRecording();
         _capture?.Dispose();
+#endif
         _isStreaming = false;
     }
 }

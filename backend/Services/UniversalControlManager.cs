@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Linq;
+using Photino.NET;
+using System.Runtime.InteropServices;
 
 namespace Nicodemous.Backend.Services;
 
@@ -7,66 +10,178 @@ public class UniversalControlManager
     private readonly InputService _inputService;
     private readonly NetworkService _networkService;
     private readonly InjectionService _injectionService;
+    private readonly AudioService _audioService;
+    private readonly AudioReceiveService _audioReceiveService;
+    private readonly DiscoveryService _discoveryService;
     
     private bool _isRemoteControlActive = false;
-    private int _screenWidth = 1920; // Placeholder, should be detected
+
+    public string PairingCode => _discoveryService.PairingCode;
 
     public UniversalControlManager()
     {
         _injectionService = new InjectionService();
         _networkService = new NetworkService(8888);
-        _inputService = new InputService(HandleLocalInput);
+        _inputService = new InputService(HandleLocalData);
+        _audioService = new AudioService(HandleAudioCaptured);
+        _audioReceiveService = new AudioReceiveService();
+        _discoveryService = new DiscoveryService(Environment.MachineName);
 
-        _networkService.StartListening(HandleRemoteInput);
+        _networkService.StartListening(HandleRemoteData);
+        _inputService.OnEdgeHit += HandleEdgeHit;
+
+        // Detect Primary Screen Size based on OS
+        DetectScreenSize();
+    }
+
+    private void DetectScreenSize()
+    {
+        // Default fallback
+        short width = 1920;
+        short height = 1080;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+#if WINDOWS
+            try 
+            {
+                var screen = System.Windows.Forms.Screen.PrimaryScreen;
+                if (screen != null)
+                {
+                    width = (short)screen.Bounds.Width;
+                    height = (short)screen.Bounds.Height;
+                }
+            }
+            catch { }
+#endif
+        }
+        else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
+        {
+            // On macOS, SharpHook or Photino could provide this, but for now we'll use a standard fallback or detect via Photino if possible.
+            // Photino doesn't expose Screen directly, so we use a common Mac resolution or ideally SharpHook's hook can tell us.
+            // For now, let's stick with 1920x1080 as default on Mac unless we implement a native P/Invoke.
+            width = 1440; // Common Retina base
+            height = 900;
+        }
+
+        _inputService.SetScreenSize(width, height);
+        _injectionService.SetScreenSize(width, height);
+        Console.WriteLine($"System Resolution Detected: {width}x{height}");
+    }
+
+    private void HandleEdgeHit(ScreenEdge edge)
+    {
+        // When edge is hit, we AUTOMATICALLY enter remote mode if a device is connected
+        if (!_isRemoteControlActive)
+        {
+            SetRemoteControlState(true);
+            // Optionally send a "Focus" packet to remote
+        }
     }
 
     public void Start()
     {
         _inputService.Start();
+        _discoveryService.Start();
     }
 
     public void Stop()
     {
         _inputService.Stop();
+        _audioService.StopCapture();
+        _audioReceiveService.Stop();
         _networkService.Stop();
+        _discoveryService.Stop();
     }
 
-    public void ConnectTo(string ip)
+    public void ConnectByCode(string code, PhotinoWindow? window = null)
     {
-        _networkService.SetTarget(ip, 8888);
-    }
-
-    private void HandleLocalInput(string json)
-    {
-        var doc = JsonDocument.Parse(json);
-        string? type = doc.RootElement.GetProperty("type").GetString();
-
-        if (type == "mouse_move")
+        var device = _discoveryService.GetDiscoveredDevices().FirstOrDefault(d => d.Code == code);
+        if (device != null)
         {
-            short x = doc.RootElement.GetProperty("x").GetInt16();
-            
-            // Basic edge detection (Right edge)
-            if (!_isRemoteControlActive && x >= _screenWidth - 5)
+            _networkService.SetTarget(device.IPAddress, 8888);
+            if (window != null)
             {
-                _isRemoteControlActive = true;
-                Console.WriteLine("Switched to Remote Control");
+                window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
             }
-            else if (_isRemoteControlActive && x < 5)
-            {
-                _isRemoteControlActive = false;
-                Console.WriteLine("Switched to Local Control");
-            }
-        }
-
-        if (_isRemoteControlActive)
-        {
-            _networkService.Send(json);
+            Console.WriteLine($"Connected to {device.Name} ({device.IPAddress}) via code {code}");
         }
     }
 
-    private void HandleRemoteInput(string json)
+    public void ConnectTo(string destination)
     {
-        // If we are the remote, inject what we receive
-        _injectionService.Inject(json);
+        // Check if destination is a Pairing Code or IP
+        string? ip = _discoveryService.GetIpByCode(destination);
+        if (ip != null)
+        {
+            Console.WriteLine($"Resolved Pairing Code {destination} to {ip}");
+            _networkService.SetTarget(ip, 8888);
+        }
+        else
+        {
+            // Assume it's an IP
+            _networkService.SetTarget(destination, 8888);
+        }
+    }
+
+    public List<DiscoveredDevice> GetDevices() => _discoveryService.GetDiscoveredDevices();
+
+    public void ToggleService(string name, bool enabled)
+    {
+        switch (name)
+        {
+            case "input":
+                if (enabled) _inputService.Start();
+                else _inputService.Stop();
+                break;
+            case "audio":
+                if (enabled) _audioService.StartCapture();
+                else _audioService.StopCapture();
+                break;
+        }
+    }
+
+    private void HandleLocalData(byte[] data)
+    {
+        if (!_isRemoteControlActive) return;
+        _networkService.Send(data);
+    }
+
+    private void HandleAudioCaptured(byte[] data)
+    {
+        _networkService.Send(PacketSerializer.SerializeAudioFrame(data));
+    }
+
+    private void HandleRemoteData(byte[] data)
+    {
+        var (type, payload) = PacketSerializer.Deserialize(data);
+
+        switch (type)
+        {
+            case PacketType.MouseMove:
+                dynamic moveData = payload;
+                _injectionService.InjectMouseMove(moveData.x, moveData.y);
+                break;
+            case PacketType.MouseClick:
+                dynamic clickData = payload;
+                _injectionService.InjectMouseClick(clickData.button);
+                break;
+            case PacketType.KeyPress:
+                dynamic keyData = payload;
+                _injectionService.InjectKeyPress(keyData.key);
+                break;
+            case PacketType.AudioFrame:
+                _audioReceiveService.ProcessFrame((byte[])payload);
+                break;
+        }
+    }
+
+    public void SetRemoteControlState(bool active)
+    {
+        _isRemoteControlActive = active;
+        _inputService.SetRemoteMode(active);
+        
+        if (active) Console.WriteLine("Remote Control Mode: ACTIVE (Input Redirection On)");
+        else Console.WriteLine("Remote Control Mode: LOCAL");
     }
 }

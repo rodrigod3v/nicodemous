@@ -4,22 +4,29 @@ import './App.css';
 
 function App() {
   useEffect(() => {
-    // Listener for messages from Photino .NET backend
-    if (window.photino) {
-      window.photino.onMessage((message) => {
-        console.log('Message from Backend:', message);
-        try {
-          const data = JSON.parse(message);
-          // Handle incoming data like discovered devices, clipboard sync, etc.
-          if (data.type === 'discovery_result') {
-            // Update device list in global state or via events
-            const event = new CustomEvent('nicodemous_discovery', { detail: data.devices });
-            window.dispatchEvent(event);
-          }
-        } catch (e) {
-          console.error('Failed to parse backend message:', e);
+    const handleBackendMessage = (message) => {
+      console.log('Message from Backend:', message);
+      try {
+        const data = JSON.parse(message);
+        if (data.type === 'discovery_result') {
+          const event = new CustomEvent('nicodemous_discovery', { detail: data.devices });
+          window.dispatchEvent(event);
         }
-      });
+        if (data.type === 'local_ip') {
+          const event = new CustomEvent('nicodemous_ip', { detail: data.ip });
+          window.dispatchEvent(event);
+        }
+        if (data.type === 'connection_status') {
+          const event = new CustomEvent('nicodemous_status', { detail: data.status });
+          window.dispatchEvent(event);
+        }
+      } catch (e) {
+        console.error('Failed to parse backend message:', e);
+      }
+    };
+
+    if (window.external && window.external.receiveMessage) {
+      window.external.receiveMessage(handleBackendMessage);
     }
   }, []);
 

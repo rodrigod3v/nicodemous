@@ -23,7 +23,7 @@ public class NetworkService
         _targetEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
     }
 
-    public void StartListening(Action<string> onMessageReceived)
+    public void StartListening(Action<byte[]> onDataReceived)
     {
         _isRunning = true;
         Task.Run(async () =>
@@ -33,8 +33,7 @@ public class NetworkService
                 try
                 {
                     var result = await _udpClient.ReceiveAsync();
-                    string message = Encoding.UTF8.GetString(result.Buffer);
-                    onMessageReceived(message);
+                    onDataReceived(result.Buffer);
                 }
                 catch (Exception ex)
                 {
@@ -44,11 +43,9 @@ public class NetworkService
         });
     }
 
-    public void Send(string message)
+    public void Send(byte[] data)
     {
         if (_targetEndPoint == null) return;
-
-        byte[] data = Encoding.UTF8.GetBytes(message);
         _udpClient.Send(data, data.Length, _targetEndPoint);
     }
 

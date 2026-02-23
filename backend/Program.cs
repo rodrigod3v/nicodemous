@@ -8,39 +8,28 @@ namespace Nicodemous.Backend;
 
 class Program
 {
-    private static InputService? _inputService;
-    private static DiscoveryService? _discoveryService;
+    private static UniversalControlManager? _controlManager;
 
     [STAThread]
     static void Main(string[] args)
     {
-        // Window title and URL
         string windowTitle = "Nicodemous - Universal Control";
         
-        // Use development URL if in debug or just point to a placeholder for now
-        // We will configure the React dev server URL later.
+#if DEBUG
         string initialUrl = "http://localhost:5173"; 
+#else
+        string initialUrl = "wwwroot/index.html";
+#endif
 
         var window = new PhotinoWindow()
             .SetTitle(windowTitle)
             .SetUseOsDefaultSize(false)
             .SetSize(1200, 800)
             .Center()
-            .SetResizable(true)
-            .RegisterCustomSchemeHandler("app", (object sender, string scheme, string url, out string contentType) =>
-            {
-                contentType = "text/javascript";
-                return new MemoryStream();
-            });
+            .SetResizable(true);
 
-        // Initialize Services
-        _inputService = new InputService((json) => 
-        {
-            // Send events to UI if needed, but primary use is P2P transmission
-            // window.SendWebMessage(json); 
-        });
-
-        _discoveryService = new DiscoveryService(Environment.MachineName, 8888);
+        // Initialize Central Manager
+        _controlManager = new UniversalControlManager();
 
         // UI Callbacks
         window.RegisterWebMessageReceivedHandler((object? sender, string message) => 
@@ -49,12 +38,22 @@ class Program
             ProcessUiMessage(message, windowRef);
         });
 
-        _inputService.Start();
+        _controlManager.Start();
         
         window.Load(initialUrl);
+
+        // Send actual Pairing Code to UI
+        Task.Run(async () => {
+            await Task.Delay(4000); // Give UI time to fully load
+            window.SendWebMessage(JsonSerializer.Serialize(new { 
+                type = "local_ip", 
+                ip = _controlManager.PairingCode 
+            }));
+        });
+
         window.WaitForClose();
 
-        _inputService.Stop();
+        _controlManager.Stop();
     }
 
     private static void ProcessUiMessage(string message, PhotinoWindow window)
@@ -62,24 +61,31 @@ class Program
         try 
         {
             var doc = JsonDocument.Parse(message);
-            string? command = doc.RootElement.GetProperty("command").GetString();
+            string? type = doc.RootElement.GetProperty("type").GetString();
 
-            switch (command)
+            switch (type)
             {
                 case "start_discovery":
-                    Task.Run(async () => {
-                        var devices = await _discoveryService!.Browse();
-                        window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_results", devices }));
-                    });
+                    var devices = _controlManager!.GetDevices();
+                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
                     break;
-                case "toggle_input":
-                    // Logic to enable/disable local capture
+                case "service_toggle":
+                    string service = doc.RootElement.GetProperty("service").GetString() ?? "";
+                    bool enabled = doc.RootElement.GetProperty("enabled").GetBoolean();
+                    _controlManager!.ToggleService(service, enabled);
+                    break;
+                case "connect_device":
+                    string ipOrCode = doc.RootElement.TryGetProperty("ip", out var ipProp) ? ipProp.GetString() ?? "" : "";
+                    if (!string.IsNullOrEmpty(ipOrCode))
+                    {
+                        _controlManager!.ConnectByCode(ipOrCode, window);
+                    }
                     break;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error processing message: {ex.Message}");
+            Console.WriteLine($"UI Message Error: {ex.Message}");
         }
     }
 }
