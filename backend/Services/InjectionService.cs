@@ -69,10 +69,13 @@ public class InjectionService
     {
         try 
         {
-            short x = (short)((double)normX / 65535 * _screenWidth);
-            short y = (short)((double)normY / 65535 * _screenHeight);
+            // Convert normalized percentages (0-65535) back to pixel coordinates
+            // Use (size - 1) to ensure we can hit the exact edge pixel (e.g., 1079 for 1080p)
+            short x = (short)((double)normX / 65535 * (_screenWidth - 1));
+            short y = (short)((double)normY / 65535 * (_screenHeight - 1));
             
-            if (normX % 2000 == 0) Console.WriteLine($"[INJECT] Mouse Move to {x},{y}");
+            // Log occasionally to avoid spam but confirm activity
+            if (normX % 2000 == 0) Console.WriteLine($"[INJECT] Mouse Move to {x},{y} (Screen: {_screenWidth}x{_screenHeight})");
             
             _simulator.SimulateMouseMovement(x, y);
         }

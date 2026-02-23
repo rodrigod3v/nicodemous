@@ -69,11 +69,45 @@ public class UniversalControlManager
         }
         else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
         {
-            // On macOS, SharpHook or Photino could provide this, but for now we'll use a standard fallback or detect via Photino if possible.
-            // Photino doesn't expose Screen directly, so we use a common Mac resolution or ideally SharpHook's hook can tell us.
-            // For now, let's stick with 1920x1080 as default on Mac unless we implement a native P/Invoke.
-            width = 1440; // Common Retina base
-            height = 900;
+            try 
+            {
+                // Run system_profiler to get the actual display resolution on Mac
+                var proc = new System.Diagnostics.Process {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo {
+                        FileName = "system_profiler",
+                        Arguments = "SPDisplaysDataType",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                proc.Start();
+                string output = proc.StandardOutput.ReadToEnd();
+                proc.WaitForExit();
+
+                // Look for "Resolution: 2560 x 1600" or similar
+                var lines = output.Split('\n');
+                foreach (var line in lines)
+                {
+                    if (line.Contains("Resolution:"))
+                    {
+                        var parts = line.Split(':')[1].Trim().Split(' ');
+                        // Parts might be ["2560", "x", "1600"] or ["2560", "x", "1600", "@", "60Hz"]
+                        if (parts.Length >= 3)
+                        {
+                            width = short.Parse(parts[0]);
+                            height = short.Parse(parts[2]);
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MANAGER] Mac Resolution Detection Failed: {ex.Message}. Using fallback 1440x900.");
+                width = 1440;
+                height = 900;
+            }
         }
 
         _inputService.SetScreenSize(width, height);
