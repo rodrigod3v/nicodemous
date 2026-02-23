@@ -16,11 +16,11 @@ public class UniversalControlManager
     {
         _injectionService = new InjectionService();
         _networkService = new NetworkService(8888);
-        _inputService = new InputService(HandleLocalInput);
+        _inputService = new InputService(HandleLocalData);
         _audioService = new AudioService(HandleAudioCaptured);
         _audioReceiveService = new AudioReceiveService();
 
-        _networkService.StartListening(HandleRemoteMessage);
+        _networkService.StartListening(HandleRemoteData);
     }
 
     public void Start()
@@ -56,42 +56,39 @@ public class UniversalControlManager
         }
     }
 
-    private void HandleLocalInput(string json)
+    private void HandleLocalData(byte[] data)
     {
         if (!_isRemoteControlActive) return;
-        _networkService.Send(json);
+        _networkService.Send(data);
     }
 
     private void HandleAudioCaptured(byte[] data)
     {
-        // For simplicity, we wrap audio in a JSON-like structure or send directly
-        // In a real app, we'd use a more efficient binary protocol
-        var message = new { type = "audio_frame", data = Convert.ToBase64String(data) };
-        _networkService.Send(JsonSerializer.Serialize(message));
+        _networkService.Send(PacketSerializer.SerializeAudioFrame(data));
     }
 
-    private void HandleRemoteMessage(string json)
+    private void HandleRemoteData(byte[] data)
     {
-        try 
-        {
-            var doc = JsonDocument.Parse(json);
-            string? type = doc.RootElement.GetProperty("type").GetString();
+        var (type, payload) = PacketSerializer.Deserialize(data);
 
-            switch (type)
-            {
-                case "mouse_move":
-                case "mouse_click":
-                case "key_press":
-                    _injectionService.Inject(json);
-                    break;
-                case "audio_frame":
-                    string base64 = doc.RootElement.GetProperty("data").GetString() ?? "";
-                    byte[] audioData = Convert.FromBase64String(base64);
-                    _audioReceiveService.ProcessFrame(audioData);
-                    break;
-            }
+        switch (type)
+        {
+            case PacketType.MouseMove:
+                dynamic moveData = payload;
+                _injectionService.InjectMouseMove(moveData.x, moveData.y);
+                break;
+            case PacketType.MouseClick:
+                dynamic clickData = payload;
+                _injectionService.InjectMouseClick(clickData.button);
+                break;
+            case PacketType.KeyPress:
+                dynamic keyData = payload;
+                _injectionService.InjectKeyPress(keyData.key);
+                break;
+            case PacketType.AudioFrame:
+                _audioReceiveService.ProcessFrame((byte[])payload);
+                break;
         }
-        catch { /* Ignore malformed packets */ }
     }
 
     public void SetRemoteControlState(bool active)

@@ -7,12 +7,12 @@ namespace Nicodemous.Backend.Services;
 public class InputService
 {
     private readonly TaskPoolGlobalHook _hook;
-    private readonly Action<string> _onEvent;
+    private readonly Action<byte[]> _onData;
 
-    public InputService(Action<string> onEvent)
+    public InputService(Action<byte[]> onData)
     {
         _hook = new TaskPoolGlobalHook();
-        _onEvent = onEvent;
+        _onData = onData;
 
         _hook.MouseMoved += OnMouseMoved;
         _hook.MouseClicked += OnMouseClicked;
@@ -31,19 +31,16 @@ public class InputService
 
     private void OnMouseMoved(object? sender, MouseHookEventArgs e)
     {
-        var data = new { type = "mouse_move", x = e.Data.X, y = e.Data.Y };
-        _onEvent(JsonSerializer.Serialize(data));
+        _onData(PacketSerializer.SerializeMouseMove(e.Data.X, e.Data.Y));
     }
 
     private void OnMouseClicked(object? sender, MouseHookEventArgs e)
     {
-        var data = new { type = "mouse_click", button = e.Data.Button.ToString() };
-        _onEvent(JsonSerializer.Serialize(data));
+        _onData(PacketSerializer.SerializeMouseClick(e.Data.Button.ToString()));
     }
 
     private void OnKeyTyped(object? sender, KeyboardHookEventArgs e)
     {
-        var data = new { type = "key_press", key = e.Data.KeyCode.ToString() };
-        _onEvent(JsonSerializer.Serialize(data));
+        _onData(PacketSerializer.SerializeKeyPress(e.Data.KeyCode.ToString()));
     }
 }
