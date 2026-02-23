@@ -31,7 +31,7 @@ public class UniversalControlManager : IDisposable
         _clipboardService    = new ClipboardService();
         _injectionService    = new InjectionService(_clipboardService);
         _networkService      = new NetworkService(8890);
-        _inputService        = new InputService(SendLocalData, _clipboardService);
+        _inputService        = new InputService(SendLocalData);
         _audioService        = new AudioService(HandleAudioCaptured);
         _audioReceiveService = new AudioReceiveService();
         _discoveryService    = new DiscoveryService(Environment.MachineName);
@@ -40,14 +40,19 @@ public class UniversalControlManager : IDisposable
         _networkService.StartListening(HandleRemoteData);
         _networkService.OnConnected += () =>
         {
-            // TCP is now ready — send handshake so the remote knows who controls it
+            // TCP ready — send handshake
             _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
             Console.WriteLine("[MANAGER] Handshake sent after TCP connection established.");
             SendUiMessage("connection_status", "Handshaking...");
+
+            // Start syncing our local clipboard to the peer immediately
+            _clipboardService.StartMonitoring(text =>
+                _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
         };
         _networkService.OnDisconnected += () =>
         {
             Console.WriteLine("[MANAGER] Remote disconnected.");
+            _clipboardService.StopMonitoring();
             if (_isRemoteControlActive) SetRemoteControlState(false);
             SendUiMessage("connection_status", "Disconnected");
         };
@@ -248,20 +253,17 @@ public class UniversalControlManager : IDisposable
                     Console.WriteLine($"[MANAGER] Handshake from '{hs.MachineName}'. Sending ACK.");
                     _networkService.Send(PacketSerializer.SerializeHandshakeAck());
                     SendUiMessage("connection_status", $"Controlled by {hs.MachineName}");
+                    // Also start monitoring our clipboard so we push changes back to the controller
+                    _clipboardService.StartMonitoring(text =>
+                        _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
                     break;
 
                 case PacketType.ClipboardPush:
-                    // Remote is pushing clipboard text to us — write it to our local clipboard
+                    // Peer sent us their clipboard — apply it locally
+                    // Ctrl+V now works natively since both machines share the same clipboard
                     var cbPush = (ClipboardData)payload;
                     Console.WriteLine($"[MANAGER] ClipboardPush received ({cbPush.Text.Length} chars).");
                     _clipboardService.SetText(cbPush.Text);
-                    break;
-
-                case PacketType.ClipboardPull:
-                    // Remote is requesting our clipboard — send it back
-                    Console.WriteLine("[MANAGER] ClipboardPull received — sending our clipboard.");
-                    string ourClipboard = _clipboardService.GetText();
-                    _networkService.Send(PacketSerializer.SerializeClipboardPush(ourClipboard));
                     break;
 
                 case PacketType.HandshakeAck:
