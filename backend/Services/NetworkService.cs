@@ -12,6 +12,8 @@ public class NetworkService
     private IPEndPoint? _targetEndPoint;
     private bool _isRunning;
 
+    public bool HasTarget => _targetEndPoint != null;
+
     public NetworkService(int port)
     {
         _port = port;

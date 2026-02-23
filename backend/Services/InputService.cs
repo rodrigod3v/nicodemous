@@ -25,6 +25,7 @@ public class InputService
     private bool _isInputLocked = true; // Default: Lock mouse to edge when in remote mode
 
     public event Action<ScreenEdge>? OnEdgeHit;
+    public event Action? OnReturn;
 
     public void SetActiveEdge(string edge)
     {
@@ -102,14 +103,28 @@ public class InputService
 
     private void HandleMouseLock(short x, short y)
     {
+        // Return detection: if user pulls mouse far enough away from the edge, we EXIT remote mode
+        const int returnThreshold = 200; 
+
+        if (_activeEdge == ScreenEdge.Right && x < _screenWidth - returnThreshold)
+        {
+            OnReturn?.Invoke();
+            return;
+        }
+        else if (_activeEdge == ScreenEdge.Left && x > returnThreshold)
+        {
+            OnReturn?.Invoke();
+            return;
+        }
+
         if (!_isInputLocked) return;
 
         // Simple lock: if in remote mode, keep mouse at the edge it crossed
-        if (_activeEdge == ScreenEdge.Right && x < _screenWidth - 100)
+        if (_activeEdge == ScreenEdge.Right && x < _screenWidth - 5)
         {
             _simulator.SimulateMouseMovement(_screenWidth, y);
         }
-        else if (_activeEdge == ScreenEdge.Left && x > 100)
+        else if (_activeEdge == ScreenEdge.Left && x > 5)
         {
             _simulator.SimulateMouseMovement(0, y);
         }

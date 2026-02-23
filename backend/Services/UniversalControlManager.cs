@@ -38,6 +38,7 @@ public class UniversalControlManager
 
         _networkService.StartListening(HandleRemoteData);
         _inputService.OnEdgeHit += HandleEdgeHit;
+        _inputService.OnReturn += () => SetRemoteControlState(false);
 
         // Detect Primary Screen Size based on OS
         DetectScreenSize();
@@ -80,11 +81,10 @@ public class UniversalControlManager
 
     private void HandleEdgeHit(ScreenEdge edge)
     {
-        // When edge is hit, we AUTOMATICALLY enter remote mode if a device is connected
-        if (!_isRemoteControlActive)
+        // When edge is hit, we AUTOMATICALLY enter remote mode IF a target is set
+        if (!_isRemoteControlActive && _networkService.HasTarget)
         {
             SetRemoteControlState(true);
-            // Optionally send a "Focus" packet to remote
         }
     }
 
