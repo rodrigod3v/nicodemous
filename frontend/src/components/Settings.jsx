@@ -11,12 +11,18 @@ const Settings = () => {
 
     // Sync settings with backend whenever they change
     useEffect(() => {
+        const message = JSON.stringify({
+            type: 'update_settings',
+            edge: config.borderSide,
+            lockInput: config.lockInput
+        });
+
         if (window.external && window.external.sendMessage) {
-            window.external.sendMessage(JSON.stringify({
-                type: 'update_settings',
-                edge: config.borderSide,
-                lockInput: config.lockInput
-            }));
+            window.external.sendMessage(message);
+        } else if (window.photino && window.photino.send) {
+            window.photino.send(message);
+        } else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+            window.chrome.webview.postMessage(message);
         }
     }, [config.borderSide, config.lockInput]);
 

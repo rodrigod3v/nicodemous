@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Settings from './Settings';
 
 const Dashboard = () => {
+    console.log('[FRONTEND] Dashboard component rendering...');
     const [activeTab, setActiveTab] = useState('overview');
     const [connectionStatus, setConnectionStatus] = useState('Disconnected');
     const [isScanning, setIsScanning] = useState(false);
@@ -132,8 +133,11 @@ const Dashboard = () => {
 
                 <div className="status glass" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div className="status-pulse" style={{ backgroundColor: connectionStatus === 'Connected' ? '#22c55e' : (connectionStatus.includes('Connecting') ? '#f59e0b' : '#ef4444') }}></div>
-                        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '500' }}>{connectionStatus}</span>
+                        <div className="status-pulse" style={{
+                            backgroundColor: connectionStatus === 'Connected' ? '#22c55e' :
+                                (String(connectionStatus || '').includes('Connecting') ? '#f59e0b' : '#ef4444')
+                        }}></div>
+                        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '500' }}>{connectionStatus || 'Disconnected'}</span>
                     </div>
                 </div>
             </aside>

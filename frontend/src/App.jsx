@@ -25,8 +25,14 @@ function App() {
       }
     };
 
+    // Unified message handler
     if (window.external && window.external.receiveMessage) {
       window.external.receiveMessage(handleBackendMessage);
+    } else if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.addEventListener('message', (e) => handleBackendMessage(e.data));
+    } else if (window.photino) {
+      // Fallback for older Photino versions
+      window.photino.receive && window.photino.receive(handleBackendMessage);
     }
   }, []);
 
