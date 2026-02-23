@@ -1,0 +1,53 @@
+name: Nicodemous CI
+
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+
+jobs:
+    backend:
+        name: Build Backend (.NET)
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup .NET
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: 8.0.x
+
+            - name: Restore dependencies
+              run: dotnet restore backend/nicodemous_backend.csproj
+
+            - name: Build
+              run: dotnet build backend/nicodemous_backend.csproj --configuration Release --no-restore
+
+    frontend:
+        name: Build Frontend (React)
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: "npm"
+                  cache-dependency-path: frontend/package-lock.json
+
+            - name: Install dependencies
+              run: |
+                  cd frontend
+                  npm install
+
+            - name: Lint
+              run: |
+                  cd frontend
+                  npm run lint
+
+            - name: Build
+              run: |
+                  cd frontend
+                  npm run build

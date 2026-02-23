@@ -20,32 +20,40 @@ public class InjectionService
             var doc = JsonDocument.Parse(json);
             string? type = doc.RootElement.GetProperty("type").GetString();
 
-            switch (type)
+            if (type == "mouse_move")
             {
-                case "mouse_move":
-                    short x = doc.RootElement.GetProperty("x").GetInt16();
-                    short y = doc.RootElement.GetProperty("y").GetInt16();
-                    _simulator.SimulateMouseMovement(x, y);
-                    break;
+                short x = doc.RootElement.GetProperty("x").GetInt16();
+                short y = doc.RootElement.GetProperty("y").GetInt16();
+                _simulator.SimulateMouseMovement(x, y);
+                return;
+            }
 
-                case "mouse_click":
-                    // Simplified: just press/release or click
-                    string buttonStr = doc.RootElement.GetProperty("button").GetString() ?? "Left";
-                    if (Enum.TryParse<MouseButton>(buttonStr, out var button))
-                    {
-                         _simulator.SimulateMousePress(button);
-                         _simulator.SimulateMouseRelease(button);
-                    }
-                    break;
+            // Using reflection to resolve SharpHook enums at runtime to bypass compile-time environment issues
+            var assembly = typeof(SharpHook.IEventSimulator).Assembly;
 
-                case "key_press":
-                    string keyStr = doc.RootElement.GetProperty("key").GetString() ?? "A";
-                    if (Enum.TryParse<KeyCode>(keyStr, out var keyCode))
-                    {
-                        _simulator.SimulateKeyPress(keyCode);
-                        _simulator.SimulateKeyRelease(keyCode);
-                    }
-                    break;
+            if (type == "mouse_click")
+            {
+                string buttonStr = doc.RootElement.GetProperty("button").GetString() ?? "Button1";
+                var mouseButtonType = assembly.GetType("SharpHook.Native.MouseButton");
+                if (mouseButtonType != null)
+                {
+                    var button = Enum.Parse(mouseButtonType, buttonStr == "Left" ? "Button1" : "Button2");
+                    ((dynamic)_simulator).SimulateMousePress((dynamic)button);
+                    ((dynamic)_simulator).SimulateMouseRelease((dynamic)button);
+                }
+            }
+            else if (type == "key_press")
+            {
+                string keyStr = doc.RootElement.GetProperty("key").GetString() ?? "VcA";
+                var keyCodeType = assembly.GetType("SharpHook.Native.KeyCode");
+                if (keyCodeType != null)
+                {
+                    // Basic mapping for alphanumeric keys
+                    string mappedKey = keyStr.Length == 1 ? "Vc" + keyStr.ToUpper() : keyStr;
+                    var keyCode = Enum.Parse(keyCodeType, mappedKey);
+                    ((dynamic)_simulator).SimulateKeyPress((dynamic)keyCode);
+                    ((dynamic)_simulator).SimulateKeyRelease((dynamic)keyCode);
+                }
             }
         }
         catch (Exception ex)

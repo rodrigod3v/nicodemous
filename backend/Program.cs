@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Text.Json;
-using PhotinoNET;
+using Photino.NET;
 using Nicodemous.Backend.Services;
 
 namespace Nicodemous.Backend;
@@ -25,7 +25,7 @@ class Program
             .SetTitle(windowTitle)
             .SetUseOsDefaultSize(false)
             .SetSize(1200, 800)
-            .SetCenterOnScreen(true)
+            .Center()
             .SetResizable(true)
             .RegisterCustomSchemeHandler("app", (object sender, string scheme, string url, out string contentType) =>
             {
