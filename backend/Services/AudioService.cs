@@ -1,6 +1,6 @@
-# if WINDOWS
+#if WINDOWS
 using NAudio.Wave;
-# endif
+#endif
 using Concentus;
 using Concentus.Enums;
 using Concentus.Structs;
@@ -10,9 +10,9 @@ namespace Nicodemous.Backend.Services;
 
 public class AudioService
 {
-# if WINDOWS
+#if WINDOWS
     private WasapiLoopbackCapture? _capture;
-# endif
+#endif
     private IOpusEncoder? _encoder;
     private readonly Action<byte[]> _onAudioEncoded;
     private bool _isStreaming = false;
@@ -28,7 +28,7 @@ public class AudioService
     {
         if (_isStreaming) return;
 
-# if WINDOWS
+#if WINDOWS
         _capture = new WasapiLoopbackCapture();
         _capture.DataAvailable += (s, e) =>
         {
@@ -40,9 +40,9 @@ public class AudioService
         };
 
         _capture.StartRecording();
-# else
+#else
         Console.WriteLine("Audio Capture is currently only supported on Windows.");
-# endif
+#endif
         _isStreaming = true;
     }
 
@@ -53,10 +53,10 @@ public class AudioService
 
     public void StopCapture()
     {
-# if WINDOWS
+#if WINDOWS
         _capture?.StopRecording();
         _capture?.Dispose();
-# endif
+#endif
         _isStreaming = false;
     }
 }

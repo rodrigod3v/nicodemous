@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Linq;
 using Photino.NET;
+using System.Runtime.InteropServices;
 
 namespace Nicodemous.Backend.Services;
 
@@ -38,7 +40,7 @@ public class UniversalControlManager
         short width = 1920;
         short height = 1080;
 
-        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
 #if WINDOWS
             try 

@@ -1,6 +1,6 @@
-# if WINDOWS
+#if WINDOWS
 using NAudio.Wave;
-# endif
+#endif
 using Concentus;
 using Concentus.Enums;
 using System.Text;
@@ -9,16 +9,16 @@ namespace Nicodemous.Backend.Services;
 
 public class AudioReceiveService
 {
-# if WINDOWS
+#if WINDOWS
     private readonly WaveOutEvent _waveOut;
     private readonly BufferedWaveProvider _waveProvider;
-# endif
+#endif
     private readonly IOpusDecoder _decoder;
     private bool _isPlaying = false;
 
     public AudioReceiveService()
     {
-# if WINDOWS
+#if WINDOWS
         // Setup playback: 48kHz, 16-bit, Stereo
         var waveFormat = new WaveFormat(48000, 16, 2);
         _waveProvider = new BufferedWaveProvider(waveFormat)
@@ -29,7 +29,7 @@ public class AudioReceiveService
 
         _waveOut = new WaveOutEvent();
         _waveOut.Init(_waveProvider);
-# endif
+#endif
 
         // Opus Decoder setup
         _decoder = OpusCodecFactory.CreateDecoder(48000, 2);
@@ -38,18 +38,18 @@ public class AudioReceiveService
     public void Start()
     {
         if (_isPlaying) return;
-# if WINDOWS
+#if WINDOWS
         _waveOut.Play();
-# endif
+#endif
         _isPlaying = true;
     }
 
     public void Stop()
     {
-# if WINDOWS
+#if WINDOWS
         _waveOut.Stop();
         _waveProvider.ClearBuffer();
-# endif
+#endif
         _isPlaying = false;
     }
 
@@ -59,11 +59,11 @@ public class AudioReceiveService
 
         try
         {
-# if WINDOWS
+#if WINDOWS
             _waveProvider.AddSamples(encodedData, 0, encodedData.Length);
-# else
+#else
             // Playback on Mac would require a different library like PortAudio or Soundio
-# endif
+#endif
         }
         catch (Exception ex)
         {
@@ -73,8 +73,8 @@ public class AudioReceiveService
 
     public void Dispose()
     {
-# if WINDOWS
+#if WINDOWS
         _waveOut.Dispose();
-# endif
+#endif
     }
 }
