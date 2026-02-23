@@ -15,6 +15,8 @@ public class DiscoveryService
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
 
+    public event Action<List<DiscoveredDevice>>? OnDeviceDiscovered;
+
     public string PairingCode => _pairingCode;
 
     public DiscoveryService(string deviceName)
@@ -80,11 +82,25 @@ public class DiscoveryService
                 
                 if (device != null && device.Code != _pairingCode)
                 {
+                    bool listChanged = false;
                     lock (_discoveredDevices)
                     {
                         var existing = _discoveredDevices.FirstOrDefault(d => d.Code == device.Code);
-                        if (existing == null) _discoveredDevices.Add(device);
-                        else existing.IPAddress = device.IPAddress;
+                        if (existing == null) 
+                        {
+                            _discoveredDevices.Add(device);
+                            listChanged = true;
+                        }
+                        else if (existing.IPAddress != device.IPAddress)
+                        {
+                            existing.IPAddress = device.IPAddress;
+                            listChanged = true;
+                        }
+                    }
+
+                    if (listChanged)
+                    {
+                        OnDeviceDiscovered?.Invoke(GetDiscoveredDevices());
                     }
                 }
             }
@@ -105,6 +121,14 @@ public class DiscoveryService
         lock (_discoveredDevices)
         {
             return _discoveredDevices.ToList();
+        }
+    }
+
+    public void ClearDiscoveredDevices()
+    {
+        lock (_discoveredDevices)
+        {
+            _discoveredDevices.Clear();
         }
     }
 

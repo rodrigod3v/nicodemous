@@ -33,8 +33,8 @@ const Dashboard = () => {
         const newState = !services[name];
         setServices(prev => ({ ...prev, [name]: newState }));
 
-        if (window.photino) {
-            window.photino.send(JSON.stringify({
+        if (window.external && window.external.sendMessage) {
+            window.external.sendMessage(JSON.stringify({
                 type: 'service_toggle',
                 service: name,
                 enabled: newState
@@ -43,14 +43,14 @@ const Dashboard = () => {
     };
 
     const startDiscovery = () => {
-        if (window.photino) {
-            window.photino.send(JSON.stringify({ type: 'start_discovery' }));
+        if (window.external && window.external.sendMessage) {
+            window.external.sendMessage(JSON.stringify({ type: 'start_discovery' }));
         }
     };
 
     const connectToDevice = (ip) => {
-        if (window.photino) {
-            window.photino.send(JSON.stringify({ type: 'connect_device', ip }));
+        if (window.external && window.external.sendMessage) {
+            window.external.sendMessage(JSON.stringify({ type: 'connect_device', ip }));
         }
     };
 

@@ -30,6 +30,7 @@ class Program
 
         // Initialize Central Manager
         _controlManager = new UniversalControlManager();
+        _controlManager.SetWindow(window);
 
         // UI Callbacks
         window.RegisterWebMessageReceivedHandler((object? sender, string message) => 
@@ -78,7 +79,7 @@ class Program
                     string ipOrCode = doc.RootElement.TryGetProperty("ip", out var ipProp) ? ipProp.GetString() ?? "" : "";
                     if (!string.IsNullOrEmpty(ipOrCode))
                     {
-                        _controlManager!.ConnectByCode(ipOrCode, window);
+                        _controlManager!.Connect(ipOrCode, window);
                     }
                     break;
                 case "update_settings":

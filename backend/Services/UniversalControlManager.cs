@@ -15,8 +15,17 @@ public class UniversalControlManager
     private readonly DiscoveryService _discoveryService;
     
     private bool _isRemoteControlActive = false;
+    private PhotinoWindow? _window;
 
     public string PairingCode => _discoveryService.PairingCode;
+
+    public void SetWindow(PhotinoWindow window)
+    {
+        _window = window;
+        _discoveryService.OnDeviceDiscovered += (devices) => {
+            _window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
+        };
+    }
 
     public UniversalControlManager()
     {
@@ -94,17 +103,35 @@ public class UniversalControlManager
         _discoveryService.Stop();
     }
 
-    public void ConnectByCode(string code, PhotinoWindow? window = null)
+    public void Connect(string target, PhotinoWindow? window = null)
     {
-        var device = _discoveryService.GetDiscoveredDevices().FirstOrDefault(d => d.Code == code);
+        string? ip = null;
+
+        // Try to resolve as Pairing Code first
+        var device = _discoveryService.GetDiscoveredDevices().FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
         if (device != null)
         {
-            _networkService.SetTarget(device.IPAddress, 8888);
+            ip = device.IPAddress;
+            Console.WriteLine($"Resolved Pairing Code {target} to {ip} ({device.Name})");
+        }
+        else if (System.Net.IPAddress.TryParse(target, out _))
+        {
+            // It's a valid IP address
+            ip = target;
+        }
+
+        if (ip != null)
+        {
+            _networkService.SetTarget(ip, 8888);
             if (window != null)
             {
                 window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
             }
-            Console.WriteLine($"Connected to {device.Name} ({device.IPAddress}) via code {code}");
+            Console.WriteLine($"Connection target set to {ip}");
+        }
+        else
+        {
+            Console.WriteLine($"Unrecognized target: {target}. Not a discovered code nor a valid IP.");
         }
     }
 
@@ -124,7 +151,12 @@ public class UniversalControlManager
         }
     }
 
-    public List<DiscoveredDevice> GetDevices() => _discoveryService.GetDiscoveredDevices();
+    public List<DiscoveredDevice> GetDevices() 
+    {
+        _discoveryService.ClearDiscoveredDevices();
+        // Since broadcaster/listener are always running, clearing will allow fresh items to populate
+        return _discoveryService.GetDiscoveredDevices();
+    }
 
     public void ToggleService(string name, bool enabled)
     {
