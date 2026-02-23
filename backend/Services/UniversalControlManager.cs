@@ -123,6 +123,10 @@ public class UniversalControlManager
         if (ip != null)
         {
             _networkService.SetTarget(ip, 8888);
+            
+            // Send Handshake so the target knows we are controlling it
+            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
+
             if (window != null)
             {
                 window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
@@ -211,6 +215,15 @@ public class UniversalControlManager
                 break;
             case PacketType.AudioFrame:
                 _audioReceiveService.ProcessFrame((byte[])payload);
+                break;
+            case PacketType.Handshake:
+                dynamic handshakeData = payload;
+                string remoteName = handshakeData.machineName;
+                Console.WriteLine($"[MANAGER] Remote handshake received from: {remoteName}");
+                _window?.SendWebMessage(JsonSerializer.Serialize(new { 
+                    type = "connection_status", 
+                    status = $"Controlled by {remoteName}" 
+                }));
                 break;
         }
     }

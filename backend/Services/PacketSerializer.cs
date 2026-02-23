@@ -9,7 +9,8 @@ public enum PacketType : byte
     MouseClick = 1,
     KeyPress = 2,
     AudioFrame = 3,
-    Ping = 4
+    Ping = 4,
+    Handshake = 5
 }
 
 public static class PacketSerializer
@@ -49,6 +50,15 @@ public static class PacketSerializer
         return buffer;
     }
 
+    public static byte[] SerializeHandshake(string machineName)
+    {
+        byte[] nameBytes = Encoding.UTF8.GetBytes(machineName);
+        byte[] buffer = new byte[1 + nameBytes.Length];
+        buffer[0] = (byte)PacketType.Handshake;
+        Buffer.BlockCopy(nameBytes, 0, buffer, 1, nameBytes.Length);
+        return buffer;
+    }
+
     public static (PacketType type, object data) Deserialize(byte[] buffer)
     {
         PacketType type = (PacketType)buffer[0];
@@ -69,6 +79,9 @@ public static class PacketSerializer
 
             case PacketType.AudioFrame:
                 return (type, payload.ToArray());
+
+            case PacketType.Handshake:
+                return (type, new { machineName = Encoding.UTF8.GetString(payload) });
 
             default:
                 return (PacketType.Ping, new { });

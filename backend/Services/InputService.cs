@@ -109,7 +109,7 @@ public class InputService
     private void HandleMouseLock(short x, short y)
     {
         // Return detection: if user pulls mouse far enough away from the edge, we EXIT remote mode
-        const int returnThreshold = 200; 
+        const int returnThreshold = 100; // Reduced for better responsiveness
 
         if (_activeEdge == ScreenEdge.Right && x < _screenWidth - returnThreshold)
         {
@@ -126,14 +126,15 @@ public class InputService
 
         if (!_isInputLocked) return;
 
-        // Simple lock: if in remote mode, keep mouse at the edge it crossed
-        if (_activeEdge == ScreenEdge.Right && x < _screenWidth - 5)
+        // SOFT LOCK: Only snap if we haven't crossed the exit threshold
+        // We snap to Offset 2 to avoid absolute OS boundaries which can cause coordinate jitter
+        if (_activeEdge == ScreenEdge.Right && x < _screenWidth - 2)
         {
-            _simulator.SimulateMouseMovement(_screenWidth, y);
+            _simulator.SimulateMouseMovement((short)(_screenWidth - 2), y);
         }
-        else if (_activeEdge == ScreenEdge.Left && x > 5)
+        else if (_activeEdge == ScreenEdge.Left && x > 2)
         {
-            _simulator.SimulateMouseMovement(0, y);
+            _simulator.SimulateMouseMovement(2, y);
         }
     }
 
