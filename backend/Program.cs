@@ -34,6 +34,10 @@ class Program
         _controlManager = new UniversalControlManager(settings);
         _controlManager.SetWindow(window);
 
+        // Initialize Tray Support
+        using var trayService = new TrayService(window, _controlManager);
+
+
         // UI Callbacks
         window.RegisterWebMessageReceivedHandler((object? sender, string message) => 
         {
