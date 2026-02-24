@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 #if WINDOWS
 using System.Windows.Forms;
 #else
@@ -18,6 +19,7 @@ public class ClipboardService
 
 #if !WINDOWS
     private readonly IClipboard _clipboard = new Clipboard();
+    private static readonly bool _isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
 #endif
 
     // -----------------------------------------------------------------------
@@ -44,6 +46,12 @@ public class ClipboardService
         thread.Join();
         return result;
 #else
+        if (_isMac)
+        {
+            try { return MacClipboardNative.GetText() ?? ""; }
+            catch { return ""; }
+        }
+
         try { return _clipboard.GetText() ?? ""; }
         catch { return ""; }
 #endif
@@ -69,17 +77,30 @@ public class ClipboardService
         thread.Start();
         thread.Join();
 #else
+        if (_isMac)
+        {
+            try 
+            { 
+                MacClipboardNative.SetText(text); 
+                Console.WriteLine($"[CLIPBOARD] Applied to macOS ({text.Length} chars)");
+                return;
+            }
+            catch (Exception ex) 
+            { 
+                Console.WriteLine($"[CLIPBOARD] macOS SetText error: {ex.Message}"); 
+            }
+        }
+
         try 
         { 
-            // TextCopy's Clipboard.SetText might have platform-specific quirks as a background service
             _clipboard.SetText(text); 
+            Console.WriteLine($"[CLIPBOARD] Applied ({text.Length} chars)");
         }
         catch (Exception ex) 
         { 
             Console.WriteLine($"[CLIPBOARD] SetText error: {ex.Message}"); 
         }
 #endif
-        Console.WriteLine($"[CLIPBOARD] Applied ({text.Length} chars)");
     }
 
     // -----------------------------------------------------------------------
@@ -128,3 +149,92 @@ public class ClipboardService
         _monitorCts = null;
     }
 }
+
+#if !WINDOWS
+/// <summary>
+/// Direct macOS P/Invoke for NSPasteboard.
+/// Avoids TextCopy/AppKit threading issues by being extremely explicit.
+/// </summary>
+internal static class MacClipboardNative
+{
+    [DllImport("/System/Library/Frameworks/AppKit.framework/AppKit")]
+    static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
+
+    [DllImport("/System/Library/Frameworks/AppKit.framework/AppKit")]
+    static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1);
+
+    [DllImport("/System/Library/Frameworks/AppKit.framework/AppKit")]
+    static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    static extern IntPtr sel_registerName(string name);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    static extern IntPtr objc_getClass(string name);
+
+    [DllImport("/System/Library/Frameworks/Foundation.framework/Foundation")]
+    static extern IntPtr UTF8String(IntPtr nsString);
+
+    private static IntPtr _nsStringClass = objc_getClass("NSString");
+    private static IntPtr _nsPasteboardClass = objc_getClass("NSPasteboard");
+    private static IntPtr _utf8Type;
+
+    static MacClipboardNative()
+    {
+        _utf8Type = CreateNSString("public.utf8-plain-text");
+    }
+
+    private static IntPtr CreateNSString(string str)
+    {
+        IntPtr alloc = objc_msgSend(_nsStringClass, sel_registerName("alloc"));
+        IntPtr init = sel_registerName("initWithUTF8String:");
+        byte[] utf8 = System.Text.Encoding.UTF8.GetBytes(str + "\0");
+        GCHandle handle = GCHandle.Alloc(utf8, GCHandleType.Pinned);
+        try
+        {
+            return objc_msgSend(alloc, init, handle.AddrOfPinnedObject());
+        }
+        finally
+        {
+            handle.Free();
+        }
+    }
+
+    private static string? GetStringFromIntPtr(IntPtr nsString)
+    {
+        if (nsString == IntPtr.Zero) return null;
+        IntPtr utf8Ptr = objc_msgSend(nsString, sel_registerName("UTF8String"));
+        return Marshal.PtrToStringAnsi(utf8Ptr);
+    }
+
+    public static string? GetText()
+    {
+        try
+        {
+            IntPtr pb = objc_msgSend(_nsPasteboardClass, sel_registerName("generalPasteboard"));
+            IntPtr str = objc_msgSend(pb, sel_registerName("stringForType:"), _utf8Type);
+            return GetStringFromIntPtr(str);
+        }
+        catch { return null; }
+    }
+
+    public static void SetText(string text)
+    {
+        try
+        {
+            IntPtr pb = objc_msgSend(_nsPasteboardClass, sel_registerName("generalPasteboard"));
+            objc_msgSend(pb, sel_registerName("clearContents"));
+            
+            IntPtr nsStr = CreateNSString(text);
+            objc_msgSend(pb, sel_registerName("setString:forType:"), nsStr, _utf8Type);
+            // We don't explicitly release nsStr here to avoid double-free if pb takes ownership or if autoreleasepool handles it,
+            // but in a long-running app with many sets, we might want an autorelease pool or use CFRelease if it's a CFString.
+            // For now, stability is priority.
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MAC-CLIP] Native set failed: {ex.Message}");
+        }
+    }
+}
+#endif
