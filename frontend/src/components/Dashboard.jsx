@@ -148,6 +148,7 @@ const Dashboard = () => {
     const startDiscovery = () => {
         setIsScanning(true);
         setDiscoveredDevices([]);
+        setActiveTab('devices'); // Navigate to Discovery tab
         sendToBackend('start_discovery');
         setTimeout(() => setIsScanning(false), 10000);
     };
@@ -228,10 +229,44 @@ const Dashboard = () => {
                             </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px' }}>
-                            <ServiceCard title="Remote Input" description="Share your mouse and keyboard across devices seamlessly." enabled={services.input} onToggle={() => toggleService('input')} icon="M15 15l-2 5L9 9l11 4-5 2z" />
-                            <ServiceCard title="Shared Clipboard" description="Copy values and files on one computer and paste them on another." enabled={services.clipboard} onToggle={() => toggleService('clipboard')} icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
-                            <ServiceCard title="Sync Audio" description="Stream system audio from connected devices to your main speakers." enabled={services.audio} onToggle={() => toggleService('audio')} icon="M15.536 8.464a5 5 0 010 7.072" />
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+                            {/* Nearby Devices Preview */}
+                            <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h2 style={{ fontSize: '20px', margin: 0 }}>Nearby Devices</h2>
+                                    <button className="glass" onClick={() => setActiveTab('devices')} style={{ fontSize: '12px', padding: '5px 12px', cursor: 'pointer', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', border: '1px solid rgba(255,255,255,0.1)' }}>View All</button>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {discoveredDevices.length > 0 ? discoveredDevices.slice(0, 3).map((dev, i) => (
+                                        <div key={i} className="glass" style={{ padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                <div style={{ color: 'var(--accent-primary)' }}>
+                                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: '14px', fontWeight: '600' }}>{dev.name || dev.hostname || 'Unknown Device'}</div>
+                                                    <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>{dev.ip}</div>
+                                                </div>
+                                            </div>
+                                            <button className="glow-button" onClick={() => connectToDevice(dev.ip)} style={{ padding: '6px 15px', fontSize: '12px' }}>Connect</button>
+                                        </div>
+                                    )) : (
+                                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '14px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                                            {isScanning ? 'Scanning...' : 'No devices found yet.'}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Quick Join Panel */}
+                            <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(255,255,255,0.01) 100%)' }}>
+                                <h2 style={{ fontSize: '20px', margin: 0 }}>Direct Connection</h2>
+                                <p style={{ fontSize: '13px', color: 'var(--text-dim)', margin: 0 }}>Enter an IP or PIN to join a session instantly.</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                                    <input className="glass-input" placeholder="IP Address / PIN" value={manualIp} onChange={(e) => setManualIp(e.target.value)} style={{ padding: '12px', borderRadius: '10px', fontSize: '14px' }} />
+                                    <button className="glow-button" onClick={() => connectToDevice(manualIp)} style={{ width: '100%' }}>Connect Now</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -332,11 +367,16 @@ const Dashboard = () => {
                                         </div>
 
                                         <div className="glass" style={{ padding: '30px' }}>
-                                            <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '20px' }}>
-                                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2z" />
-                                                </svg>
-                                                Mouse Dynamics & Precision
+                                            <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '20px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2z" />
+                                                    </svg>
+                                                    Mouse Dynamics & Precision
+                                                </div>
+                                                <button onClick={restoreDefaults} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                    RESTORE DEFAULTS
+                                                </button>
                                             </h2>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
                                                 <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -357,14 +397,20 @@ const Dashboard = () => {
                                         </div>
 
                                         <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                 <div>
                                                     <h3 style={{ margin: 0 }}>Input Locking & Crossing</h3>
                                                     <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Behavior when cursor is at the edge or on remote.</p>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                                    <Switch checked={config.lockInput} onChange={() => setConfig(prev => ({ ...prev, lockInput: !prev.lockInput }))} />
-                                                    <span style={{ fontSize: '14px', fontWeight: '600' }}>{config.lockInput ? 'Locked' : 'Free'}</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                                    <button onClick={restoreDefaults} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                        RESTORE DEFAULTS
+                                                    </button>
+                                                    <div style={{ height: '30px', width: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                        <Switch checked={config.lockInput} onChange={() => setConfig(prev => ({ ...prev, lockInput: !prev.lockInput }))} />
+                                                        <span style={{ fontSize: '14px', fontWeight: '600', minWidth: '45px' }}>{config.lockInput ? 'Locked' : 'Free'}</span>
+                                                    </div>
                                                 </div>
                                             </div>
 

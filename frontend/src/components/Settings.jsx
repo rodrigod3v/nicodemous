@@ -288,52 +288,6 @@ const Settings = () => {
                 </div>
             </div>
 
-            <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                        <h3 style={{ margin: 0 }}>Advanced Input Locking</h3>
-                        <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Prevent local mouse movement while controlling remote.</p>
-                    </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <Switch checked={config.lockInput} onChange={toggleLock} />
-                    <span style={{ fontSize: '14px', fontWeight: '600' }}>{config.lockInput ? 'Enabled' : 'Disabled'}</span>
-                </div>
-
-                <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-                    <div>
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Switching Delay</span>
-                                <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{config.delay}ms</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="1000" step="50"
-                                value={config.delay}
-                                onChange={(e) => setConfig({ ...config, delay: e.target.value })}
-                                style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
-                            />
-                            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>Hold mouse at edge for this long to cross.</p>
-                        </label>
-                    </div>
-
-                    <div>
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Dead Corner Size</span>
-                                <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{config.cornerSize}px</span>
-                            </div>
-                            <input
-                                type="range" min="0" max="200" step="10"
-                                value={config.cornerSize}
-                                onChange={(e) => setConfig({ ...config, cornerSize: e.target.value })}
-                                style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
-                            />
-                            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>Ignore edge activation near screen corners.</p>
-                        </label>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };
