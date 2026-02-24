@@ -19,6 +19,7 @@ public class UniversalControlManager : IDisposable
 
     private bool _isRemoteControlActive = false;
     private PhotinoWindow? _window;
+    private string? _targetPairingCode;
     private bool _disposed;
 
     public string PairingCode => _settingsService.GetSettings().PairingCode;
@@ -48,8 +49,10 @@ public class UniversalControlManager : IDisposable
             if (!isIncoming)
             {
                 // We are the initiator (Controller)
-                _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, PairingCode));
-                Console.WriteLine($"[MANAGER] Handshake sent (PIN: {PairingCode}) as Controller.");
+                // Use the target PIN we captured during Connect()
+                string pinToSend = _targetPairingCode ?? PairingCode;
+                _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, pinToSend));
+                Console.WriteLine($"[MANAGER] Handshake sent (PIN: {pinToSend}) as Controller.");
                 SendUiMessage("connection_status", "Handshaking...");
             }
             else
@@ -158,6 +161,9 @@ public class UniversalControlManager : IDisposable
             return;
         }
 
+        // Capture the PIN for the handshake (it's either the target itself or the code from discovery)
+        _targetPairingCode = ResolvePin(target);
+
         _networkService.SetTarget(ip, 8890);
         // Handshake is sent inside OnConnected (after TCP is actually ready)
 
@@ -172,6 +178,15 @@ public class UniversalControlManager : IDisposable
                                        .FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
         if (device != null) return device.Ip;
         if (System.Net.IPAddress.TryParse(target, out _)) return target;
+        return null;
+    }
+
+    private string? ResolvePin(string target)
+    {
+        var device = _discoveryService.GetDiscoveredDevices()
+                                       .FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
+        if (device != null) return device.Code;
+        if (target.Length == 6) return target;
         return null;
     }
 
@@ -237,7 +252,7 @@ public class UniversalControlManager : IDisposable
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
-    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500, string pairingCode = null)
+    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500, string? pairingCode = null)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
