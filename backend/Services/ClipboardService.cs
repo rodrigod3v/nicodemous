@@ -20,7 +20,14 @@ public class ClipboardService
 #if !WINDOWS
     private readonly IClipboard _clipboard = new Clipboard();
     private static readonly bool _isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+    private long _lastChangeCount = -1;
 #endif
+
+    /// <summary>
+    /// macOS only: Delegate to marshal calls to the UI thread (Main Thread).
+    /// Photino's window.Invoke is compatible with this signature.
+    /// </summary>
+    public Action<Action>? InvokeOnMainThread { get; set; }
 
     // -----------------------------------------------------------------------
     // Public API
@@ -48,8 +55,15 @@ public class ClipboardService
 #else
         if (_isMac)
         {
-            try { return MacClipboardNative.GetText() ?? ""; }
-            catch { return ""; }
+            if (InvokeOnMainThread == null) return ""; // Not initialized yet
+
+            string result = "";
+            InvokeOnMainThread(() =>
+            {
+                try { result = MacClipboardNative.GetText() ?? ""; }
+                catch { result = ""; }
+            });
+            return result;
         }
 
         try { return _clipboard.GetText() ?? ""; }
@@ -79,16 +93,23 @@ public class ClipboardService
 #else
         if (_isMac)
         {
-            try 
-            { 
-                MacClipboardNative.SetText(text); 
-                Console.WriteLine($"[CLIPBOARD] Applied to macOS ({text.Length} chars)");
-                return;
-            }
-            catch (Exception ex) 
-            { 
-                Console.WriteLine($"[CLIPBOARD] macOS SetText error: {ex.Message}"); 
-            }
+            if (InvokeOnMainThread == null) return;
+
+            InvokeOnMainThread(() =>
+            {
+                try 
+                { 
+                    MacClipboardNative.SetText(text); 
+                    // Update lastChangeCount AFTER setting so our own write doesn't trigger a monitor event
+                    _lastChangeCount = MacClipboardNative.GetChangeCount();
+                    Console.WriteLine($"[CLIPBOARD] Applied to macOS ({text.Length} chars)");
+                }
+                catch (Exception ex) 
+                { 
+                    Console.WriteLine($"[CLIPBOARD] macOS SetText error: {ex.Message}"); 
+                }
+            });
+            return;
         }
 
         try 
@@ -151,12 +172,31 @@ public class ClipboardService
             {
                 try
                 {
-                    string current = GetText();
-                    if (!string.IsNullOrEmpty(current) && current != _lastText)
+                    if (_isMac && InvokeOnMainThread != null)
                     {
-                        Console.WriteLine($"[CLIPBOARD-MAC] Local change detected ({current.Length} chars) — syncing.");
-                        _lastText = current;
-                        onChange(current);
+                        long currentCount = 0;
+                        InvokeOnMainThread(() => currentCount = MacClipboardNative.GetChangeCount());
+
+                        if (currentCount != _lastChangeCount)
+                        {
+                            _lastChangeCount = currentCount;
+                            string current = GetText(); // This is already marshalled inside GetText()
+                            if (!string.IsNullOrEmpty(current) && current != _lastText)
+                            {
+                                Console.WriteLine($"[CLIPBOARD-MAC] Local change detected ({current.Length} chars) — syncing.");
+                                _lastText = current;
+                                onChange(current);
+                            }
+                        }
+                    }
+                    else if (!_isMac)
+                    {
+                        string current = GetText();
+                        if (!string.IsNullOrEmpty(current) && current != _lastText)
+                        {
+                            _lastText = current;
+                            onChange(current);
+                        }
                     }
                 }
                 catch { /* ignore transient clipboard access errors */ }
@@ -288,6 +328,16 @@ internal static class MacClipboardNative
         IntPtr utf8Ptr = objc_msgSend(nsString, sel_registerName("UTF8String"));
         if (utf8Ptr == IntPtr.Zero) return null;
         return Marshal.PtrToStringUTF8(utf8Ptr);
+    }
+
+    public static long GetChangeCount()
+    {
+        try
+        {
+            IntPtr pb = objc_msgSend(_nsPasteboardClass, sel_registerName("generalPasteboard"));
+            return (long)objc_msgSend(pb, sel_registerName("changeCount"));
+        }
+        catch { return 0; }
     }
 
     public static string? GetText()

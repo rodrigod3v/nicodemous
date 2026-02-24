@@ -70,6 +70,10 @@ public class UniversalControlManager : IDisposable
     public void SetWindow(PhotinoWindow window)
     {
         _window = window;
+        
+        // Connect the clipboard service to the UI thread for macOS stability
+        _clipboardService.InvokeOnMainThread = (action) => window.Invoke(action);
+
         _discoveryService.OnDeviceDiscovered += devices =>
             window.Invoke(() =>
                 window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices })));
