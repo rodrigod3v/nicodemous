@@ -9,7 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 /// <summary>
 /// TCP-based network service with 4-byte big-endian length-prefixed framing.
@@ -240,7 +240,7 @@ public class NetworkService : IDisposable
         try
         {
             using var rsa = RSA.Create(2048);
-            var request = new CertificateRequest("cn=Nicodemous", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            var request = new CertificateRequest("cn=nicodemouse", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             using var cert = request.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(10));
             return new X509Certificate2(cert.Export(X509ContentType.Pfx));
         }

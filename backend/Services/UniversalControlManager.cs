@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Photino.NET;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 public class UniversalControlManager : IDisposable
 {
@@ -19,7 +19,9 @@ public class UniversalControlManager : IDisposable
 
     private bool _isRemoteControlActive = false;
     private PhotinoWindow? _window;
+    private string? _targetPairingCode;
     private bool _disposed;
+    private DateTime _lastSystemInfoTime = DateTime.MinValue;
 
     public string PairingCode => _settingsService.GetSettings().PairingCode;
 
@@ -48,8 +50,10 @@ public class UniversalControlManager : IDisposable
             if (!isIncoming)
             {
                 // We are the initiator (Controller)
-                _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, PairingCode));
-                Console.WriteLine($"[MANAGER] Handshake sent (PIN: {PairingCode}) as Controller.");
+                // Use the target PIN we captured during Connect()
+                string pinToSend = _targetPairingCode ?? PairingCode;
+                _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, pinToSend));
+                Console.WriteLine($"[MANAGER] Handshake sent (PIN: {pinToSend}) as Controller.");
                 SendUiMessage("connection_status", "Handshaking...");
             }
             else
@@ -158,6 +162,9 @@ public class UniversalControlManager : IDisposable
             return;
         }
 
+        // Capture the PIN for the handshake (it's either the target itself or the code from discovery)
+        _targetPairingCode = ResolvePin(target);
+
         _networkService.SetTarget(ip, 8890);
         // Handshake is sent inside OnConnected (after TCP is actually ready)
 
@@ -172,6 +179,24 @@ public class UniversalControlManager : IDisposable
                                        .FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
         if (device != null) return device.Ip;
         if (System.Net.IPAddress.TryParse(target, out _)) return target;
+        return null;
+    }
+
+    private string? ResolvePin(string target)
+    {
+        // 1. Try to find device by Code
+        var device = _discoveryService.GetDiscoveredDevices()
+                                       .FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
+        if (device != null) return device.Code;
+
+        // 2. Try to find device by IP (if target is an IP)
+        var deviceByIp = _discoveryService.GetDiscoveredDevices()
+                                         .FirstOrDefault(d => d.Ip.Equals(target, StringComparison.OrdinalIgnoreCase));
+        if (deviceByIp != null) return deviceByIp.Code;
+
+        // 3. If target looks like a PIN itself
+        if (target.Length == 6) return target;
+        
         return null;
     }
 
@@ -209,16 +234,22 @@ public class UniversalControlManager : IDisposable
                 break;
         }
         _settingsService.Save();
+        SendSettingsToWeb();
     }
 
     public string GetSettingsJson()
     {
-        SendSystemInfo(); // Refresh system info when settings are requested
+        // Only refresh system info (expensive monitor scan) if it hasn't been done in the last 2 minutes
+        if ((DateTime.Now - _lastSystemInfoTime).TotalMinutes > 2)
+        {
+            SendSystemInfo();
+        }
         return JsonSerializer.Serialize(_settingsService.GetSettings());
     }
 
     private void SendSystemInfo()
     {
+        _lastSystemInfoTime = DateTime.Now;
         var monitors = new List<object>();
 #if WINDOWS
         try {
@@ -237,7 +268,7 @@ public class UniversalControlManager : IDisposable
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
-    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500)
+    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500, string? pairingCode = null, string? activeMonitor = null)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
@@ -254,7 +285,17 @@ public class UniversalControlManager : IDisposable
         s.MouseSensitivity = sensitivity;
         s.GestureThreshold = gestureThreshold;
         s.LockInput = lockInput;
+        if (!string.IsNullOrEmpty(activeMonitor)) s.ActiveMonitor = activeMonitor;
+
+        if (!string.IsNullOrEmpty(pairingCode) && pairingCode.Length == 6)
+        {
+            s.PairingCode = pairingCode;
+            _discoveryService.UpdatePairingCode(pairingCode);
+            SendLocalIpToWeb(); // Notify UI of PIN change
+        }
+
         _settingsService.Save();
+        SendSettingsToWeb();
     }
 
     public void ResetSettings()
@@ -278,10 +319,16 @@ public class UniversalControlManager : IDisposable
         if (System.Enum.TryParse<ScreenEdge>(s.ActiveEdge, out var edge))
             _inputService.SetActiveEdge(s.ActiveEdge);
 
-        // Apply service states
-        ToggleService("input", s.EnableInput);
-        ToggleService("clipboard", s.EnableClipboard);
-        ToggleService("audio", s.EnableAudio);
+        // Apply service states without pushing back to UI to avoid loops
+        if (s.EnableInput) _inputService.Start(); else _inputService.Stop();
+        
+        if (s.EnableClipboard) _clipboardService.StartMonitoring(t => _networkService.Send(PacketSerializer.SerializeClipboardPush(t)));
+        else _clipboardService.StopMonitoring();
+
+        if (s.EnableAudio) _audioService.StartCapture(); else _audioService.StopCapture();
+
+        // Update discovery PIN
+        _discoveryService.UpdatePairingCode(s.PairingCode);
     }
 
     // -----------------------------------------------------------------------
@@ -359,7 +406,7 @@ public class UniversalControlManager : IDisposable
                     {
                         Console.WriteLine($"[MANAGER] ACCESS DENIED: Handshake from '{hs.MachineName}' used wrong PIN '{hs.PairingCode}'. local PIN is '{PairingCode}'.");
                         _networkService.Send(PacketSerializer.SerializeClipboardPush("ERROR: Invalid Pairing Code. Connection Rejected."));
-                        _networkService.Stop();
+                        _networkService.Disconnect();
                         SendUiMessage("connection_status", "Rejeitado: PIN Inválido");
                         break;
                     }
@@ -491,6 +538,27 @@ public class UniversalControlManager : IDisposable
         string settingsJson = GetSettingsJson();
         _window.Invoke(() =>
             _window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+    }
+
+    public void SendLocalIpToWeb()
+    {
+        if (_window == null) return;
+        string? localIp = "Unknown";
+        try {
+            using (var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Dgram, 0)) {
+                socket.Connect("8.8.8.8", 65530);
+                localIp = (socket.LocalEndPoint as System.Net.IPEndPoint)?.Address.ToString() ?? "Unknown";
+            }
+        } catch { }
+
+        _window.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                type = "local_ip", 
+                detail = new {
+                    ip = localIp,
+                    code = PairingCode
+                }
+            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     private void SendUiMessage(string type, string value)

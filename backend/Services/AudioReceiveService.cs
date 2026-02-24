@@ -5,7 +5,7 @@ using Concentus;
 using Concentus.Enums;
 using System.Text;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 public class AudioReceiveService
 {

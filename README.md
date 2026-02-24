@@ -1,14 +1,14 @@
-# 👁️ Nicodemous
+# 👁️ nicodemouse
 
 **Universal Control & High-Fidelity Audio Sharing**
 
-Nicodemous is a high-performance, cross-platform bridge designed to unify your digital workspace. It allows you to share mouse control, keyboard input, clipboard data, and system audio between devices on a local network with near-zero latency.
+nicodemouse is a high-performance, cross-platform bridge designed to unify your digital workspace. It allows you to share mouse control, keyboard input, clipboard data, and system audio between devices on a local network with near-zero latency.
 
 ---
 
 ## 🚀 The Vision
 
-In a world of multiple devices, Nicodemous aims to make transitions invisible. Whether you are controlling a secondary machine or streaming high-fidelity audio across your setup, Nicodemous provides the "gravity" that keeps your workflow grounded and fluid.
+In a world of multiple devices, nicodemouse aims to make transitions invisible. Whether you are controlling a secondary machine or streaming high-fidelity audio across your setup, nicodemouse provides the "gravity" that keeps your workflow grounded and fluid.
 
 ## ✨ Core Features
 
@@ -33,7 +33,7 @@ In a world of multiple devices, Nicodemous aims to make transitions invisible. W
 
 ## 🛠️ Technical Architecture
 
-Nicodemous is built on a modern, distributed architecture combining the power of .NET with the elegance of React.
+nicodemouse is built on a modern, distributed architecture combining the power of .NET with the elegance of React.
 
 -   **Backend**: [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0) + C#
     -   **GUI Layer**: [Photino.NET](https://www.tryphotino.io/) (Lightweight native windowing)
@@ -48,7 +48,7 @@ Nicodemous is built on a modern, distributed architecture combining the power of
 ## 📂 Project Structure
 
 ```text
-nicodemous/
+nicodemouse/
 ├── backend/            # .NET 8 Core Services
 │   ├── Services/       # Input, Audio, Discovery, and Network layers
 │   └── Program.cs      # Photino Host Entry Point
@@ -57,6 +57,8 @@ nicodemous/
 │   └── public/         # Static Assets
 └── .agent/             # Project blueprints and AI context
 ```
+
+For a detailed technical breakdown of services, protocol, and internal logic, see the [Architecture Documentation](ARCHITECTURE.md).
 
 ---
 
@@ -71,8 +73,8 @@ nicodemous/
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/rodrigod3v/nicodemous.git
-    cd nicodemous
+    git clone https://github.com/rodrigod3v/nicodemouse.git
+    cd nicodemouse
     ```
 
 2.  **Start the Frontend (Vite)**:

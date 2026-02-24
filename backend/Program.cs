@@ -2,9 +2,9 @@ using System;
 using System.IO;
 using System.Text.Json;
 using Photino.NET;
-using Nicodemous.Backend.Services;
+using nicodemouse.Backend.Services;
 
-namespace Nicodemous.Backend;
+namespace nicodemouse.Backend;
 
 class Program
 {
@@ -13,7 +13,7 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
-        string windowTitle = "Nicodemous - Universal Control";
+        string windowTitle = "nicodemouse - Universal Control";
         
 #if DEBUG
         string initialUrl = "http://localhost:5173"; 
@@ -24,9 +24,10 @@ class Program
         var window = new PhotinoWindow()
             .SetTitle(windowTitle)
             .SetUseOsDefaultSize(false)
-            .SetSize(1200, 800)
+            .SetSize(1280, 850)
             .Center()
-            .SetResizable(true);
+            .SetResizable(true)
+            .SetIconFile(Path.GetFullPath("../frontend/public/favicon.ico"));
 
         // Initialize Central Manager
         var settings = new SettingsService();
@@ -44,25 +45,10 @@ class Program
         
         window.Load(initialUrl);
 
-        // Send actual Pairing Code to UI
+        // Send actual Pairing Code and IP to UI
         Task.Run(async () => {
-            await Task.Delay(4000); // Give UI time to fully load
-            // Get local IP for display
-            string localIp = "Unknown";
-            try {
-                using (var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Dgram, 0)) {
-                    socket.Connect("8.8.8.8", 65530);
-                    localIp = (socket.LocalEndPoint as System.Net.IPEndPoint)?.Address.ToString() ?? "Unknown";
-                }
-            } catch { /* Fallback to Unknown */ }
-
-            window.SendWebMessage(JsonSerializer.Serialize(new { 
-                type = "local_ip", 
-                detail = new {
-                    ip = localIp,
-                    code = _controlManager.PairingCode
-                }
-            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+            await Task.Delay(3000); // Give UI time to fully load
+            _controlManager!.SendLocalIpToWeb();
         });
 
         window.WaitForClose();
@@ -103,13 +89,15 @@ class Program
                     window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
                     break;
                 case "update_settings":
-                    string activeEdge = doc.RootElement.GetProperty("edge").GetString() ?? "Right";
-                    bool lockInput = doc.RootElement.GetProperty("lockInput").GetBoolean();
+                    string activeEdge = doc.RootElement.TryGetProperty("edge", out var edgeProp) ? edgeProp.GetString() ?? "Right" : "Right";
+                    bool lockInput = doc.RootElement.TryGetProperty("lockInput", out var lockProp) ? lockProp.GetBoolean() : true;
                     int delay = doc.RootElement.TryGetProperty("delay", out var delayProp) ? delayProp.GetInt32() : 150;
                     int cornerSize = doc.RootElement.TryGetProperty("cornerSize", out var cornerProp) ? cornerProp.GetInt32() : 50;
                     double sensitivity = doc.RootElement.TryGetProperty("sensitivity", out var sensProp) ? sensProp.GetDouble() : 0.7;
                     int gestureThreshold = doc.RootElement.TryGetProperty("gestureThreshold", out var gestureProp) ? gestureProp.GetInt32() : 1000;
-                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity, gestureThreshold);
+                    string? pairingCode = doc.RootElement.TryGetProperty("pairingCode", out var pinProp) ? pinProp.GetString() : null;
+                    string? activeMonitor = doc.RootElement.TryGetProperty("activeMonitor", out var monitorProp) ? monitorProp.GetString() : null;
+                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity, gestureThreshold, pairingCode, activeMonitor);
                     break;
                 case "reset_settings":
                     _controlManager!.ResetSettings();

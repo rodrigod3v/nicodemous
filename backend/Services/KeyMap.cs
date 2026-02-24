@@ -2,10 +2,10 @@ using SharpHook.Native;
 using SharpHook.Data;
 using System.Collections.Generic;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 /// <summary>
-/// Maps between SharpHook KeyCode and Nicodemous KeyID (a stable, platform-agnostic ID).
+/// Maps between SharpHook KeyCode and nicodemouse KeyID (a stable, platform-agnostic ID).
 /// Inspired by Input Leap's key mapping approach (protocol_types.h / KeyID).
 /// KeyID values 0x0020-0x00FF are Unicode codepoints for printable chars.
 /// Values 0xEF00-0xEFFF are used for special/function keys.
@@ -59,7 +59,7 @@ public static class KeyMap
     public const ushort KeyScrollLock = 0xEFF4;
     public const ushort KeyPrintScr  = 0xEF61;
 
-    // Map: SharpHook KeyCode → Nicodemous KeyID
+    // Map: SharpHook KeyCode → nicodemouse KeyID
     public static readonly Dictionary<KeyCode, ushort> KeyCodeToId = new()
     {
         // --- Letters (Unicode codepoints for lowercase) ---

@@ -3,7 +3,7 @@ using SharpHook.Native;
 using SharpHook.Data;
 using System.Runtime.InteropServices;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 public enum ScreenEdge { None, Left, Right, Top, Bottom }
 

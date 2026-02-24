@@ -1,6 +1,6 @@
-# 🛠️ Nicodemous: Guia de Desenvolvimento & Execução Local
+# 🛠️ nicodemouse: Guia de Desenvolvimento & Execução Local
 
-Este guia detalha como configurar seu ambiente para rodar o **Nicodemous** em modo de desenvolvimento, permitindo que você faça alterações e veja os resultados instantaneamente.
+Este guia detalha como configurar seu ambiente para rodar o **nicodemouse** em modo de desenvolvimento, permitindo que você faça alterações e veja os resultados instantaneamente.
 
 ---
 
@@ -24,7 +24,7 @@ Antes de começar, verifique se você tem as seguintes ferramentas instaladas:
 
 ## 🚀 3. Rodando em Modo de Desenvolvimento
 
-Para rodar o Nicodemous localmente, você precisa de **dois terminais** abertos.
+Para rodar o nicodemouse localmente, você precisa de **dois terminais** abertos.
 
 ### Passo A: Frontend (Reload Instantâneo)
 Abra o primeiro terminal no diretório raiz e rode:
@@ -52,12 +52,12 @@ Se você quiser gerar o executável final na sua máquina sem usar o GitHub:
 
 ### Para Windows (.exe standalone):
 ```bash
-dotnet publish backend/nicodemous_backend.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -f net8.0-windows
+dotnet publish backend/nicodemouse_backend.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -f net8.0-windows
 ```
 
 ### Para macOS (Binário nativo):
 ```bash
-dotnet publish backend/nicodemous_backend.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -f net8.0
+dotnet publish backend/nicodemouse_backend.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -f net8.0
 ```
 O arquivo final estará na pasta `backend/bin/Release/.../publish`.
 
@@ -65,10 +65,10 @@ O arquivo final estará na pasta `backend/bin/Release/.../publish`.
 
 ## 🍎 5. Notas Específicas para macOS (Permissões)
 
-Para que o Nicodemous consiga injetar movimentos de mouse e teclado no Mac, você **precisa** conceder permissões de acessibilidade:
+Para que o nicodemouse consiga injetar movimentos de mouse e teclado no Mac, você **precisa** conceder permissões de acessibilidade:
 
 1. Vá em **Ajustes do Sistema** > **Privacidade e Segurança** > **Acessibilidade**.
-2. Clique no ícone de `+` e adicione o seu Terminal (ex: `iTerm` ou `Terminal`) ou o executável do `Nicodemous`.
+2. Clique no ícone de `+` e adicione o seu Terminal (ex: `iTerm` ou `Terminal`) ou o executável do `nicodemouse`.
 3. Certifique-se de que a chave está **Ativada**.
 
 > [!IMPORTANT]
@@ -83,4 +83,4 @@ Para que o Nicodemous consiga injetar movimentos de mouse e teclado no Mac, voc�
 3.  **Portas de Rede**: O app utiliza a porta **8888** para descoberta (UDP) e portas aleatórias para os streams. Certifique-se de que seu Firewall não está bloqueando o binário.
 
 ---
-*Nicodemous — Universal Control Project.*
+*nicodemouse — Universal Control Project.*

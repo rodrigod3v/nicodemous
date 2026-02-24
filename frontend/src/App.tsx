@@ -37,7 +37,7 @@ function App() {
           <div className="p-3 bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/20">
             <Shield className="text-white w-6 h-6" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Nicodemous</h1>
+          <h1 className="text-xl font-bold tracking-tight">nicodemouse</h1>
         </div>
 
         <div className="space-y-4">

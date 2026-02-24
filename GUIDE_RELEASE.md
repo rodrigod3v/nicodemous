@@ -1,6 +1,6 @@
-# 🚀 Nicodemous: Guia de Release & Distribuição
+# 🚀 nicodemouse: Guia de Release & Distribuição
 
-Este documento descreve como gerenciar o ciclo de vida do Nicodemous, desde a codificação até a entrega automática dos binários (`.exe` e `.app`) para os usuários finais.
+Este documento descreve como gerenciar o ciclo de vida do nicodemouse, desde a codificação até a entrega automática dos binários (`.exe` e `.app`) para os usuários finais.
 
 ---
 
@@ -44,7 +44,7 @@ git push origin v1.0.0
 
 Você não precisa mexer no código do Dashboard para atualizar o link de download.
 
-- O botão **"Download Latest App"** no Dashboard aponta para: `https://github.com/rodrigod3v/nicodemous/releases/latest`.
+- O botão **"Download Latest App"** no Dashboard aponta para: `https://github.com/rodrigod3v/nicodemouse/releases/latest`.
 - O GitHub redireciona esse link automaticamente para a **Tag mais recente** que você criou.
 - **Resultado**: Assim que a Action de Build terminar (leva cerca de 2-3 minutos), qualquer pessoa que clicar no botão já baixará a versão nova.
 
@@ -52,7 +52,7 @@ Você não precisa mexer no código do Dashboard para atualizar o link de downlo
 
 ## 🖥️ 4. Como Testar / Ver o Progresso
 
-1. Vá até o seu repositório no navegador: `github.com/rodrigod3v/nicodemous`.
+1. Vá até o seu repositório no navegador: `github.com/rodrigod3v/nicodemouse`.
 2. Clique na aba **Actions**. Lá você verá o progresso do build (ícone amarelo = rodando, verde = sucesso).
 3. Quando terminar, os arquivos estarão na aba **Releases** (no lado direito da página inicial do repositório).
 
@@ -70,4 +70,4 @@ R: Sim. Vá em "Releases" no GitHub, clique em "Edit" e depois em "Delete". Lemb
 R: Isso é controlado no arquivo `.github/workflows/main.yml`.
 
 ---
-*Documentação gerada para Nicodemous — Universal Control.*
+*Documentação gerada para nicodemouse — Universal Control.*

@@ -6,7 +6,7 @@ using Concentus.Enums;
 using Concentus.Structs;
 using System.Net.Sockets;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 public class AudioService
 {

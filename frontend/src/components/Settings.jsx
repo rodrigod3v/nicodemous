@@ -54,12 +54,12 @@ const Settings = () => {
             }
         };
 
-        window.addEventListener('nicodemous_settings', handleSettings);
+        window.addEventListener('nicodemouse_settings', handleSettings);
 
         const handleSystemInfo = (e) => {
             if (e.detail) setSystemInfo(e.detail);
         };
-        window.addEventListener('nicodemous_system_info', handleSystemInfo);
+        window.addEventListener('nicodemouse_system_info', handleSystemInfo);
 
         const handleStatus = (e) => {
             const status = e.detail?.status || '';
@@ -73,7 +73,7 @@ const Settings = () => {
                 setRemoteDeviceName('');
             }
         };
-        window.addEventListener('nicodemous_status', handleStatus);
+        window.addEventListener('nicodemouse_status', handleStatus);
 
         // Request settings
         const requestMessage = JSON.stringify({ type: 'get_settings' });
@@ -82,9 +82,9 @@ const Settings = () => {
         else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) window.chrome.webview.postMessage(requestMessage);
 
         return () => {
-            window.removeEventListener('nicodemous_settings', handleSettings);
-            window.removeEventListener('nicodemous_system_info', handleSystemInfo);
-            window.removeEventListener('nicodemous_status', handleStatus);
+            window.removeEventListener('nicodemouse_settings', handleSettings);
+            window.removeEventListener('nicodemouse_system_info', handleSystemInfo);
+            window.removeEventListener('nicodemouse_status', handleStatus);
         };
     }, []);
 

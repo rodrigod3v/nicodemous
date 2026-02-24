@@ -5,7 +5,7 @@ using System.Windows.Forms;
 using TextCopy;
 #endif
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 /// <summary>
 /// Cross-platform clipboard read/write with auto-sync monitoring.

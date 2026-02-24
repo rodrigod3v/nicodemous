@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Switch = ({ checked, onChange }) => (
+const Switch = ({ checked, onChange, ...props }) => (
     <div
         onClick={onChange}
         style={{
@@ -10,7 +10,8 @@ const Switch = ({ checked, onChange }) => (
             backgroundColor: checked ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.1)',
             position: 'relative',
             cursor: 'pointer',
-            transition: 'background-color 0.3s'
+            transition: 'background-color 0.3s',
+            ...props
         }}
     >
         <div style={{
