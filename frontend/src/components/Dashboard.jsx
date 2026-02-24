@@ -92,14 +92,16 @@ const Dashboard = () => {
 
         const handleStatus = (e) => {
             const status = typeof e.detail === 'string' ? e.detail : (e.detail?.status || '');
+            console.log('[FRONTEND] Connection status update:', status);
             setConnectionStatus(status);
 
             if (status.includes('Controlled by')) {
-                setConnectedDevice({ name: status.replace('Controlled by', '').trim() });
-                setSessionRole('client');
+                const deviceName = status.replace('Controlled by', '').trim();
+                setConnectedDevice({ name: deviceName });
+                setSessionRole('controlled');
                 setIsConnecting(null);
             } else if (status.includes('Connected')) {
-                setSessionRole('controller');
+                setSessionRole('controlling');
 
                 // Track which device we just connected to
                 if (isConnecting) {
@@ -110,7 +112,8 @@ const Dashboard = () => {
 
                 setIsConnecting(null);
                 setActiveTab('device'); // Auto-navigate on successful connection
-            } else if (status === 'Disconnected' || status.includes('Error')) {
+            } else if (status.toLowerCase().includes('disconnected') || status.includes('Error')) {
+                console.log('[FRONTEND] Disconnection detected, clearing session state.');
                 setConnectedDevice(null);
                 setSessionRole(null);
                 setIsConnecting(null);
@@ -198,7 +201,7 @@ const Dashboard = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div className="status-pulse" style={{ backgroundColor: connectionStatus.includes('Connected') ? '#22c55e' : (connectionStatus.includes('Connecting') ? '#f59e0b' : '#ef4444') }}></div>
                         <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '500' }}>
-                            {sessionRole ? `${sessionRole.charAt(0).toUpperCase() + sessionRole.slice(1)} Mode` : connectionStatus}
+                            {sessionRole ? `${sessionRole.charAt(0).toUpperCase() + sessionRole.slice(1)}` : (connectionStatus === 'Disconnected' ? 'Disconnected' : connectionStatus)}
                         </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
@@ -291,7 +294,7 @@ const Dashboard = () => {
                                         <div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                 <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.15em' }}>
-                                                    {sessionRole === 'controller' ? 'Controlling Target' : 'Being Controlled'}
+                                                    {sessionRole === 'controlling' ? 'Controlling Target' : 'Controlled by Peer'}
                                                 </span>
                                                 <div className="status-pulse" style={{ width: '8px', height: '8px', backgroundColor: '#22c55e' }}></div>
                                             </div>
@@ -299,14 +302,14 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                     <button onClick={() => sendToBackend('service_toggle', { service: 'disconnect', enabled: true })} className="glass" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 25px', borderRadius: '12px', fontSize: '14px', fontWeight: 'bold' }}>
-                                        {sessionRole === 'controller' ? 'Terminate Session' : 'Stop Sharing'}
+                                        {sessionRole === 'controlling' ? 'Terminate Session' : 'Stop Sharing'}
                                     </button>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px' }}>
                                     {[
-                                        { id: 'input', label: sessionRole === 'controller' ? 'Remote Input' : 'Allow Remote Input', description: sessionRole === 'controller' ? 'Cross monitors to take control.' : 'Allow the remote user to move your mouse.', icon: 'M15 15l-2 5L9 9l11 4-5 2z', color: 'var(--accent-primary)' },
+                                        { id: 'input', label: sessionRole === 'controlling' ? 'Remote Input' : 'Allow Remote Input', description: sessionRole === 'controlling' ? 'Cross monitors to take control.' : 'Allow the remote user to move your mouse.', icon: 'M15 15l-2 5L9 9l11 4-5 2z', color: 'var(--accent-primary)' },
                                         { id: 'clipboard', label: 'Universal Clipboard', description: 'Share text and files seamlessly.', icon: 'M9 5a2 2 0 002 2h2a2 2 0 002-2', color: '#22c55e' },
-                                        { id: 'audio', label: sessionRole === 'controller' ? 'Audio Stream' : 'Output Local Audio', description: sessionRole === 'controller' ? 'Redirect audio output.' : 'Send system audio to remote.', icon: 'M15.536 8.464a5 5 0 010 7.072', color: '#a855f7' },
+                                        { id: 'audio', label: sessionRole === 'controlling' ? 'Audio Stream' : 'Output Local Audio', description: sessionRole === 'controlling' ? 'Redirect audio output.' : 'Send system audio to remote.', icon: 'M15.536 8.464a5 5 0 010 7.072', color: '#a855f7' },
                                         { id: 'file', label: 'File Transfer', description: 'Drag and drop files.', icon: 'M9 12h6m-6 4h6', color: '#64748b', disabled: true }
                                     ].map(slot => (
                                         <div key={slot.id} className="glass" style={{ padding: '25px', display: 'flex', flexDirection: 'column', gap: '15px', opacity: slot.disabled ? 0.5 : 1 }}>
@@ -320,7 +323,7 @@ const Dashboard = () => {
                                     ))}
                                 </div>
 
-                                {sessionRole === 'controller' ? (
+                                {sessionRole === 'controlling' ? (
                                     <div style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
                                         <div className="glass" style={{ padding: '30px' }}>
                                             <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '20px' }}>
