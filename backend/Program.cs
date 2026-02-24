@@ -44,25 +44,10 @@ class Program
         
         window.Load(initialUrl);
 
-        // Send actual Pairing Code to UI
+        // Send actual Pairing Code and IP to UI
         Task.Run(async () => {
-            await Task.Delay(4000); // Give UI time to fully load
-            // Get local IP for display
-            string localIp = "Unknown";
-            try {
-                using (var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Dgram, 0)) {
-                    socket.Connect("8.8.8.8", 65530);
-                    localIp = (socket.LocalEndPoint as System.Net.IPEndPoint)?.Address.ToString() ?? "Unknown";
-                }
-            } catch { /* Fallback to Unknown */ }
-
-            window.SendWebMessage(JsonSerializer.Serialize(new { 
-                type = "local_ip", 
-                detail = new {
-                    ip = localIp,
-                    code = _controlManager.PairingCode
-                }
-            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+            await Task.Delay(3000); // Give UI time to fully load
+            _controlManager!.SendLocalIpToWeb();
         });
 
         window.WaitForClose();
@@ -109,7 +94,8 @@ class Program
                     int cornerSize = doc.RootElement.TryGetProperty("cornerSize", out var cornerProp) ? cornerProp.GetInt32() : 50;
                     double sensitivity = doc.RootElement.TryGetProperty("sensitivity", out var sensProp) ? sensProp.GetDouble() : 0.7;
                     int gestureThreshold = doc.RootElement.TryGetProperty("gestureThreshold", out var gestureProp) ? gestureProp.GetInt32() : 1000;
-                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity, gestureThreshold);
+                    string? pairingCode = doc.RootElement.TryGetProperty("pairingCode", out var pinProp) ? pinProp.GetString() : null;
+                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity, gestureThreshold, pairingCode);
                     break;
                 case "reset_settings":
                     _controlManager!.ResetSettings();

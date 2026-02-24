@@ -11,7 +11,7 @@ public class DiscoveryService
     private const int DiscoveryPort = 8889;
     private const string MulticastGroup = "239.0.0.1";
     private readonly string _deviceName;
-    private readonly string _pairingCode;
+    private string _pairingCode;
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
     private CancellationTokenSource? _broadcastCts;
@@ -52,6 +52,12 @@ public class DiscoveryService
     {
         _isRunning = false;
         _broadcastCts?.Cancel();
+    }
+
+    public void UpdatePairingCode(string newCode)
+    {
+        _pairingCode = newCode;
+        BroadcastNow(); // Refresh immediately
     }
 
     private async Task RunBroadcaster(CancellationToken token)

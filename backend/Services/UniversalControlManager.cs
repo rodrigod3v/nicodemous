@@ -237,7 +237,7 @@ public class UniversalControlManager : IDisposable
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
-    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500)
+    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500, string pairingCode = null)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
@@ -254,6 +254,14 @@ public class UniversalControlManager : IDisposable
         s.MouseSensitivity = sensitivity;
         s.GestureThreshold = gestureThreshold;
         s.LockInput = lockInput;
+
+        if (!string.IsNullOrEmpty(pairingCode) && pairingCode.Length == 6)
+        {
+            s.PairingCode = pairingCode;
+            _discoveryService.UpdatePairingCode(pairingCode);
+            SendLocalIpToWeb(); // Notify UI of PIN change
+        }
+
         _settingsService.Save();
     }
 
@@ -282,6 +290,9 @@ public class UniversalControlManager : IDisposable
         ToggleService("input", s.EnableInput);
         ToggleService("clipboard", s.EnableClipboard);
         ToggleService("audio", s.EnableAudio);
+
+        // Update discovery PIN
+        _discoveryService.UpdatePairingCode(s.PairingCode);
     }
 
     // -----------------------------------------------------------------------
@@ -491,6 +502,27 @@ public class UniversalControlManager : IDisposable
         string settingsJson = GetSettingsJson();
         _window.Invoke(() =>
             _window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+    }
+
+    public void SendLocalIpToWeb()
+    {
+        if (_window == null) return;
+        string? localIp = "Unknown";
+        try {
+            using (var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Dgram, 0)) {
+                socket.Connect("8.8.8.8", 65530);
+                localIp = (socket.LocalEndPoint as System.Net.IPEndPoint)?.Address.ToString() ?? "Unknown";
+            }
+        } catch { }
+
+        _window.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                type = "local_ip", 
+                detail = new {
+                    ip = localIp,
+                    code = PairingCode
+                }
+            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     private void SendUiMessage(string type, string value)
