@@ -9,7 +9,14 @@ const Settings = () => {
         autoConnect: true,
         lockInput: true,
         delay: 150,
-        cornerSize: 50
+        cornerSize: 50,
+        gestureThreshold: 1000
+    });
+
+    const [services, setServices] = useState({
+        input: true,
+        audio: false,
+        clipboard: true
     });
 
     const [systemInfo, setSystemInfo] = useState({
@@ -33,8 +40,14 @@ const Settings = () => {
                     borderSide: s.ActiveEdge || prev.borderSide,
                     sensitivity: s.MouseSensitivity || prev.sensitivity,
                     delay: s.SwitchingDelayMs ?? prev.delay,
-                    cornerSize: s.DeadCornerSize ?? prev.cornerSize
+                    cornerSize: s.DeadCornerSize ?? prev.cornerSize,
+                    gestureThreshold: s.GestureThreshold ?? prev.gestureThreshold
                 }));
+                setServices({
+                    input: s.EnableInput ?? true,
+                    audio: s.EnableAudio ?? false,
+                    clipboard: s.EnableClipboard ?? true
+                });
                 setTimeout(() => { isInitialLoad.current = false; }, 100);
             } catch (err) {
                 console.error('[SETTINGS] Failed to parse settings:', err, e.detail);
@@ -85,7 +98,8 @@ const Settings = () => {
             lockInput: config.lockInput,
             delay: parseInt(config.delay),
             cornerSize: parseInt(config.cornerSize),
-            sensitivity: parseFloat(config.sensitivity)
+            sensitivity: parseFloat(config.sensitivity),
+            gestureThreshold: parseInt(config.gestureThreshold)
         });
 
         if (window.external && window.external.sendMessage) {
@@ -95,7 +109,7 @@ const Settings = () => {
         } else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
             window.chrome.webview.postMessage(message);
         }
-    }, [config.borderSide, config.lockInput, config.delay, config.cornerSize, config.sensitivity]);
+    }, [config.borderSide, config.lockInput, config.delay, config.cornerSize, config.sensitivity, config.gestureThreshold]);
 
     console.log('[FRONTEND] Settings Render State:', config);
 
@@ -103,8 +117,48 @@ const Settings = () => {
         setConfig(prev => ({ ...prev, lockInput: !prev.lockInput }));
     };
 
+    const restoreDefaults = () => {
+        if (confirm('Restore all settings to factory defaults? This will also reset your active services.')) {
+            const message = JSON.stringify({ type: 'reset_settings' });
+            if (window.external && window.external.sendMessage) window.external.sendMessage(message);
+            else if (window.photino && window.photino.send) window.photino.send(message);
+            else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) window.chrome.webview.postMessage(message);
+        }
+    };
+
     return (
         <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            <div className="glass" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid var(--accent-primary)' }}>
+                <div>
+                    <h2 style={{ margin: 0, fontSize: '20px' }}>General Settings</h2>
+                    <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Manage core application behavior and defaults.</p>
+                </div>
+                <button
+                    onClick={restoreDefaults}
+                    style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        color: '#ef4444',
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        fontSize: '13px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    RESTORE SYSTEM DEFAULTS
+                </button>
+            </div>
+
             <div className="glass" style={{ padding: '40px' }}>
                 <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">

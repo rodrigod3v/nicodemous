@@ -13,6 +13,9 @@ public class AppSettings
     public double MouseSensitivity { get; set; } = 1.0;
     public int GestureThreshold { get; set; } = 1000;
     public bool LockInput { get; set; } = true;
+    public bool EnableInput { get; set; } = true;
+    public bool EnableAudio { get; set; } = false;
+    public bool EnableClipboard { get; set; } = true;
 }
 
 public class SettingsService

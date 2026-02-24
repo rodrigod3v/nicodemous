@@ -183,15 +183,24 @@ public class UniversalControlManager : IDisposable
 
     public void ToggleService(string name, bool enabled)
     {
+        var s = _settingsService.GetSettings();
         switch (name)
         {
             case "input":
                 if (enabled) _inputService.Start(); else _inputService.Stop();
+                s.EnableInput = enabled;
+                break;
+            case "clipboard":
+                if (enabled) _clipboardService.StartMonitoring(t => _networkService.Send(PacketSerializer.SerializeClipboardPush(t)));
+                else _clipboardService.StopMonitoring();
+                s.EnableClipboard = enabled;
                 break;
             case "audio":
                 if (enabled) _audioService.StartCapture(); else _audioService.StopCapture();
+                s.EnableAudio = enabled;
                 break;
         }
+        _settingsService.Save();
     }
 
     public string GetSettingsJson()
@@ -260,6 +269,11 @@ public class UniversalControlManager : IDisposable
 
         if (System.Enum.TryParse<ScreenEdge>(s.ActiveEdge, out var edge))
             _inputService.SetActiveEdge(s.ActiveEdge);
+
+        // Apply service states
+        ToggleService("input", s.EnableInput);
+        ToggleService("clipboard", s.EnableClipboard);
+        ToggleService("audio", s.EnableAudio);
     }
 
     // -----------------------------------------------------------------------
