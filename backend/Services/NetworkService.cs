@@ -22,6 +22,7 @@ public class NetworkService : IDisposable
     private TcpListener? _listener;
     private TcpClient? _client;       // Active connection to target (controller side)
     private NetworkStream? _sendStream;
+    private Action<byte[]>? _onPacketReceived;
 
     private CancellationTokenSource _cts = new();
     private bool _disposed;
@@ -42,6 +43,7 @@ public class NetworkService : IDisposable
 
     public void StartListening(Action<byte[]> onPacketReceived)
     {
+        _onPacketReceived = onPacketReceived; // Store for client-side use
         _listener = new TcpListener(IPAddress.Any, _port);
         _listener.Start();
         Console.WriteLine($"[NETWORK] TCP listener started on port {_port}");
@@ -61,6 +63,8 @@ public class NetworkService : IDisposable
                     DisconnectClient();
                     _client = incoming;
                     _sendStream = incoming.GetStream();
+                    
+                    Console.WriteLine($"[NETWORK] Triggering OnConnected for incoming connection.");
                     OnConnected?.Invoke();
 
                     // Handle receive in its own task
@@ -98,7 +102,7 @@ public class NetworkService : IDisposable
 
                 // Log non-mouse-move packets
                 if (payload.Length > 0 && payload[0] != 0 && payload[0] != 12)
-                    Console.WriteLine($"[NETWORK] Packet type={payload[0]}, len={len}");
+                    Console.WriteLine($"[NETWORK] Packet received: type={payload[0]}, len={len}");
 
                 onPacket(payload);
             }
@@ -149,6 +153,11 @@ public class NetworkService : IDisposable
                     _client = tcp;
                     _sendStream = tcp.GetStream();
                     Console.WriteLine($"[NETWORK] Connected to {ipAddress}:{port}");
+                    
+                    // Start receiving from the controller side too!
+                    if (_onPacketReceived != null)
+                        _ = Task.Run(() => ReceiveLoop(tcp, _sendStream, _onPacketReceived, _cts.Token));
+                    
                     OnConnected?.Invoke();
                     return;
                 }

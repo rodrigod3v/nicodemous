@@ -145,15 +145,21 @@ public class ClipboardService
         {
             try
             {
+                Console.WriteLine("[CLIPBOARD] Monitor started (Windows Event-driven).");
                 using var window = new ClipboardMonitorWindow(token, () =>
                 {
                     string current = GetText();
                     if (!string.IsNullOrEmpty(current) && current != _lastText)
                     {
+                        Console.WriteLine($"[CLIPBOARD] Local change detected ({current.Length} chars) — syncing.");
                         _lastText = current;
                         onChange(current);
                     }
                 });
+                
+                // FORCE handle creation so OnHandleCreated/AddClipboardFormatListener triggers
+                var forceHandle = window.Handle; 
+                
                 Application.Run(); // Starts a message loop for the hidden window
             }
             catch (Exception ex)
