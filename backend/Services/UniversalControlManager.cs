@@ -199,6 +199,10 @@ public class UniversalControlManager : IDisposable
                 if (enabled) _audioService.StartCapture(); else _audioService.StopCapture();
                 s.EnableAudio = enabled;
                 break;
+            case "disconnect":
+                Console.WriteLine("[MANAGER] Disconnection requested by UI.");
+                _networkService.Disconnect();
+                break;
         }
         _settingsService.Save();
     }

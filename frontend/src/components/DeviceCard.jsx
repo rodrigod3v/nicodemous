@@ -39,7 +39,7 @@ const DeviceCard = ({ name, ip, code, status, isConnecting, onConnect }) => {
                         <div className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderRadius: '50%', borderTopColor: 'white', animation: 'spin 0.8s linear infinite' }}></div>
                         Connecting...
                     </>
-                ) : (isConnected ? 'Disconnect' : 'Request Access')}
+                ) : (isConnected ? 'Connected' : 'Request Access')}
             </button>
             <style dangerouslySetInnerHTML={{
                 __html: `

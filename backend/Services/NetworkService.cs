@@ -64,7 +64,7 @@ public class NetworkService : IDisposable
 
                     // Save the stream so Send() works bidirectionally from the listener side too.
                     // Replaces any stale previous connection.
-                    DisconnectClient();
+                    Disconnect();
                     _client = incoming;
                     var netStream = incoming.GetStream();
                     
@@ -204,12 +204,12 @@ public class NetworkService : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"[NETWORK] Send error: {ex.Message}. Disconnecting.");
-            DisconnectClient();
+            Disconnect();
             OnDisconnected?.Invoke();
         }
     }
 
-    private void DisconnectClient()
+    public void Disconnect()
     {
         try { _sendStream?.Close(); } catch { }
         try { _client?.Close(); } catch { }
@@ -221,7 +221,7 @@ public class NetworkService : IDisposable
     {
         _cts.Cancel();
         try { _listener?.Stop(); } catch { }
-        DisconnectClient();
+        Disconnect();
     }
 
     private static X509Certificate2 GenerateSelfSignedCertificate()

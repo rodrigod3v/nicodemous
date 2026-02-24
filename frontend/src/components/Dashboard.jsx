@@ -93,13 +93,23 @@ const Dashboard = () => {
         const handleStatus = (e) => {
             const status = typeof e.detail === 'string' ? e.detail : (e.detail?.status || '');
             setConnectionStatus(status);
+
             if (status.includes('Controlled by')) {
                 setConnectedDevice({ name: status.replace('Controlled by', '').trim() });
                 setSessionRole('client');
                 setIsConnecting(null);
             } else if (status.includes('Connected')) {
                 setSessionRole('controller');
+
+                // Track which device we just connected to
+                if (isConnecting) {
+                    const dev = discoveredDevices.find(d => d.ip === isConnecting);
+                    if (dev) setConnectedDevice(dev);
+                    else setConnectedDevice({ name: 'Remote Device', ip: isConnecting });
+                }
+
                 setIsConnecting(null);
+                setActiveTab('device'); // Auto-navigate on successful connection
             } else if (status === 'Disconnected' || status.includes('Error')) {
                 setConnectedDevice(null);
                 setSessionRole(null);
