@@ -109,15 +109,16 @@ public class DiscoveryService
                     bool listChanged = false;
                     lock (_discoveredDevices)
                     {
-                        var existing = _discoveredDevices.FirstOrDefault(d => d.Code == device.Code);
+                        var existing = _discoveredDevices.FirstOrDefault(d => d.Ip == device.Ip);
                         if (existing == null) 
                         {
                             _discoveredDevices.Add(device);
                             listChanged = true;
                         }
-                        else if (existing.Ip != device.Ip)
+                        else if (existing.Code != device.Code || existing.Name != device.Name)
                         {
-                            existing.Ip = device.Ip;
+                            existing.Code = device.Code;
+                            existing.Name = device.Name;
                             listChanged = true;
                         }
                     }
