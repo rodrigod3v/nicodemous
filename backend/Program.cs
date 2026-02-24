@@ -108,7 +108,11 @@ class Program
                     int delay = doc.RootElement.TryGetProperty("delay", out var delayProp) ? delayProp.GetInt32() : 150;
                     int cornerSize = doc.RootElement.TryGetProperty("cornerSize", out var cornerProp) ? cornerProp.GetInt32() : 50;
                     double sensitivity = doc.RootElement.TryGetProperty("sensitivity", out var sensProp) ? sensProp.GetDouble() : 0.7;
-                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity);
+                    int gestureThreshold = doc.RootElement.TryGetProperty("gestureThreshold", out var gestureProp) ? gestureProp.GetInt32() : 1000;
+                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity, gestureThreshold);
+                    break;
+                case "reset_settings":
+                    _controlManager!.ResetSettings();
                     break;
             }
         }

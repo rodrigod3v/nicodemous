@@ -240,6 +240,15 @@ public class UniversalControlManager : IDisposable
         _settingsService.Save();
     }
 
+    public void ResetSettings()
+    {
+        Console.WriteLine("[MANAGER] Resetting settings to defaults...");
+        var defaultSettings = new AppSettings();
+        _settingsService.UpdateSettings(defaultSettings);
+        ApplySettings();
+        SendSettingsToWeb();
+    }
+
     private void ApplySettings()
     {
         var s = _settingsService.GetSettings();

@@ -30,7 +30,7 @@ const Dashboard = () => {
         lockInput: true,
         delay: 150,
         cornerSize: 50,
-        gestureThreshold: 1500
+        gestureThreshold: 1000
     });
 
     const [systemInfo, setSystemInfo] = useState({
@@ -154,6 +154,12 @@ const Dashboard = () => {
         sendToBackend('connect_device', { ip: target.trim() });
     };
 
+    const restoreDefaults = () => {
+        if (window.confirm('Restore all session settings to factory defaults?')) {
+            sendToBackend('reset_settings');
+        }
+    };
+
     return (
         <div className="dashboard-container" style={{ display: 'flex', height: '100vh', width: '100vw' }}>
             {/* Sidebar */}
@@ -267,11 +273,16 @@ const Dashboard = () => {
                                 {sessionRole === 'controller' ? (
                                     <div style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
                                         <div className="glass" style={{ padding: '30px' }}>
-                                            <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '20px' }}>
-                                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                                </svg>
-                                                Display & Border Logic
+                                            <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '20px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                    </svg>
+                                                    Display & Border Logic
+                                                </div>
+                                                <button onClick={restoreDefaults} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                    RESTORE DEFAULTS
+                                                </button>
                                             </h2>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -325,14 +336,14 @@ const Dashboard = () => {
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
                                                 <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Sensitivity</span>
+                                                        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Sensitivity <span title="Controls the speed of the remote cursor relative to Local movement." style={{ cursor: 'help', opacity: 0.5, fontSize: '12px' }}>ⓘ</span></span>
                                                         <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{Math.round(config.sensitivity * 100)}%</span>
                                                     </div>
                                                     <input type="range" min="0.1" max="3.0" step="0.1" value={config.sensitivity} onChange={(e) => setConfig({ ...config, sensitivity: e.target.value })} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
                                                 </label>
                                                 <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Return Force</span>
+                                                        <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Return Force <span title="How hard you must 'push' the screen edge to escape back to Local control." style={{ cursor: 'help', opacity: 0.5, fontSize: '12px' }}>ⓘ</span></span>
                                                         <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{config.gestureThreshold}px</span>
                                                     </div>
                                                     <input type="range" min="500" max="5000" step="100" value={config.gestureThreshold} onChange={(e) => setConfig({ ...config, gestureThreshold: e.target.value })} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
@@ -390,23 +401,26 @@ const Dashboard = () => {
                             </div>
                         )}
                     </div>
-                )}
+                )
+                }
 
-                {activeTab === 'devices' && (
-                    <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                        <div className="glass" style={{ padding: '30px', display: 'flex', gap: '15px', alignItems: 'center' }}>
-                            <input className="glass-input" placeholder="Direct IP or Pairing Code..." value={manualIp} onChange={(e) => setManualIp(e.target.value)} style={{ flexGrow: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '15px 20px', borderRadius: '12px', color: 'white' }} />
-                            <button className={`glow-button ${isConnecting === manualIp ? 'loading' : ''}`} onClick={() => connectToDevice(manualIp)} disabled={isConnecting === manualIp}>{isConnecting === manualIp ? <div className="spinner"></div> : 'Quick Connect'}</button>
+                {
+                    activeTab === 'devices' && (
+                        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                            <div className="glass" style={{ padding: '30px', display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                <input className="glass-input" placeholder="Direct IP or Pairing Code..." value={manualIp} onChange={(e) => setManualIp(e.target.value)} style={{ flexGrow: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '15px 20px', borderRadius: '12px', color: 'white' }} />
+                                <button className={`glow-button ${isConnecting === manualIp ? 'loading' : ''}`} onClick={() => connectToDevice(manualIp)} disabled={isConnecting === manualIp}>{isConnecting === manualIp ? <div className="spinner"></div> : 'Quick Connect'}</button>
+                            </div>
+                            <div className="grid-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                                {discoveredDevices.length > 0 ? discoveredDevices.map((dev, i) => (
+                                    <DeviceCard key={dev.ip || i} name={dev.name || dev.hostname || 'Unknown Device'} ip={dev.ip || '0.0.0.0'} code={dev.code || '000000'} status={connectionStatus.includes('Connected') && connectedDevice?.name === dev.name ? 'Connected' : 'Available'} isConnecting={isConnecting === dev.ip} onConnect={() => connectToDevice(dev.ip)} />
+                                )) : (
+                                    <div className="glass" style={{ padding: '60px 40px', textAlign: 'center', gridColumn: '1 / -1' }}><p style={{ color: 'var(--text-dim)' }}>{isScanning ? 'Scanning for devices...' : 'No active devices found.'}</p></div>
+                                )}
+                            </div>
                         </div>
-                        <div className="grid-layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-                            {discoveredDevices.length > 0 ? discoveredDevices.map((dev, i) => (
-                                <DeviceCard key={dev.ip || i} name={dev.name || dev.hostname || 'Unknown Device'} ip={dev.ip || '0.0.0.0'} code={dev.code || '000000'} status={connectionStatus.includes('Connected') && connectedDevice?.name === dev.name ? 'Connected' : 'Available'} isConnecting={isConnecting === dev.ip} onConnect={() => connectToDevice(dev.ip)} />
-                            )) : (
-                                <div className="glass" style={{ padding: '60px 40px', textAlign: 'center', gridColumn: '1 / -1' }}><p style={{ color: 'var(--text-dim)' }}>{isScanning ? 'Scanning for devices...' : 'No active devices found.'}</p></div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {activeTab === 'settings' && <Settings />}
             </main>
