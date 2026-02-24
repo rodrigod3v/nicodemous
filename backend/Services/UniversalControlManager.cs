@@ -82,8 +82,6 @@ public class UniversalControlManager : IDisposable
         _discoveryService.OnDeviceDiscovered += devices =>
             window.Invoke(() =>
                 window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
-        
-        SendSystemInfo();
     }
 
     // -----------------------------------------------------------------------
