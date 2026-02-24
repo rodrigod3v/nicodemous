@@ -185,14 +185,23 @@ public class UniversalControlManager : IDisposable
         }
     }
 
-    public void UpdateSettings(string edge, bool lockInput, double sensitivity = 1.0)
+    public string GetSettingsJson()
+    {
+        return JsonSerializer.Serialize(_settingsService.GetSettings());
+    }
+
+    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
+        _inputService.SwitchDelayMs = delay;
+        _inputService.CornerSize = cornerSize;
 
         // Persist
         var s = _settingsService.GetSettings();
         s.ActiveEdge = edge;
+        s.SwitchingDelayMs = delay;
+        s.DeadCornerSize = cornerSize;
         s.MouseSensitivity = sensitivity;
         _settingsService.Save();
     }

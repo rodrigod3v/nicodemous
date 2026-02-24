@@ -16,6 +16,10 @@ function App() {
           const event = new CustomEvent('nicodemous_ip', { detail: data.ip });
           window.dispatchEvent(event);
         }
+        if (data.type === 'settings_data') {
+          const event = new CustomEvent('nicodemous_settings', { detail: data.settings });
+          window.dispatchEvent(event);
+        }
         if (data.type === 'connection_status') {
           const event = new CustomEvent('nicodemous_status', { detail: data.status });
           window.dispatchEvent(event);

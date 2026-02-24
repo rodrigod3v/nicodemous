@@ -14,6 +14,7 @@ const Dashboard = () => {
     const [discoveredDevices, setDiscoveredDevices] = useState([]);
     const [manualIp, setManualIp] = useState('');
     const [localCode, setLocalCode] = useState('......');
+    const [localIp, setLocalIp] = useState('0.0.0.0');
     const [isConnecting, setIsConnecting] = useState(null); // stores the IP/Code of the device being connected
 
     const sendToBackend = (type, data = {}) => {
@@ -43,7 +44,19 @@ const Dashboard = () => {
             setDiscoveredDevices(e.detail);
             // If we were scanning and found something, or just scanning, we keep it for a bit
         };
-        const handleIp = (e) => setLocalCode(e.detail);
+        const handleIp = (e) => {
+            setLocalCode(e.detail);
+            // Optionally backend could send a structured object, but for now we follow App.jsx
+        };
+        const handleLocalDetails = (e) => {
+            // If backend sends a complex object
+            if (typeof e.detail === 'object') {
+                setLocalCode(e.detail.code);
+                setLocalIp(e.detail.ip);
+            } else {
+                setLocalCode(e.detail);
+            }
+        };
         const handleStatus = (e) => {
             setConnectionStatus(e.detail);
             if (e.detail === 'Connected' || e.detail === 'Disconnected') {
@@ -52,7 +65,7 @@ const Dashboard = () => {
         };
 
         window.addEventListener('nicodemous_discovery', handleDiscovery);
-        window.addEventListener('nicodemous_ip', handleIp);
+        window.addEventListener('nicodemous_ip', handleLocalDetails);
         window.addEventListener('nicodemous_status', handleStatus);
 
         return () => {
@@ -95,9 +108,15 @@ const Dashboard = () => {
                     NICODEMOUS<span style={{ color: 'var(--accent-primary)' }}>.</span>
                 </div>
 
-                <div style={{ padding: '8px 12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.2)', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Your Code</span>
-                    <span style={{ fontSize: '13px', fontWeight: '600', color: 'white', letterSpacing: '1px' }}>{localCode}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '25px' }}>
+                    <div style={{ padding: '8px 12px', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '8px', border: '1px solid rgba(99, 102, 241, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>Pairing PIN</span>
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'white', letterSpacing: '1px' }}>{localCode}</span>
+                    </div>
+                    <div style={{ padding: '8px 12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-dim)', textTransform: 'uppercase' }}>Local IP</span>
+                        <span style={{ fontSize: '12px', fontWeight: '500', color: 'rgba(255,255,255,0.6)' }}>{localIp}</span>
+                    </div>
                 </div>
 
                 <a

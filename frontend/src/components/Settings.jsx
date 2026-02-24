@@ -1,20 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const Settings = () => {
     const [config, setConfig] = useState({
         primaryMonitor: 'Monitor 1 (Primary)',
         borderSide: 'Right',
-        sensitivity: 'High',
+        sensitivity: 0.7,
         autoConnect: true,
-        lockInput: true
+        lockInput: true,
+        delay: 150,
+        cornerSize: 50
     });
+
+    const isInitialLoad = useRef(true);
+
+    // Load initial settings from backend
+    useEffect(() => {
+        const handleSettings = (e) => {
+            console.log('[FRONTEND] Received settings:', e.detail);
+            const s = JSON.parse(e.detail);
+            setConfig({
+                borderSide: s.ActiveEdge,
+                sensitivity: s.MouseSensitivity,
+                lockInput: config.lockInput, // Backend might not store lockInput state yet as per current logic
+                delay: s.SwitchingDelayMs,
+                cornerSize: s.DeadCornerSize,
+                autoConnect: true
+            });
+            setTimeout(() => { isInitialLoad.current = false; }, 100);
+        };
+
+        window.addEventListener('nicodemous_settings', handleSettings);
+
+        // Request settings
+        const requestMessage = JSON.stringify({ type: 'get_settings' });
+        if (window.external && window.external.sendMessage) window.external.sendMessage(requestMessage);
+        else if (window.photino && window.photino.send) window.photino.send(requestMessage);
+        else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) window.chrome.webview.postMessage(requestMessage);
+
+        return () => window.removeEventListener('nicodemous_settings', handleSettings);
+    }, []);
 
     // Sync settings with backend whenever they change
     useEffect(() => {
+        if (isInitialLoad.current) return;
+
         const message = JSON.stringify({
             type: 'update_settings',
             edge: config.borderSide,
-            lockInput: config.lockInput
+            lockInput: config.lockInput,
+            delay: parseInt(config.delay),
+            cornerSize: parseInt(config.cornerSize),
+            sensitivity: parseFloat(config.sensitivity)
         });
 
         if (window.external && window.external.sendMessage) {
@@ -99,26 +135,50 @@ const Settings = () => {
                 </div>
             </div>
 
-            <div className="glass" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h3 style={{ margin: 0 }}>Advanced Input Locking</h3>
-                    <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Prevent local mouse movement while controlling remote.</p>
+            <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <h3 style={{ margin: 0 }}>Advanced Input Locking</h3>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Prevent local mouse movement while controlling remote.</p>
+                    </div>
                 </div>
-                <div
-                    onClick={toggleLock}
-                    style={{
-                        width: '52px', height: '28px', borderRadius: '30px',
-                        backgroundColor: config.lockInput ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
-                        position: 'relative', cursor: 'pointer',
-                        transition: 'background-color 0.3s ease'
-                    }}
-                >
-                    <div style={{
-                        width: '20px', height: '20px', borderRadius: '50%', backgroundColor: 'white',
-                        position: 'absolute', top: '4px',
-                        left: config.lockInput ? '28px' : '4px',
-                        transition: 'left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                    }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <Switch checked={config.lockInput} onChange={toggleLock} />
+                    <span style={{ fontSize: '14px', fontWeight: '600' }}>{config.lockInput ? 'Enabled' : 'Disabled'}</span>
+                </div>
+
+                <div style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
+                    <div>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Switching Delay</span>
+                                <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{config.delay}ms</span>
+                            </div>
+                            <input
+                                type="range" min="0" max="1000" step="50"
+                                value={config.delay}
+                                onChange={(e) => setConfig({ ...config, delay: e.target.value })}
+                                style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
+                            />
+                            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>Hold mouse at edge for this long to cross.</p>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Dead Corner Size</span>
+                                <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{config.cornerSize}px</span>
+                            </div>
+                            <input
+                                type="range" min="0" max="200" step="10"
+                                value={config.cornerSize}
+                                onChange={(e) => setConfig({ ...config, cornerSize: e.target.value })}
+                                style={{ width: '100%', accentColor: 'var(--accent-primary)' }}
+                            />
+                            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>Ignore edge activation near screen corners.</p>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
