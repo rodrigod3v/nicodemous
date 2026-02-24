@@ -42,6 +42,7 @@ public class InputService : IDisposable
     private const int ReturnDecayMs          = 300;  // accumulator resets if no push for this long
     private DateTime _lastReturnTime = DateTime.MinValue;
     private const int CooldownMs = 800;
+    private double _accumDx = 0, _accumDy = 0; // Sub-pixel accumulation
 
     // Modifier tracking
     private bool _shiftDown, _ctrlDown, _altDown, _metaDown;
@@ -157,12 +158,20 @@ public class InputService : IDisposable
         {
             // Free-roam mode (no locking): just send the absolute delta
             // relative to the last reported position
-            short freeDx = (short)(rawX - _lastRawX);
-            short freeDy = (short)(rawY - _lastRawY);
+            _accumDx += (rawX - _lastRawX) * MouseSensitivity;
+            _accumDy += (rawY - _lastRawY) * MouseSensitivity;
             _lastRawX = rawX;
             _lastRawY = rawY;
+
+            short freeDx = (short)_accumDx;
+            short freeDy = (short)_accumDy;
+
             if (freeDx != 0 || freeDy != 0)
+            {
+                _accumDx -= freeDx;
+                _accumDy -= freeDy;
                 _onData(PacketSerializer.SerializeMouseRelMove(freeDx, freeDy));
+            }
             return;
         }
 
@@ -171,10 +180,17 @@ public class InputService : IDisposable
         short stickyX = GetStickyX();
         short stickyY = (short)(_screenHeight / 2);
 
-        short dx = (short)((rawX - stickyX) * MouseSensitivity);
-        short dy = (short)((rawY - stickyY) * MouseSensitivity);
+        _accumDx += (rawX - stickyX) * MouseSensitivity;
+        _accumDy += (rawY - stickyY) * MouseSensitivity;
+
+        short dx = (short)_accumDx;
+        short dy = (short)_accumDy;
 
         if (dx == 0 && dy == 0) return;
+
+        // "Consume" the integer pixels we are sending
+        _accumDx -= dx;
+        _accumDy -= dy;
 
         // Accumulate return gesture (moving back deliberately towards the home screen).
         // The accumulator decays if the user stops pushing for ReturnDecayMs, preventing

@@ -80,6 +80,13 @@ public class InjectionService
     {
         try
         {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                // Optimization: use native relative move to avoid polling lag
+                mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, UIntPtr.Zero);
+                return;
+            }
+
             var (cx, cy) = GetCurrentCursorPos();
             int newX = Math.Clamp(cx + dx, 0, _screenWidth  - 1);
             int newY = Math.Clamp(cy + dy, 0, _screenHeight - 1);
@@ -247,6 +254,11 @@ public class InjectionService
         if (GetCursorPos(out var pt)) return (pt.X, pt.Y);
         return (0, 0);
     }
+
+    private const uint MOUSEEVENTF_MOVE = 0x0001;
+
+    [DllImport("user32.dll")]
+    private static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
 
     // --- macOS (CoreGraphics) ---
     [DllImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
