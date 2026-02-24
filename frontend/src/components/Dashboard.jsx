@@ -95,7 +95,14 @@ const Dashboard = () => {
             console.log('[FRONTEND] Connection status update:', status);
             setConnectionStatus(status);
 
-            if (status.includes('Controlled by')) {
+            const statusLower = status.toLowerCase();
+
+            if (statusLower.includes('disconnected') || status.includes('Error')) {
+                console.log('[FRONTEND] Disconnection/Error detected, clearing session state.');
+                setConnectedDevice(null);
+                setSessionRole(null);
+                setIsConnecting(null);
+            } else if (status.includes('Controlled by')) {
                 const deviceName = status.replace('Controlled by', '').trim();
                 setConnectedDevice({ name: deviceName });
                 setSessionRole('controlled');
@@ -112,11 +119,6 @@ const Dashboard = () => {
 
                 setIsConnecting(null);
                 setActiveTab('device'); // Auto-navigate on successful connection
-            } else if (status.toLowerCase().includes('disconnected') || status.includes('Error')) {
-                console.log('[FRONTEND] Disconnection detected, clearing session state.');
-                setConnectedDevice(null);
-                setSessionRole(null);
-                setIsConnecting(null);
             }
         };
 
