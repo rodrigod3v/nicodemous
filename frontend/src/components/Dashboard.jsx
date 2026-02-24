@@ -278,11 +278,16 @@ const Dashboard = () => {
                                 {sessionRole === 'controller' ? (
                                     <div style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
                                         <div className="glass" style={{ padding: '30px' }}>
-                                            <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '20px' }}>
-                                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                                </svg>
-                                                Display & Border Logic
+                                            <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '20px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                    </svg>
+                                                    Display & Border Logic
+                                                </div>
+                                                <button onClick={restoreDefaults} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-dim)', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                                                    RESTORE DEFAULTS
+                                                </button>
                                             </h2>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px' }}>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
