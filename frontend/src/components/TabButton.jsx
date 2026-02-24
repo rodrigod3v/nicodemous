@@ -24,7 +24,7 @@ const TabButton = ({ active, onClick, label, icon }) => {
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
             </svg>
-            {label}
+            <span className="sidebar-label">{label}</span>
         </button>
     );
 };

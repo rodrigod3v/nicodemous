@@ -51,8 +51,8 @@ const SettingsTab = () => {
     };
 
     return (
-        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-            <div className="glass" style={{ padding: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid var(--accent-primary)' }}>
+        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="glass" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid var(--accent-primary)' }}>
                 <div>
                     <h2 style={{ margin: 0, fontSize: '20px' }}>General Settings</h2>
                     <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Manage core application behavior and defaults.</p>
@@ -64,12 +64,12 @@ const SettingsTab = () => {
             </div>
 
             {/* Custom PIN Section */}
-            <div className="glass" style={{ padding: '40px' }}>
+            <div className="glass" style={{ padding: '24px' }}>
                 <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     Pairing PIN Security
                 </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', alignItems: 'center' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px', alignItems: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <p style={{ color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.6' }}>
                             Customize your 6-character security PIN. This code is required by other devices to establish a connection with your computer.
@@ -107,12 +107,12 @@ const SettingsTab = () => {
                 </div>
             </div>
 
-            <div className="glass" style={{ padding: '40px' }}>
+            <div className="glass" style={{ padding: '24px' }}>
                 <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     System Information
                 </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '40px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
                             <span style={{ color: 'var(--text-dim)' }}>Machine Name</span>

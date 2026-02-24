@@ -27,7 +27,7 @@ const OverviewTab = ({ onNavigate }) => {
     };
 
     return (
-        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Stats Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
                 <div className="glass" style={{ padding: '20px', borderLeft: '4px solid var(--accent-primary)' }}>
@@ -46,9 +46,9 @@ const OverviewTab = ({ onNavigate }) => {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+            <div className="responsive-split-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
                 {/* Nearby Devices Preview */}
-                <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <h2 style={{ fontSize: '20px', margin: 0 }}>Nearby Devices</h2>
                         <button className="glass" onClick={() => onNavigate('devices')} style={{ fontSize: '12px', padding: '5px 12px', cursor: 'pointer', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-dim)', border: '1px solid rgba(255,255,255,0.1)' }}>View All</button>
@@ -76,7 +76,7 @@ const OverviewTab = ({ onNavigate }) => {
                 </div>
 
                 {/* Quick Join Panel */}
-                <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(255,255,255,0.01) 100%)' }}>
+                <div className="glass" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(255,255,255,0.01) 100%)' }}>
                     <h2 style={{ fontSize: '20px', margin: 0 }}>Direct Connection</h2>
                     <p style={{ fontSize: '13px', color: 'var(--text-dim)', margin: 0 }}>Enter an IP or PIN to join a session instantly.</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>

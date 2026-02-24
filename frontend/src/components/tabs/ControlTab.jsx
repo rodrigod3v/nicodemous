@@ -77,14 +77,14 @@ const ControlTab = () => {
     ];
 
     return (
-        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Control Center Header */}
             <div className="glass" style={{ padding: '30px', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'radial-gradient(circle, var(--accent-primary) 0%, transparent 70%)', opacity: '0.05', pointerEvents: 'none' }}></div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
-                        <div style={{ position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '25px', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
                             <div className="glow-button" style={{ width: '70px', height: '70px', borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                             </div>
@@ -92,21 +92,21 @@ const ControlTab = () => {
                                 <div className="status-pulse" style={{ width: '10px', height: '10px', backgroundColor: '#22c55e' }}></div>
                             </div>
                         </div>
-                        <div>
+                        <div style={{ minWidth: '200px' }}>
                             <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
                                 {sessionRole === 'controlling' ? 'CONTROLLING SESSION' : 'EXTERNAL ACCESS'}
                             </span>
-                            <h1 style={{ margin: '5px 0 0 0', fontSize: '36px', fontWeight: '800', letterSpacing: '-0.02em' }}>{connectedDevice?.name || 'Remote Host'}</h1>
+                            <h1 style={{ margin: '5px 0 0 0', fontSize: '28px', fontWeight: '800', letterSpacing: '-0.02em', wordBreak: 'break-word' }}>{connectedDevice?.name || 'Remote Host'}</h1>
                         </div>
                     </div>
-                    <button onClick={() => toggleService('disconnect', true)} className="glass-btn" style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '14px 28px', borderRadius: '14px', fontSize: '14px', fontWeight: '800', transition: 'all 0.2s ease' }}>
+                    <button onClick={() => toggleService('disconnect', true)} className="glass-btn" style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 24px', borderRadius: '14px', fontSize: '13px', fontWeight: '800', transition: 'all 0.2s ease', whiteSpace: 'nowrap' }}>
                         {sessionRole === 'controlling' ? 'CLOSE SESSION' : 'STOP SHARING'}
                     </button>
                 </div>
             </div>
 
             {/* Service Intelligence Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
                 {services.map(slot => (
                     <div
                         key={slot.id}
@@ -152,7 +152,7 @@ const ControlTab = () => {
             </div>
 
             {sessionRole === 'controlling' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '25px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '25px' }}>
                     {/* Monitor Crossing Setup */}
                     <div className="glass" style={{ padding: '35px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

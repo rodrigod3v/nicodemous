@@ -49,13 +49,13 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="dashboard-container" style={{ display: 'flex', height: '100vh', width: '100vw' }}>
+        <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
             <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
-            <main style={{ flexGrow: 1, padding: '40px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '30px' }}>
+            <main style={{ flexGrow: 1, padding: 'var(--content-padding)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '30px', transition: 'padding 0.3s ease' }}>
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                        <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>Control Center</h1>
+                        <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Control Center</h1>
                         <p style={{ color: 'var(--text-dim)' }}>Manage and discover devices on your local network</p>
                     </div>
                     <button

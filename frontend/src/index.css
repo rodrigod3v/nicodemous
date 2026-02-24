@@ -11,7 +11,22 @@
   --text-main: #f8fafc;
   --text-dim: #94a3b8;
   --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --sidebar-width: 280px;
+  --sidebar-width: 260px;
+  --content-padding: 32px;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 80px;
+    --content-padding: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+    --content-padding: 20px;
+  }
 }
 
 * {
@@ -27,7 +42,26 @@ body {
   background: radial-gradient(circle at 50% -20%, #1a1c2e 0%, var(--bg-color) 80%);
   color: var(--text-main);
   min-height: 100vh;
-  overflow: hidden;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 h1,
@@ -52,6 +86,12 @@ button {
   border: 1px solid var(--glass-border);
   box-shadow: var(--card-shadow);
   border-radius: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .gradient-text {
@@ -128,4 +168,44 @@ button {
 
 .animate-fade {
   animation: fadeIn 0.6s ease-out forwards;
+}
+
+.sidebar-label {
+  transition: opacity 0.3s ease;
+}
+
+@media (max-width: 1024px) {
+  .sidebar-label {
+    display: none;
+  }
+
+  .sidebar {
+    padding: 30px 10px !important;
+    align-items: center;
+  }
+
+  .brand {
+    justify-content: center;
+    margin-right: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto !important;
+    height: 70px !important;
+    flex-direction: row !important;
+    padding: 10px 20px !important;
+    border-radius: 40px !important;
+    z-index: 1000;
+  }
+
+  .brand,
+  .status {
+    display: none !important;
+  }
 }

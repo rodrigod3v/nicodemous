@@ -28,8 +28,8 @@ const DiscoveryTab = () => {
     };
 
     return (
-        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-            <div className="glass" style={{ padding: '30px', display: 'flex', gap: '15px', alignItems: 'center' }}>
+        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className="glass" style={{ padding: '24px', display: 'flex', gap: '15px', alignItems: 'center' }}>
                 <input
                     className="glass-input"
                     placeholder="Direct IP or Pairing Code..."

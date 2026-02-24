@@ -24,9 +24,10 @@ class Program
         var window = new PhotinoWindow()
             .SetTitle(windowTitle)
             .SetUseOsDefaultSize(false)
-            .SetSize(1200, 800)
+            .SetSize(1280, 850)
             .Center()
-            .SetResizable(true);
+            .SetResizable(true)
+            .SetIconFile(Path.GetFullPath("../frontend/public/favicon.ico"));
 
         // Initialize Central Manager
         var settings = new SettingsService();
