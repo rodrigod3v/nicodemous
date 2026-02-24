@@ -62,7 +62,7 @@ class Program
                     ip = localIp,
                     code = _controlManager.PairingCode
                 }
-            }));
+            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         });
 
         window.WaitForClose();
@@ -84,7 +84,7 @@ class Program
                 case "start_discovery":
                     Console.WriteLine("[BACKEND] Starting device discovery...");
                     var devices = _controlManager!.GetDevices();
-                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
+                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
                     break;
                 case "service_toggle":
                     string service = doc.RootElement.GetProperty("service").GetString() ?? "";
@@ -100,7 +100,7 @@ class Program
                     break;
                 case "get_settings":
                     string settingsJson = _controlManager!.GetSettingsJson();
-                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }));
+                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
                     break;
                 case "update_settings":
                     string activeEdge = doc.RootElement.GetProperty("edge").GetString() ?? "Right";

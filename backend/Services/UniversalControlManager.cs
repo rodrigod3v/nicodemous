@@ -81,7 +81,7 @@ public class UniversalControlManager : IDisposable
 
         _discoveryService.OnDeviceDiscovered += devices =>
             window.Invoke(() =>
-                window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices })));
+                window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     // -----------------------------------------------------------------------
@@ -145,7 +145,7 @@ public class UniversalControlManager : IDisposable
             string msg = $"Cannot resolve '{target}' — not a discovered code or valid IP.";
             Console.WriteLine($"[MANAGER] {msg}");
             (window ?? _window)?.Invoke(() =>
-                (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" })));
+                (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
             return;
         }
 
@@ -154,7 +154,7 @@ public class UniversalControlManager : IDisposable
 
         Console.WriteLine($"[MANAGER] Connecting to {ip}...");
         (window ?? _window)?.Invoke(() =>
-            (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." })));
+            (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     private string? ResolveTarget(string target)
@@ -415,6 +415,6 @@ public class UniversalControlManager : IDisposable
     private void SendUiMessage(string type, string value)
     {
         _window?.Invoke(() =>
-            _window.SendWebMessage(JsonSerializer.Serialize(new { type, status = value })));
+            _window.SendWebMessage(JsonSerializer.Serialize(new { type, status = value }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 }

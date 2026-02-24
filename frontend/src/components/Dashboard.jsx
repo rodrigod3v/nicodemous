@@ -245,13 +245,13 @@ const Dashboard = () => {
                             {discoveredDevices.length > 0 ? (
                                 discoveredDevices.map((dev, i) => (
                                     <DeviceCard
-                                        key={dev.ip || i}
-                                        name={dev.hostname || 'Unknown Device'}
-                                        ip={dev.ip || '0.0.0.0'}
-                                        code={dev.code || '000000'}
+                                        key={(dev.ip || dev.Ip) || i}
+                                        name={(dev.name || dev.Name) || (dev.hostname || dev.Hostname) || 'Unknown Device'}
+                                        ip={(dev.ip || dev.Ip) || '0.0.0.0'}
+                                        code={(dev.code || dev.Code) || '000000'}
                                         status={connectionStatus === 'Connected' ? 'Connected' : 'Available'}
-                                        isConnecting={isConnecting === dev.ip}
-                                        onConnect={() => connectToDevice(dev.ip)}
+                                        isConnecting={isConnecting === (dev.ip || dev.Ip)}
+                                        onConnect={() => connectToDevice(dev.ip || dev.Ip)}
                                     />
                                 ))
                             ) : (
