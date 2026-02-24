@@ -2,10 +2,10 @@ using System;
 using System.Buffers.Binary;
 using System.Text;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 /// <summary>
-/// Packet types used in the Nicodemous protocol.
+/// Packet types used in the nicodemouse protocol.
 /// Protocol framing: each packet is prefixed with a 4-byte big-endian length,
 /// followed by 1-byte PacketType, followed by payload.
 /// </summary>

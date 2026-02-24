@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNicodemous } from '../../context/NicodemousContext';
+import { usenicodemouse } from '../../context/nicodemouseContext';
 
 const SettingsTab = () => {
     const {
@@ -7,7 +7,7 @@ const SettingsTab = () => {
         systemInfo,
         updateSettings,
         sendMessage
-    } = useNicodemous();
+    } = usenicodemouse();
 
     const [pin, setPin] = useState('');
     const [pinError, setPinError] = useState('');
@@ -125,7 +125,7 @@ const SettingsTab = () => {
                     </div>
                     <div className="glass" style={{ padding: '20px', background: 'rgba(255,255,255,0.01)' }}>
                         <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-dim)', fontStyle: 'italic' }}>
-                            Nicodemous uses your local network for encrypted discovery. Ensure both devices are on the same Wi-Fi or LAN.
+                            nicodemouse uses your local network for encrypted discovery. Ensure both devices are on the same Wi-Fi or LAN.
                         </p>
                     </div>
                 </div>

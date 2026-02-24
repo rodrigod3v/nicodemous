@@ -1,19 +1,17 @@
 import React from 'react';
 import TabButton from '../TabButton';
-import { useNicodemous } from '../../context/NicodemousContext';
+import { usenicodemouse } from '../../context/nicodemouseContext';
 
 const Sidebar = ({ activeTab, onTabChange }) => {
-    const { connectionStatus, localIp, sessionRole } = useNicodemous();
+    const { connectionStatus, localIp, sessionRole } = usenicodemouse();
 
     return (
         <div className="glass" style={{ width: 'var(--sidebar-width)', padding: '30px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div className="brand animate-fade" style={{ fontSize: '26px', fontWeight: '800', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div className="glow-button" style={{ width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-20.4L2.032 4.415m1.889-1.342c.447.83 1.107 1.567 1.886 2.149M3.5 11a7.5 7.5 0 1115 0 7.5 7.5 0 01-15 0z" />
-                    </svg>
+                <div style={{ width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img src="/logo.png" alt="nicodemouse Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
-                <span className="gradient-text">Nicodemous</span>
+                <span className="gradient-text">nicodemouse</span>
             </div>
 
             <TabButton active={activeTab === 'overview'} onClick={() => onTabChange('overview')} label="Overview" icon="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />

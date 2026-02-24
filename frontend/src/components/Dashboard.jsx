@@ -4,11 +4,11 @@ import OverviewTab from './tabs/OverviewTab';
 import DiscoveryTab from './tabs/DiscoveryTab';
 import ControlTab from './tabs/ControlTab';
 import SettingsTab from './tabs/SettingsTab';
-import { useNicodemous } from '../context/NicodemousContext';
+import { usenicodemouse } from '../context/nicodemouseContext';
 
 const Dashboard = () => {
     const [activeTab, setActiveTab] = useState('overview');
-    const { connectionStatus, sendMessage, sessionRole } = useNicodemous();
+    const { connectionStatus, sendMessage, sessionRole } = usenicodemouse();
     const [isScanning, setIsScanning] = useState(false);
     const prevConnectionStatus = useRef(connectionStatus);
 

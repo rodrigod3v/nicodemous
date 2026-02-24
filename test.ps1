@@ -1,7 +1,7 @@
-# Nicodemous Unified Test Script
+# nicodemouse Unified Test Script
 # Este script inicia o Frontend e o Backend simultaneamente para testes.
 
-Write-Host "--- Iniciando Nicodemous (Ambiente de Teste) ---" -ForegroundColor Cyan
+Write-Host "--- Iniciando nicodemouse (Ambiente de Teste) ---" -ForegroundColor Cyan
 
 # 1. Verificar dependencias do Frontend
 if (!(Test-Path "frontend/node_modules")) {

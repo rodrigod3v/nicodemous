@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Linq;
 
-namespace Nicodemous.Backend.Services;
+namespace nicodemouse.Backend.Services;
 
 public class DiscoveryService
 {

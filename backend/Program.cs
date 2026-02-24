@@ -2,9 +2,9 @@ using System;
 using System.IO;
 using System.Text.Json;
 using Photino.NET;
-using Nicodemous.Backend.Services;
+using nicodemouse.Backend.Services;
 
-namespace Nicodemous.Backend;
+namespace nicodemouse.Backend;
 
 class Program
 {
@@ -13,7 +13,7 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
-        string windowTitle = "Nicodemous - Universal Control";
+        string windowTitle = "nicodemouse - Universal Control";
         
 #if DEBUG
         string initialUrl = "http://localhost:5173"; 

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { useNicodemous } from '../../context/NicodemousContext';
+import { usenicodemouse } from '../../context/nicodemouseContext';
 import Switch from '../Switch';
 
 const ControlTab = () => {
@@ -11,7 +11,7 @@ const ControlTab = () => {
         toggleService,
         updateSettings,
         systemInfo
-    } = useNicodemous();
+    } = usenicodemouse();
 
     const lastUpdateRef = useRef(0);
 

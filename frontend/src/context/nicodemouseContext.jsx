@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-const NicodemousContext = createContext();
+const NicodemouseContext = createContext();
 
-export const NicodemousProvider = ({ children }) => {
+export const NicodemouseProvider = ({ children }) => {
     const [connectionStatus, setConnectionStatus] = useState('Disconnected');
     const [discoveredDevices, setDiscoveredDevices] = useState([]);
     const [localIp, setLocalIp] = useState({ ip: '...', code: '...' });
@@ -117,16 +117,16 @@ export const NicodemousProvider = ({ children }) => {
     };
 
     return (
-        <NicodemousContext.Provider value={value}>
+        <NicodemouseContext.Provider value={value}>
             {children}
-        </NicodemousContext.Provider>
+        </NicodemouseContext.Provider>
     );
 };
 
-export const useNicodemous = () => {
-    const context = useContext(NicodemousContext);
+export const usenicodemouse = () => {
+    const context = useContext(NicodemouseContext);
     if (!context) {
-        throw new Error('useNicodemous must be used within a NicodemousProvider');
+        throw new Error('usenicodemouse must be used within a NicodemouseProvider');
     }
     return context;
 };

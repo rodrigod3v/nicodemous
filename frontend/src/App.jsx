@@ -1,6 +1,6 @@
 import React from 'react';
 import Dashboard from './components/Dashboard';
-import { NicodemousProvider } from './context/NicodemousContext';
+import { NicodemouseProvider } from './context/nicodemouseContext';
 import './App.css';
 
 console.log('[FRONTEND] App.jsx module loading...');
@@ -35,9 +35,9 @@ function App() {
   return (
     <div className="app">
       <SimpleErrorBoundary>
-        <NicodemousProvider>
+        <NicodemouseProvider>
           <Dashboard />
-        </NicodemousProvider>
+        </NicodemouseProvider>
       </SimpleErrorBoundary>
     </div>
   );

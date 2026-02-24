@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNicodemous } from '../../context/NicodemousContext';
+import { usenicodemouse } from '../../context/nicodemouseContext';
 import DeviceCard from '../DeviceCard';
 
 const DiscoveryTab = () => {
@@ -9,7 +9,7 @@ const DiscoveryTab = () => {
         connectedDevice,
         connectDevice,
         sendMessage
-    } = useNicodemous();
+    } = usenicodemouse();
 
     const [manualIp, setManualIp] = useState('');
     const [isScanning, setIsScanning] = useState(false);
