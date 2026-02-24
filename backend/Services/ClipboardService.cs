@@ -69,8 +69,15 @@ public class ClipboardService
         thread.Start();
         thread.Join();
 #else
-        try { _clipboard.SetText(text); }
-        catch (Exception ex) { Console.WriteLine($"[CLIPBOARD] SetText error: {ex.Message}"); }
+        try 
+        { 
+            // TextCopy's Clipboard.SetText might have platform-specific quirks as a background service
+            _clipboard.SetText(text); 
+        }
+        catch (Exception ex) 
+        { 
+            Console.WriteLine($"[CLIPBOARD] SetText error: {ex.Message}"); 
+        }
 #endif
         Console.WriteLine($"[CLIPBOARD] Applied ({text.Length} chars)");
     }

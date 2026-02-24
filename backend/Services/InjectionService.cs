@@ -49,7 +49,8 @@ public class InjectionService
             _clipboardService.SetText(text);
 
             // 2. Simulate the paste shortcut
-            Task.Delay(50).Wait(); // tiny delay so clipboard write completes
+            // Using Task.Delay.Wait is okay here as we are in a background task managed by UniversalControlManager
+            Task.Delay(100).Wait(); // increased delay slightly for macOS stability
 
             bool isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
             KeyCode modifier = isMac ? KeyCode.VcLeftMeta : KeyCode.VcLeftControl;
@@ -265,6 +266,12 @@ public class InjectionService
         try
         {
             IntPtr evt = CGEventCreate(IntPtr.Zero);
+            if (evt == IntPtr.Zero) 
+            {
+                // This happens if accessibility permissions are not granted.
+                return (0, 0);
+            }
+
             var pt = CGEventGetLocation(evt);
             CFRelease(evt);
             return ((int)pt.X, (int)pt.Y);
