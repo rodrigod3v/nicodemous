@@ -405,6 +405,11 @@ public class UniversalControlManager : IDisposable
                 case PacketType.Ping:
                     _networkService.Send(PacketSerializer.SerializePing()); // Pong
                     break;
+
+                case PacketType.Disconnect:
+                    Console.WriteLine("[MANAGER] Graceful disconnect signal received from remote.");
+                    _networkService.Disconnect();
+                    break;
             }
         }
         catch (Exception ex)

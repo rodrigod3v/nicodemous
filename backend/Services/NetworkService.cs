@@ -91,7 +91,7 @@ public class NetworkService : IDisposable
         }, _cts.Token);
     }
 
-    private static async Task ReceiveLoop(TcpClient tcp, Stream stream, Action<byte[]> onPacket, CancellationToken ct)
+    private async Task ReceiveLoop(TcpClient tcp, Stream stream, Action<byte[]> onPacket, CancellationToken ct)
     {
         byte[] lenBuf = new byte[4];
         try
@@ -122,6 +122,7 @@ public class NetworkService : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"[NETWORK] Receive loop ended: {ex.Message}");
+            if (tcp == _client) Disconnect();
         }
     }
 
@@ -213,16 +214,18 @@ public class NetworkService : IDisposable
     {
         bool wasConnected = IsConnected;
         Console.WriteLine($"[NETWORK] Disconnecting (WasConnected={wasConnected})");
+        
+        if (wasConnected)
+        {
+            try { Send(PacketSerializer.SerializeDisconnect()); } catch { }
+            Console.WriteLine("[NETWORK] Invoking OnDisconnected event.");
+            OnDisconnected?.Invoke();
+        }
+
         try { _sendStream?.Close(); } catch { }
         try { _client?.Close(); } catch { }
         _sendStream = null;
         _client = null;
-        
-        if (wasConnected)
-        {
-            Console.WriteLine("[NETWORK] Invoking OnDisconnected event.");
-            OnDisconnected?.Invoke();
-        }
     }
 
     public void Stop()

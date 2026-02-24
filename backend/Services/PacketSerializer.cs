@@ -26,6 +26,7 @@ public enum PacketType : byte
     MouseRelMove = 12, // 4 bytes: short dx, short dy
     ClipboardPush = 13, // N bytes: UTF-8 text — sender pushes clipboard content to receiver
     ClipboardPull = 14, // 0 bytes — receiver requests sender's clipboard content
+    Disconnect    = 15, // Graceful session termination
 }
 
 // Data transfer objects
@@ -233,8 +234,14 @@ public static class PacketSerializer
             case PacketType.HandshakeAck:
             case PacketType.Ping:
             case PacketType.ClipboardPull:
+            case PacketType.Disconnect:
             default:
                 return (type, new object());
         }
+    }
+
+    public static byte[] SerializeDisconnect()
+    {
+        return Frame(new byte[] { (byte)PacketType.Disconnect });
     }
 }
