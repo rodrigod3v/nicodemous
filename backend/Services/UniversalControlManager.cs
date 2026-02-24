@@ -48,6 +48,9 @@ public class UniversalControlManager : IDisposable
             // Start syncing our local clipboard to the peer immediately
             _clipboardService.StartMonitoring(text =>
                 _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
+
+            // Also request the peer's current clipboard content
+            _networkService.Send(PacketSerializer.SerializeClipboardPull());
         };
         _networkService.OnDisconnected += () =>
         {
@@ -256,6 +259,9 @@ public class UniversalControlManager : IDisposable
                     // Also start monitoring our clipboard so we push changes back to the controller
                     _clipboardService.StartMonitoring(text =>
                         _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
+                    
+                    // Request the controller's current clipboard too
+                    _networkService.Send(PacketSerializer.SerializeClipboardPull());
                     break;
 
                 case PacketType.ClipboardPush:
@@ -269,6 +275,20 @@ public class UniversalControlManager : IDisposable
                 case PacketType.HandshakeAck:
                     Console.WriteLine("[MANAGER] Handshake ACK — connection verified.");
                     SendUiMessage("connection_status", "Connected ✓");
+                    break;
+
+                case PacketType.ClipboardPull:
+                    // Peer wants our current clipboard content
+                    string currentText = _clipboardService.GetText();
+                    if (!string.IsNullOrEmpty(currentText))
+                    {
+                        Console.WriteLine($"[MANAGER] ClipboardPull received. Sending current content ({currentText.Length} chars).");
+                        _networkService.Send(PacketSerializer.SerializeClipboardPush(currentText));
+                    }
+                    else
+                    {
+                        Console.WriteLine("[MANAGER] ClipboardPull received, but local clipboard is empty.");
+                    }
                     break;
 
                 case PacketType.Ping:

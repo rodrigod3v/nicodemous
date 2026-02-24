@@ -118,9 +118,35 @@ public class ClipboardService
         _monitorCts = new CancellationTokenSource();
         var token = _monitorCts.Token;
 
+#if WINDOWS
+        // On Windows, use a hidden window to listen for clipboard events instead of polling
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                using var window = new ClipboardMonitorWindow(token, () =>
+                {
+                    string current = GetText();
+                    if (!string.IsNullOrEmpty(current) && current != _lastText)
+                    {
+                        _lastText = current;
+                        onChange(current);
+                    }
+                });
+                Application.Run(); // Starts a message loop for the hidden window
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CLIPBOARD] Windows monitor error: {ex.Message}");
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.IsBackground = true;
+        thread.Start();
+#else
         Task.Run(async () =>
         {
-            Console.WriteLine("[CLIPBOARD] Monitor started.");
+            Console.WriteLine($"[CLIPBOARD] Monitor started (polling: {intervalMs}ms).");
             while (!token.IsCancellationRequested)
             {
                 try
@@ -139,16 +165,72 @@ public class ClipboardService
             }
             Console.WriteLine("[CLIPBOARD] Monitor stopped.");
         }, token);
+#endif
     }
 
     /// <summary>Stops the clipboard monitor if running.</summary>
     public void StopMonitoring()
     {
         _monitorCts?.Cancel();
+#if WINDOWS
+        Application.ExitThread(); // Close the hidden window message loop
+#endif
         _monitorCts?.Dispose();
         _monitorCts = null;
     }
 }
+
+#if WINDOWS
+internal class ClipboardMonitorWindow : Form
+{
+    private readonly Action _onChanged;
+    private readonly CancellationToken _token;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
+
+    private const int WM_CLIPBOARDUPDATE = 0x031D;
+
+    public ClipboardMonitorWindow(CancellationToken token, Action onChanged)
+    {
+        _token = token;
+        _onChanged = onChanged;
+        
+        // Hidden window setup
+        this.ShowInTaskbar = false;
+        this.WindowState = FormWindowState.Minimized;
+        this.Visible = false;
+        this.FormBorderStyle = FormBorderStyle.None;
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        AddClipboardFormatListener(this.Handle);
+    }
+
+    protected override void OnHandleDestroyed(EventArgs e)
+    {
+        RemoveClipboardFormatListener(this.Handle);
+        base.OnHandleDestroyed(e);
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == WM_CLIPBOARDUPDATE)
+        {
+            if (!_token.IsCancellationRequested)
+            {
+                _onChanged();
+            }
+        }
+        base.WndProc(ref m);
+    }
+}
+#endif
 
 #if !WINDOWS
 /// <summary>
