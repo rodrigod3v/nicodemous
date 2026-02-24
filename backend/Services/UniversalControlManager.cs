@@ -15,19 +15,21 @@ public class UniversalControlManager : IDisposable
     private readonly AudioService        _audioService;
     private readonly AudioReceiveService _audioReceiveService;
     private readonly DiscoveryService    _discoveryService;
+    private readonly SettingsService     _settingsService;
 
     private bool _isRemoteControlActive = false;
     private PhotinoWindow? _window;
     private bool _disposed;
 
-    public string PairingCode => _discoveryService.PairingCode;
+    public string PairingCode => _settingsService.GetSettings().PairingCode;
 
     // -----------------------------------------------------------------------
     // Construction
     // -----------------------------------------------------------------------
 
-    public UniversalControlManager()
+    public UniversalControlManager(SettingsService settings)
     {
+        _settingsService     = settings;
         _clipboardService    = new ClipboardService();
         _injectionService    = new InjectionService(_clipboardService);
         _networkService      = new NetworkService(8890);
@@ -35,6 +37,9 @@ public class UniversalControlManager : IDisposable
         _audioService        = new AudioService(HandleAudioCaptured);
         _audioReceiveService = new AudioReceiveService();
         _discoveryService    = new DiscoveryService(Environment.MachineName);
+
+        // Apply initial settings
+        ApplySettings();
 
         // Network
         _networkService.StartListening(HandleRemoteData);
@@ -184,8 +189,22 @@ public class UniversalControlManager : IDisposable
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
-        // Sensitivity is now baked into delta movement — no separate scaling needed
-        // (kept for API compat; could be used to scale dx/dy in future).
+
+        // Persist
+        var s = _settingsService.GetSettings();
+        s.ActiveEdge = edge;
+        s.MouseSensitivity = sensitivity;
+        _settingsService.Save();
+    }
+
+    private void ApplySettings()
+    {
+        var s = _settingsService.GetSettings();
+        _inputService.SwitchDelayMs = s.SwitchingDelayMs;
+        _inputService.CornerSize = s.DeadCornerSize;
+
+        if (System.Enum.TryParse<ScreenEdge>(s.ActiveEdge, out var edge))
+            _inputService.SetActiveEdge(s.ActiveEdge);
     }
 
     // -----------------------------------------------------------------------

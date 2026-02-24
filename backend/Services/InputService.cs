@@ -47,9 +47,10 @@ public class InputService : IDisposable
     private bool _shiftDown, _ctrlDown, _altDown, _metaDown;
 
     // Switching delay
+    public int SwitchDelayMs { get; set; } = 150; // ms to hold at edge before switching
+    public int CornerSize { get; set; } = 50;    // Ignore edge hits within X px of a corner
     private DateTime _edgeHitStartTime = DateTime.MinValue;
     private ScreenEdge _lastDetectedEdge = ScreenEdge.None;
-    private const int SwitchDelayMs = 150; // ms to hold at edge before switching
 
     // Entry Y position (so the remote cursor lands at the same height)
     private double _entryVirtualY;
@@ -215,24 +216,23 @@ public class InputService : IDisposable
 
     private void CheckEdge(short x, short y)
     {
-        const int cornerSize = 50; // Ignore edge hits within 50px of a corner
         ScreenEdge currentEdge = ScreenEdge.None;
 
         if (_activeEdge == ScreenEdge.Right && x >= _screenWidth - 1)
         {
-            if (y >= cornerSize && y <= _screenHeight - cornerSize) currentEdge = ScreenEdge.Right;
+            if (y >= CornerSize && y <= _screenHeight - CornerSize) currentEdge = ScreenEdge.Right;
         }
         else if (_activeEdge == ScreenEdge.Left && x <= 0)
         {
-            if (y >= cornerSize && y <= _screenHeight - cornerSize) currentEdge = ScreenEdge.Left;
+            if (y >= CornerSize && y <= _screenHeight - CornerSize) currentEdge = ScreenEdge.Left;
         }
         else if (_activeEdge == ScreenEdge.Top && y <= 0)
         {
-            if (x >= cornerSize && x <= _screenWidth - cornerSize) currentEdge = ScreenEdge.Top;
+            if (x >= CornerSize && x <= _screenWidth - CornerSize) currentEdge = ScreenEdge.Top;
         }
         else if (_activeEdge == ScreenEdge.Bottom && y >= _screenHeight - 1)
         {
-            if (x >= cornerSize && x <= _screenWidth - cornerSize) currentEdge = ScreenEdge.Bottom;
+            if (x >= CornerSize && x <= _screenWidth - CornerSize) currentEdge = ScreenEdge.Bottom;
         }
 
         // Delay logic

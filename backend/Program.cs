@@ -29,7 +29,8 @@ class Program
             .SetResizable(true);
 
         // Initialize Central Manager
-        _controlManager = new UniversalControlManager();
+        var settings = new SettingsService();
+        _controlManager = new UniversalControlManager(settings);
         _controlManager.SetWindow(window);
 
         // UI Callbacks
