@@ -370,7 +370,7 @@ public class UniversalControlManager : IDisposable
                     {
                         Console.WriteLine($"[MANAGER] ACCESS DENIED: Handshake from '{hs.MachineName}' used wrong PIN '{hs.PairingCode}'. local PIN is '{PairingCode}'.");
                         _networkService.Send(PacketSerializer.SerializeClipboardPush("ERROR: Invalid Pairing Code. Connection Rejected."));
-                        _networkService.Stop();
+                        _networkService.Disconnect();
                         SendUiMessage("connection_status", "Rejeitado: PIN Inválido");
                         break;
                     }
