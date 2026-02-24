@@ -58,6 +58,8 @@ nicodemous/
 └── .agent/             # Project blueprints and AI context
 ```
 
+For a detailed technical breakdown of services, protocol, and internal logic, see the [Architecture Documentation](ARCHITECTURE.md).
+
 ---
 
 ## 🛠️ Getting Started
