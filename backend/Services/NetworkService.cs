@@ -33,7 +33,7 @@ public class NetworkService : IDisposable
 
     public bool IsConnected => _client?.Connected == true && _sendStream != null;
 
-    public event Action? OnConnected;
+    public event Action<bool>? OnConnected; // true if incoming (controlled), false if outgoing (controller)
     public event Action? OnDisconnected;
 
     public NetworkService(int port)
@@ -64,7 +64,7 @@ public class NetworkService : IDisposable
 
                     // Save the stream so Send() works bidirectionally from the listener side too.
                     // Replaces any stale previous connection.
-                    DisconnectClient();
+                    Disconnect();
                     _client = incoming;
                     var netStream = incoming.GetStream();
                     
@@ -75,8 +75,8 @@ public class NetworkService : IDisposable
                     _sendStream = sslStream;
                     Console.WriteLine($"[NETWORK] TLS Handshake complete (Incoming).");
                     
-                    Console.WriteLine($"[NETWORK] Triggering OnConnected for incoming connection.");
-                    OnConnected?.Invoke();
+                    Console.WriteLine($"[NETWORK] Triggering OnConnected(isIncoming: true).");
+                    OnConnected?.Invoke(true);
 
                     // Handle receive in its own task
                     _ = Task.Run(() => ReceiveLoop(incoming, sslStream, onPacketReceived, _cts.Token));
@@ -91,7 +91,7 @@ public class NetworkService : IDisposable
         }, _cts.Token);
     }
 
-    private static async Task ReceiveLoop(TcpClient tcp, Stream stream, Action<byte[]> onPacket, CancellationToken ct)
+    private async Task ReceiveLoop(TcpClient tcp, Stream stream, Action<byte[]> onPacket, CancellationToken ct)
     {
         byte[] lenBuf = new byte[4];
         try
@@ -122,6 +122,7 @@ public class NetworkService : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"[NETWORK] Receive loop ended: {ex.Message}");
+            if (tcp == _client) Disconnect();
         }
     }
 
@@ -143,7 +144,7 @@ public class NetworkService : IDisposable
     public void SetTarget(string ipAddress, int port)
     {
         // Disconnect any previous connection
-        DisconnectClient();
+        Disconnect();
 
         if (!IPAddress.TryParse(ipAddress, out var addr))
         {
@@ -175,7 +176,7 @@ public class NetworkService : IDisposable
                     if (_onPacketReceived != null)
                         _ = Task.Run(() => ReceiveLoop(tcp, sslStream, _onPacketReceived, _cts.Token));
                     
-                    OnConnected?.Invoke();
+                    OnConnected?.Invoke(false);
                     return;
                 }
                 catch (Exception ex)
@@ -204,13 +205,23 @@ public class NetworkService : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"[NETWORK] Send error: {ex.Message}. Disconnecting.");
-            DisconnectClient();
+            Disconnect();
             OnDisconnected?.Invoke();
         }
     }
 
-    private void DisconnectClient()
+    public void Disconnect()
     {
+        bool wasConnected = IsConnected;
+        Console.WriteLine($"[NETWORK] Disconnecting (WasConnected={wasConnected})");
+        
+        if (wasConnected)
+        {
+            try { Send(PacketSerializer.SerializeDisconnect()); } catch { }
+            Console.WriteLine("[NETWORK] Invoking OnDisconnected event.");
+            OnDisconnected?.Invoke();
+        }
+
         try { _sendStream?.Close(); } catch { }
         try { _client?.Close(); } catch { }
         _sendStream = null;
@@ -221,7 +232,7 @@ public class NetworkService : IDisposable
     {
         _cts.Cancel();
         try { _listener?.Stop(); } catch { }
-        DisconnectClient();
+        Disconnect();
     }
 
     private static X509Certificate2 GenerateSelfSignedCertificate()

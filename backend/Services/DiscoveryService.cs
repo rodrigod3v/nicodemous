@@ -109,15 +109,21 @@ public class DiscoveryService
                     bool listChanged = false;
                     lock (_discoveredDevices)
                     {
-                        var existing = _discoveredDevices.FirstOrDefault(d => d.Code == device.Code);
+                        string normalizedIp = device.Ip.Trim();
+                        var existing = _discoveredDevices.FirstOrDefault(d => d.Ip.Trim().Equals(normalizedIp, StringComparison.OrdinalIgnoreCase));
+                        
                         if (existing == null) 
                         {
+                            Console.WriteLine($"[DISCOVERY] New device found: {device.Name} at {normalizedIp}");
                             _discoveredDevices.Add(device);
                             listChanged = true;
                         }
-                        else if (existing.Ip != device.Ip)
+                        else if (!existing.Code.Equals(device.Code, StringComparison.OrdinalIgnoreCase) || 
+                                 !existing.Name.Equals(device.Name, StringComparison.OrdinalIgnoreCase))
                         {
-                            existing.Ip = device.Ip;
+                            Console.WriteLine($"[DISCOVERY] Updating device info for {normalizedIp}: {existing.Code} -> {device.Code}");
+                            existing.Code = device.Code;
+                            existing.Name = device.Name;
                             listChanged = true;
                         }
                     }

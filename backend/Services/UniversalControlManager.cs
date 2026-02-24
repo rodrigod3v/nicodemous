@@ -15,19 +15,21 @@ public class UniversalControlManager : IDisposable
     private readonly AudioService        _audioService;
     private readonly AudioReceiveService _audioReceiveService;
     private readonly DiscoveryService    _discoveryService;
+    private readonly SettingsService     _settingsService;
 
     private bool _isRemoteControlActive = false;
     private PhotinoWindow? _window;
     private bool _disposed;
 
-    public string PairingCode => _discoveryService.PairingCode;
+    public string PairingCode => _settingsService.GetSettings().PairingCode;
 
     // -----------------------------------------------------------------------
     // Construction
     // -----------------------------------------------------------------------
 
-    public UniversalControlManager()
+    public UniversalControlManager(SettingsService settings)
     {
+        _settingsService     = settings;
         _clipboardService    = new ClipboardService();
         _injectionService    = new InjectionService(_clipboardService);
         _networkService      = new NetworkService(8890);
@@ -36,21 +38,33 @@ public class UniversalControlManager : IDisposable
         _audioReceiveService = new AudioReceiveService();
         _discoveryService    = new DiscoveryService(Environment.MachineName);
 
+        // Apply initial settings
+        ApplySettings();
+
         // Network
         _networkService.StartListening(HandleRemoteData);
-        _networkService.OnConnected += () =>
+        _networkService.OnConnected += (isIncoming) =>
         {
-            // TCP ready — send handshake with local PairingCode
-            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, PairingCode));
-            Console.WriteLine($"[MANAGER] Handshake sent (PIN: {PairingCode}) after TCP connection established.");
-            SendUiMessage("connection_status", "Handshaking...");
+            if (!isIncoming)
+            {
+                // We are the initiator (Controller)
+                _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, PairingCode));
+                Console.WriteLine($"[MANAGER] Handshake sent (PIN: {PairingCode}) as Controller.");
+                SendUiMessage("connection_status", "Handshaking...");
+            }
+            else
+            {
+                // We are the receiver (Client/Controlled)
+                Console.WriteLine("[MANAGER] Incoming connection — waiting for handshake...");
+            }
 
-            // Start syncing our local clipboard to the peer immediately
+            // Both sides can start monitoring clipboard (stays bidirectional)
             _clipboardService.StartMonitoring(text =>
                 _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
 
-            // Also request the peer's current clipboard content
-            _networkService.Send(PacketSerializer.SerializeClipboardPull());
+            // If we are the controller, request initial content
+            if (!isIncoming)
+                _networkService.Send(PacketSerializer.SerializeClipboardPull());
         };
         _networkService.OnDisconnected += () =>
         {
@@ -76,7 +90,7 @@ public class UniversalControlManager : IDisposable
 
         _discoveryService.OnDeviceDiscovered += devices =>
             window.Invoke(() =>
-                window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices })));
+                window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     // -----------------------------------------------------------------------
@@ -140,7 +154,7 @@ public class UniversalControlManager : IDisposable
             string msg = $"Cannot resolve '{target}' — not a discovered code or valid IP.";
             Console.WriteLine($"[MANAGER] {msg}");
             (window ?? _window)?.Invoke(() =>
-                (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" })));
+                (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
             return;
         }
 
@@ -149,7 +163,7 @@ public class UniversalControlManager : IDisposable
 
         Console.WriteLine($"[MANAGER] Connecting to {ip}...");
         (window ?? _window)?.Invoke(() =>
-            (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." })));
+            (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     private string? ResolveTarget(string target)
@@ -169,23 +183,105 @@ public class UniversalControlManager : IDisposable
 
     public void ToggleService(string name, bool enabled)
     {
-        switch (name)
+        var s = _settingsService.GetSettings();
+        Console.WriteLine($"[MANAGER] ToggleService called: name='{name}', enabled={enabled}");
+        switch (name.Trim().ToLowerInvariant())
         {
             case "input":
                 if (enabled) _inputService.Start(); else _inputService.Stop();
+                s.EnableInput = enabled;
+                break;
+            case "clipboard":
+                if (enabled) _clipboardService.StartMonitoring(t => _networkService.Send(PacketSerializer.SerializeClipboardPush(t)));
+                else _clipboardService.StopMonitoring();
+                s.EnableClipboard = enabled;
                 break;
             case "audio":
                 if (enabled) _audioService.StartCapture(); else _audioService.StopCapture();
+                s.EnableAudio = enabled;
+                break;
+            case "disconnect":
+                Console.WriteLine("[MANAGER] Disconnection requested by UI. Calling NetworkService.Disconnect()");
+                _networkService.Disconnect();
+                break;
+            default:
+                Console.WriteLine($"[MANAGER] Warning: ToggleService received unknown service name: '{name}'");
                 break;
         }
+        _settingsService.Save();
     }
 
-    public void UpdateSettings(string edge, bool lockInput, double sensitivity = 1.0)
+    public string GetSettingsJson()
+    {
+        SendSystemInfo(); // Refresh system info when settings are requested
+        return JsonSerializer.Serialize(_settingsService.GetSettings());
+    }
+
+    private void SendSystemInfo()
+    {
+        var monitors = new List<object>();
+#if WINDOWS
+        try {
+            foreach (var screen in System.Windows.Forms.Screen.AllScreens) {
+                monitors.Add(new { name = screen.DeviceName, isPrimary = screen.Primary });
+            }
+        } catch {}
+#endif
+        if (monitors.Count == 0) monitors.Add(new { name = "Default Monitor", isPrimary = true });
+
+        _window?.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                type = "system_info", 
+                machineName = Environment.MachineName,
+                monitors = monitors
+            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+    }
+
+    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
-        // Sensitivity is now baked into delta movement — no separate scaling needed
-        // (kept for API compat; could be used to scale dx/dy in future).
+        _inputService.SwitchDelayMs = delay;
+        _inputService.CornerSize = cornerSize;
+        _inputService.MouseSensitivity = sensitivity;
+        _inputService.ReturnThreshold = gestureThreshold;
+
+        // Persist
+        var s = _settingsService.GetSettings();
+        s.ActiveEdge = edge;
+        s.SwitchingDelayMs = delay;
+        s.DeadCornerSize = cornerSize;
+        s.MouseSensitivity = sensitivity;
+        s.GestureThreshold = gestureThreshold;
+        s.LockInput = lockInput;
+        _settingsService.Save();
+    }
+
+    public void ResetSettings()
+    {
+        Console.WriteLine("[MANAGER] Resetting settings to defaults...");
+        var defaultSettings = new AppSettings();
+        _settingsService.UpdateSettings(defaultSettings);
+        ApplySettings();
+        SendSettingsToWeb();
+    }
+
+    private void ApplySettings()
+    {
+        var s = _settingsService.GetSettings();
+        _inputService.SwitchDelayMs = s.SwitchingDelayMs;
+        _inputService.CornerSize = s.DeadCornerSize;
+        _inputService.MouseSensitivity = s.MouseSensitivity;
+        _inputService.ReturnThreshold = s.GestureThreshold;
+        _inputService.SetInputLock(s.LockInput);
+
+        if (System.Enum.TryParse<ScreenEdge>(s.ActiveEdge, out var edge))
+            _inputService.SetActiveEdge(s.ActiveEdge);
+
+        // Apply service states
+        ToggleService("input", s.EnableInput);
+        ToggleService("clipboard", s.EnableClipboard);
+        ToggleService("audio", s.EnableAudio);
     }
 
     // -----------------------------------------------------------------------
@@ -309,6 +405,11 @@ public class UniversalControlManager : IDisposable
                 case PacketType.Ping:
                     _networkService.Send(PacketSerializer.SerializePing()); // Pong
                     break;
+
+                case PacketType.Disconnect:
+                    Console.WriteLine("[MANAGER] Graceful disconnect signal received from remote.");
+                    _networkService.Disconnect();
+                    break;
             }
         }
         catch (Exception ex)
@@ -384,9 +485,17 @@ public class UniversalControlManager : IDisposable
     // UI Messaging
     // -----------------------------------------------------------------------
 
+    public void SendSettingsToWeb()
+    {
+        if (_window == null) return;
+        string settingsJson = GetSettingsJson();
+        _window.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+    }
+
     private void SendUiMessage(string type, string value)
     {
         _window?.Invoke(() =>
-            _window.SendWebMessage(JsonSerializer.Serialize(new { type, status = value })));
+            _window.SendWebMessage(JsonSerializer.Serialize(new { type, status = value }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 }

@@ -38,18 +38,21 @@ public class InputService : IDisposable
     private short _lastRawX, _lastRawY; // Last raw position before suppression
     private double _accumulatedReturnDelta = 0;
     private DateTime _lastReturnAccumulateTime = DateTime.MinValue;
-    private const int ReturnThreshold        = 1500; // px of deliberate push needed to return
-    private const int ReturnDecayMs          = 300;  // accumulator resets if no push for this long
+    public int ReturnThreshold { get; set; } = 1000; // px of deliberate push needed to return
+    private const int ReturnDecayMs          = 500;  // accumulator resets if no push for this long
     private DateTime _lastReturnTime = DateTime.MinValue;
     private const int CooldownMs = 800;
+    private double _accumDx = 0, _accumDy = 0; // Sub-pixel accumulation
 
     // Modifier tracking
     private bool _shiftDown, _ctrlDown, _altDown, _metaDown;
 
     // Switching delay
+    public int SwitchDelayMs { get; set; } = 150; // ms to hold at edge before switching
+    public int CornerSize { get; set; } = 50;    // Ignore edge hits within X px of a corner
+    public double MouseSensitivity { get; set; } = 1.0;
     private DateTime _edgeHitStartTime = DateTime.MinValue;
     private ScreenEdge _lastDetectedEdge = ScreenEdge.None;
-    private const int SwitchDelayMs = 150; // ms to hold at edge before switching
 
     // Entry Y position (so the remote cursor lands at the same height)
     private double _entryVirtualY;
@@ -155,12 +158,20 @@ public class InputService : IDisposable
         {
             // Free-roam mode (no locking): just send the absolute delta
             // relative to the last reported position
-            short freeDx = (short)(rawX - _lastRawX);
-            short freeDy = (short)(rawY - _lastRawY);
+            _accumDx += (rawX - _lastRawX) * MouseSensitivity;
+            _accumDy += (rawY - _lastRawY) * MouseSensitivity;
             _lastRawX = rawX;
             _lastRawY = rawY;
+
+            short freeDx = (short)_accumDx;
+            short freeDy = (short)_accumDy;
+
             if (freeDx != 0 || freeDy != 0)
+            {
+                _accumDx -= freeDx;
+                _accumDy -= freeDy;
                 _onData(PacketSerializer.SerializeMouseRelMove(freeDx, freeDy));
+            }
             return;
         }
 
@@ -169,10 +180,17 @@ public class InputService : IDisposable
         short stickyX = GetStickyX();
         short stickyY = (short)(_screenHeight / 2);
 
-        short dx = (short)(rawX - stickyX);
-        short dy = (short)(rawY - stickyY);
+        _accumDx += (rawX - stickyX) * MouseSensitivity;
+        _accumDy += (rawY - stickyY) * MouseSensitivity;
+
+        short dx = (short)_accumDx;
+        short dy = (short)_accumDy;
 
         if (dx == 0 && dy == 0) return;
+
+        // "Consume" the integer pixels we are sending
+        _accumDx -= dx;
+        _accumDy -= dy;
 
         // Accumulate return gesture (moving back deliberately towards the home screen).
         // The accumulator decays if the user stops pushing for ReturnDecayMs, preventing
@@ -215,24 +233,23 @@ public class InputService : IDisposable
 
     private void CheckEdge(short x, short y)
     {
-        const int cornerSize = 50; // Ignore edge hits within 50px of a corner
         ScreenEdge currentEdge = ScreenEdge.None;
 
         if (_activeEdge == ScreenEdge.Right && x >= _screenWidth - 1)
         {
-            if (y >= cornerSize && y <= _screenHeight - cornerSize) currentEdge = ScreenEdge.Right;
+            if (y >= CornerSize && y <= _screenHeight - CornerSize) currentEdge = ScreenEdge.Right;
         }
         else if (_activeEdge == ScreenEdge.Left && x <= 0)
         {
-            if (y >= cornerSize && y <= _screenHeight - cornerSize) currentEdge = ScreenEdge.Left;
+            if (y >= CornerSize && y <= _screenHeight - CornerSize) currentEdge = ScreenEdge.Left;
         }
         else if (_activeEdge == ScreenEdge.Top && y <= 0)
         {
-            if (x >= cornerSize && x <= _screenWidth - cornerSize) currentEdge = ScreenEdge.Top;
+            if (x >= CornerSize && x <= _screenWidth - CornerSize) currentEdge = ScreenEdge.Top;
         }
         else if (_activeEdge == ScreenEdge.Bottom && y >= _screenHeight - 1)
         {
-            if (x >= cornerSize && x <= _screenWidth - cornerSize) currentEdge = ScreenEdge.Bottom;
+            if (x >= CornerSize && x <= _screenWidth - CornerSize) currentEdge = ScreenEdge.Bottom;
         }
 
         // Delay logic
