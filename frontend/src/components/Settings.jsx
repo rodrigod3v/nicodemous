@@ -12,6 +12,14 @@ const Settings = () => {
         cornerSize: 50
     });
 
+    const [systemInfo, setSystemInfo] = useState({
+        machineName: 'This PC',
+        monitors: [{ name: 'Monitor 1 (Primary)', isPrimary: true }]
+    });
+
+    const [connectionStatus, setConnectionStatus] = useState('Disconnected');
+    const [remoteDeviceName, setRemoteDeviceName] = useState('');
+
     const isInitialLoad = useRef(true);
 
     // Load initial settings from backend
@@ -35,13 +43,36 @@ const Settings = () => {
 
         window.addEventListener('nicodemous_settings', handleSettings);
 
+        const handleSystemInfo = (e) => {
+            if (e.detail) setSystemInfo(e.detail);
+        };
+        window.addEventListener('nicodemous_system_info', handleSystemInfo);
+
+        const handleStatus = (e) => {
+            const status = e.detail?.status || '';
+            setConnectionStatus(status);
+            if (status.includes('Controlled by')) {
+                setRemoteDeviceName(status.replace('Controlled by', '').trim());
+            } else if (status.includes('Connected')) {
+                // We are the controller, but the status might not immediately have the name here
+                // We'll rely on the discovery list if needed, or wait for another update
+            } else if (status === 'Disconnected') {
+                setRemoteDeviceName('');
+            }
+        };
+        window.addEventListener('nicodemous_status', handleStatus);
+
         // Request settings
         const requestMessage = JSON.stringify({ type: 'get_settings' });
         if (window.external && window.external.sendMessage) window.external.sendMessage(requestMessage);
         else if (window.photino && window.photino.send) window.photino.send(requestMessage);
         else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) window.chrome.webview.postMessage(requestMessage);
 
-        return () => window.removeEventListener('nicodemous_settings', handleSettings);
+        return () => {
+            window.removeEventListener('nicodemous_settings', handleSettings);
+            window.removeEventListener('nicodemous_system_info', handleSystemInfo);
+            window.removeEventListener('nicodemous_status', handleStatus);
+        };
     }, []);
 
     // Sync settings with backend whenever they change
@@ -90,10 +121,20 @@ const Settings = () => {
                                 className="glass-input"
                                 value={config.primaryMonitor}
                                 onChange={(e) => setConfig({ ...config, primaryMonitor: e.target.value })}
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '12px', borderRadius: '10px', color: 'white' }}
+                                style={{
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    padding: '12px',
+                                    borderRadius: '10px',
+                                    color: 'white',
+                                    outline: 'none'
+                                }}
                             >
-                                <option>Monitor 1 (Primary)</option>
-                                <option>Monitor 2 (Secondary)</option>
+                                {systemInfo.monitors.map((m, i) => (
+                                    <option key={i} style={{ background: '#1e1e2e', color: 'white' }}>
+                                        {m.name} {m.isPrimary ? '(Primary)' : ''}
+                                    </option>
+                                ))}
                             </select>
                         </label>
 
@@ -123,20 +164,72 @@ const Settings = () => {
                         </label>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ position: 'relative', width: '200px', height: '120px', border: '2px solid rgba(255,255,255,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)' }}>
-                            <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>PC 1 (Local)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px' }}>
+                        {/* Monitor Visualization */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
                             <div style={{
-                                position: 'absolute',
-                                right: config.borderSide === 'Right' ? '-20px' : 'auto',
-                                left: config.borderSide === 'Left' ? '-20px' : 'auto',
-                                width: '4px',
-                                height: '60%',
-                                background: 'var(--accent-primary)',
-                                borderRadius: '2px',
-                                boxShadow: '0 0 10px var(--accent-primary)'
-                            }} />
+                                position: 'relative',
+                                width: '160px',
+                                height: '90px',
+                                border: '2px solid rgba(255,255,255,0.1)',
+                                borderRadius: '8px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(255,255,255,0.02)',
+                                boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                            }}>
+                                <span style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Local</span>
+                                <span style={{ fontSize: '13px', color: 'white', fontWeight: '500', textAlign: 'center', padding: '0 10px' }}>{systemInfo.machineName}</span>
+
+                                <div style={{
+                                    position: 'absolute',
+                                    right: config.borderSide === 'Right' ? '-2px' : 'auto',
+                                    left: config.borderSide === 'Left' ? '-2px' : 'auto',
+                                    width: '3px',
+                                    height: '70%',
+                                    background: 'var(--accent-primary)',
+                                    borderRadius: '2px',
+                                    boxShadow: '0 0 10px var(--accent-primary)',
+                                    zIndex: 2
+                                }} />
+
+                                {/* Connection indicator line */}
+                                <div style={{
+                                    position: 'absolute',
+                                    right: config.borderSide === 'Right' ? '-40px' : 'auto',
+                                    left: config.borderSide === 'Left' ? '-40px' : 'auto',
+                                    width: '40px',
+                                    height: '2px',
+                                    background: connectionStatus.includes('Connected') ? 'var(--accent-primary)' : 'rgba(255,255,255,0.1)',
+                                    borderStyle: connectionStatus.includes('Connected') ? 'solid' : 'dashed',
+                                    opacity: 0.5
+                                }} />
+                            </div>
                         </div>
+
+                        {connectionStatus.includes('Connected') && (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                    position: 'relative',
+                                    width: '160px',
+                                    height: '90px',
+                                    border: '2px solid var(--accent-primary)',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    background: 'rgba(99, 102, 241, 0.05)',
+                                    boxShadow: '0 4px 20px rgba(99, 102, 241, 0.2)',
+                                    animation: 'pulse 2s infinite'
+                                }}>
+                                    <span style={{ fontSize: '11px', color: 'var(--accent-primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Remote</span>
+                                    <span style={{ fontSize: '13px', color: 'white', fontWeight: '500', textAlign: 'center', padding: '0 10px' }}>{remoteDeviceName || 'Remote Device'}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

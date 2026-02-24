@@ -19,7 +19,8 @@ const Dashboard = () => {
     const [manualIp, setManualIp] = useState('');
     const [localCode, setLocalCode] = useState('......');
     const [localIp, setLocalIp] = useState('0.0.0.0');
-    const [isConnecting, setIsConnecting] = useState(null); // stores the IP/Code of the device being connected
+    const [isConnecting, setIsConnecting] = useState(null);
+    const [connectedDevice, setConnectedDevice] = useState(null); // { name, ip }
 
     const sendToBackend = (type, data = {}) => {
         const message = JSON.stringify({ type, ...data });
@@ -53,8 +54,18 @@ const Dashboard = () => {
             }
         };
         const handleStatus = (e) => {
-            setConnectionStatus(e.detail);
-            if (e.detail === 'Connected' || e.detail === 'Disconnected') {
+            const status = e.detail;
+            setConnectionStatus(status);
+
+            if (status.includes('Controlled by')) {
+                const name = status.replace('Controlled by', '').trim();
+                setConnectedDevice({ name });
+                setIsConnecting(null);
+            } else if (status.includes('Connected')) {
+                // If we are connecting to an IP/Code, keep it until we get more info
+                setIsConnecting(null);
+            } else if (status === 'Disconnected' || status.includes('Error')) {
+                setConnectedDevice(null);
                 setIsConnecting(null);
             }
         };
@@ -178,6 +189,53 @@ const Dashboard = () => {
 
                 {activeTab === 'overview' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+                        {/* Active Device Management Section */}
+                        {connectionStatus.includes('Connected') && (
+                            <div className="glass animate-fade" style={{ padding: '30px', border: '1px solid var(--accent-primary)', boxShadow: '0 8px 32px rgba(99, 102, 241, 0.15)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                        <div className="glow-button" style={{ width: '50px', height: '50px', borderRadius: '15px' }}>
+                                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Active Session</span>
+                                            <h2 style={{ margin: 0, fontSize: '22px' }}>{connectedDevice?.name || 'Remote Computer'}</h2>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => sendToBackend('service_toggle', { service: 'disconnect', enabled: true })}
+                                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px 20px', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+                                    >
+                                        Disconnect
+                                    </button>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                                    {[
+                                        { id: 'input', label: 'Remote Input', icon: 'M15 15l-2 5L9 9l11 4-5 2z', color: 'var(--accent-primary)' },
+                                        { id: 'clipboard', label: 'Clipboard Sync', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2', color: '#22c55e' },
+                                        { id: 'audio', label: 'Audio Stream', icon: 'M15.536 8.464a5 5 0 010 7.072', color: '#a855f7' },
+                                        { id: 'file', label: 'File Transfer', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', color: '#64748b', disabled: true }
+                                    ].map(slot => (
+                                        <div key={slot.id} className="glass" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '12px', opacity: slot.disabled ? 0.5 : 1, position: 'relative' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <div style={{ color: slot.color }}>
+                                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d={slot.icon} />
+                                                    </svg>
+                                                </div>
+                                                {!slot.disabled && <Switch checked={services[slot.id]} onChange={() => toggleService(slot.id)} />}
+                                                {slot.disabled && <span style={{ fontSize: '10px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>Soon</span>}
+                                            </div>
+                                            <span style={{ fontSize: '13px', fontWeight: '600' }}>{slot.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Status Dashboard Section */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
                             <div className="glass animate-fade" style={{ padding: '20px', borderLeft: '4px solid var(--accent-primary)' }}>

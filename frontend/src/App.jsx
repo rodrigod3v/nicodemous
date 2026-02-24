@@ -55,8 +55,8 @@ function App() {
           const event = new CustomEvent('nicodemous_ip', { detail: data.detail });
           window.dispatchEvent(event);
         }
-        if (data.type === 'settings_data') {
-          const event = new CustomEvent('nicodemous_settings', { detail: data.settings });
+        if (data.type === 'system_info') {
+          const event = new CustomEvent('nicodemous_system_info', { detail: data });
           window.dispatchEvent(event);
         }
         if (data.type === 'connection_status') {

@@ -82,6 +82,8 @@ public class UniversalControlManager : IDisposable
         _discoveryService.OnDeviceDiscovered += devices =>
             window.Invoke(() =>
                 window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+        
+        SendSystemInfo();
     }
 
     // -----------------------------------------------------------------------
@@ -187,7 +189,28 @@ public class UniversalControlManager : IDisposable
 
     public string GetSettingsJson()
     {
+        SendSystemInfo(); // Refresh system info when settings are requested
         return JsonSerializer.Serialize(_settingsService.GetSettings());
+    }
+
+    private void SendSystemInfo()
+    {
+        var monitors = new List<object>();
+#if WINDOWS
+        try {
+            foreach (var screen in System.Windows.Forms.Screen.AllScreens) {
+                monitors.Add(new { name = screen.DeviceName, isPrimary = screen.Primary });
+            }
+        } catch {}
+#endif
+        if (monitors.Count == 0) monitors.Add(new { name = "Default Monitor", isPrimary = true });
+
+        _window?.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { 
+                type = "system_info", 
+                machineName = Environment.MachineName,
+                monitors = monitors
+            }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0)
