@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Switch from './Switch';
 
 const Settings = () => {
     const [config, setConfig] = useState({
@@ -16,17 +17,20 @@ const Settings = () => {
     // Load initial settings from backend
     useEffect(() => {
         const handleSettings = (e) => {
-            console.log('[FRONTEND] Received settings:', e.detail);
-            const s = JSON.parse(e.detail);
-            setConfig({
-                borderSide: s.ActiveEdge,
-                sensitivity: s.MouseSensitivity,
-                lockInput: config.lockInput, // Backend might not store lockInput state yet as per current logic
-                delay: s.SwitchingDelayMs,
-                cornerSize: s.DeadCornerSize,
-                autoConnect: true
-            });
-            setTimeout(() => { isInitialLoad.current = false; }, 100);
+            if (!e.detail) return;
+            try {
+                const s = JSON.parse(e.detail);
+                setConfig(prev => ({
+                    ...prev,
+                    borderSide: s.ActiveEdge || prev.borderSide,
+                    sensitivity: s.MouseSensitivity || prev.sensitivity,
+                    delay: s.SwitchingDelayMs ?? prev.delay,
+                    cornerSize: s.DeadCornerSize ?? prev.cornerSize
+                }));
+                setTimeout(() => { isInitialLoad.current = false; }, 100);
+            } catch (err) {
+                console.error('[SETTINGS] Failed to parse settings:', err, e.detail);
+            }
         };
 
         window.addEventListener('nicodemous_settings', handleSettings);
@@ -60,7 +64,9 @@ const Settings = () => {
         } else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
             window.chrome.webview.postMessage(message);
         }
-    }, [config.borderSide, config.lockInput]);
+    }, [config.borderSide, config.lockInput, config.delay, config.cornerSize, config.sensitivity]);
+
+    console.log('[FRONTEND] Settings Render State:', config);
 
     const toggleLock = () => {
         setConfig(prev => ({ ...prev, lockInput: !prev.lockInput }));
