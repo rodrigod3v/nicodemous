@@ -46,6 +46,11 @@ public class InputService : IDisposable
     // Modifier tracking
     private bool _shiftDown, _ctrlDown, _altDown, _metaDown;
 
+    // Switching delay
+    private DateTime _edgeHitStartTime = DateTime.MinValue;
+    private ScreenEdge _lastDetectedEdge = ScreenEdge.None;
+    private const int SwitchDelayMs = 150; // ms to hold at edge before switching
+
     // Entry Y position (so the remote cursor lands at the same height)
     private double _entryVirtualY;
 
@@ -210,25 +215,45 @@ public class InputService : IDisposable
 
     private void CheckEdge(short x, short y)
     {
+        const int cornerSize = 50; // Ignore edge hits within 50px of a corner
+        ScreenEdge currentEdge = ScreenEdge.None;
+
         if (_activeEdge == ScreenEdge.Right && x >= _screenWidth - 1)
         {
-            _entryVirtualY = y;
-            OnEdgeHit?.Invoke(ScreenEdge.Right);
+            if (y >= cornerSize && y <= _screenHeight - cornerSize) currentEdge = ScreenEdge.Right;
         }
         else if (_activeEdge == ScreenEdge.Left && x <= 0)
         {
-            _entryVirtualY = y;
-            OnEdgeHit?.Invoke(ScreenEdge.Left);
+            if (y >= cornerSize && y <= _screenHeight - cornerSize) currentEdge = ScreenEdge.Left;
         }
         else if (_activeEdge == ScreenEdge.Top && y <= 0)
         {
-            _entryVirtualY = y;
-            OnEdgeHit?.Invoke(ScreenEdge.Top);
+            if (x >= cornerSize && x <= _screenWidth - cornerSize) currentEdge = ScreenEdge.Top;
         }
         else if (_activeEdge == ScreenEdge.Bottom && y >= _screenHeight - 1)
         {
-            _entryVirtualY = y;
-            OnEdgeHit?.Invoke(ScreenEdge.Bottom);
+            if (x >= cornerSize && x <= _screenWidth - cornerSize) currentEdge = ScreenEdge.Bottom;
+        }
+
+        // Delay logic
+        if (currentEdge != ScreenEdge.None)
+        {
+            if (currentEdge != _lastDetectedEdge)
+            {
+                _lastDetectedEdge = currentEdge;
+                _edgeHitStartTime = DateTime.Now;
+            }
+            else if ((DateTime.Now - _edgeHitStartTime).TotalMilliseconds >= SwitchDelayMs)
+            {
+                // Trigger!
+                _entryVirtualY = y;
+                OnEdgeHit?.Invoke(currentEdge);
+                _lastDetectedEdge = ScreenEdge.None; // Reset for next time
+            }
+        }
+        else
+        {
+            _lastDetectedEdge = ScreenEdge.None;
         }
     }
 

@@ -40,9 +40,9 @@ public class UniversalControlManager : IDisposable
         _networkService.StartListening(HandleRemoteData);
         _networkService.OnConnected += () =>
         {
-            // TCP ready — send handshake
-            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
-            Console.WriteLine("[MANAGER] Handshake sent after TCP connection established.");
+            // TCP ready — send handshake with local PairingCode
+            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, PairingCode));
+            Console.WriteLine($"[MANAGER] Handshake sent (PIN: {PairingCode}) after TCP connection established.");
             SendUiMessage("connection_status", "Handshaking...");
 
             // Start syncing our local clipboard to the peer immediately
@@ -257,7 +257,18 @@ public class UniversalControlManager : IDisposable
 
                 case PacketType.Handshake:
                     var hs = (HandshakeData)payload;
-                    Console.WriteLine($"[MANAGER] Handshake from '{hs.MachineName}'. Sending ACK.");
+                    
+                    // Verify pairing code
+                    if (hs.PairingCode != PairingCode)
+                    {
+                        Console.WriteLine($"[MANAGER] ACCESS DENIED: Handshake from '{hs.MachineName}' used wrong PIN '{hs.PairingCode}'. local PIN is '{PairingCode}'.");
+                        _networkService.Send(PacketSerializer.SerializeClipboardPush("ERROR: Invalid Pairing Code. Connection Rejected."));
+                        _networkService.Stop();
+                        SendUiMessage("connection_status", "Rejeitado: PIN Inválido");
+                        break;
+                    }
+
+                    Console.WriteLine($"[MANAGER] Handshake from '{hs.MachineName}' (PIN Verified). Sending ACK.");
                     _networkService.Send(PacketSerializer.SerializeHandshakeAck());
                     SendUiMessage("connection_status", $"Controlled by {hs.MachineName}");
                     // Also start monitoring our clipboard so we push changes back to the controller
