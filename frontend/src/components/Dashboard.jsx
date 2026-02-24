@@ -134,7 +134,7 @@ const Dashboard = () => {
                 <div className="status glass" style={{ padding: '15px', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div className="status-pulse" style={{
-                            backgroundColor: connectionStatus === 'Connected' ? '#22c55e' :
+                            backgroundColor: (String(connectionStatus || '').includes('Connected')) ? '#22c55e' :
                                 (String(connectionStatus || '').includes('Connecting') ? '#f59e0b' : '#ef4444')
                         }}></div>
                         <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '500' }}>{connectionStatus || 'Disconnected'}</span>

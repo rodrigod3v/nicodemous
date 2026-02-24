@@ -11,6 +11,7 @@ public class AppSettings
     public int SwitchingDelayMs { get; set; } = 150;
     public int DeadCornerSize { get; set; } = 50;
     public double MouseSensitivity { get; set; } = 1.0;
+    public bool LockInput { get; set; } = true;
 }
 
 public class SettingsService

@@ -203,6 +203,7 @@ public class UniversalControlManager : IDisposable
         s.SwitchingDelayMs = delay;
         s.DeadCornerSize = cornerSize;
         s.MouseSensitivity = sensitivity;
+        s.LockInput = lockInput;
         _settingsService.Save();
     }
 
@@ -211,6 +212,8 @@ public class UniversalControlManager : IDisposable
         var s = _settingsService.GetSettings();
         _inputService.SwitchDelayMs = s.SwitchingDelayMs;
         _inputService.CornerSize = s.DeadCornerSize;
+        _inputService.MouseSensitivity = s.MouseSensitivity;
+        _inputService.SetInputLock(s.LockInput);
 
         if (System.Enum.TryParse<ScreenEdge>(s.ActiveEdge, out var edge))
             _inputService.SetActiveEdge(s.ActiveEdge);

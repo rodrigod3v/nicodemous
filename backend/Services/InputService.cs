@@ -49,6 +49,7 @@ public class InputService : IDisposable
     // Switching delay
     public int SwitchDelayMs { get; set; } = 150; // ms to hold at edge before switching
     public int CornerSize { get; set; } = 50;    // Ignore edge hits within X px of a corner
+    public double MouseSensitivity { get; set; } = 1.0;
     private DateTime _edgeHitStartTime = DateTime.MinValue;
     private ScreenEdge _lastDetectedEdge = ScreenEdge.None;
 
@@ -170,8 +171,8 @@ public class InputService : IDisposable
         short stickyX = GetStickyX();
         short stickyY = (short)(_screenHeight / 2);
 
-        short dx = (short)(rawX - stickyX);
-        short dy = (short)(rawY - stickyY);
+        short dx = (short)((rawX - stickyX) * MouseSensitivity);
+        short dy = (short)((rawY - stickyY) * MouseSensitivity);
 
         if (dx == 0 && dy == 0) return;
 
