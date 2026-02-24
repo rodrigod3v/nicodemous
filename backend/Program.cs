@@ -88,14 +88,15 @@ class Program
                     window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
                     break;
                 case "update_settings":
-                    string activeEdge = doc.RootElement.GetProperty("edge").GetString() ?? "Right";
-                    bool lockInput = doc.RootElement.GetProperty("lockInput").GetBoolean();
+                    string activeEdge = doc.RootElement.TryGetProperty("edge", out var edgeProp) ? edgeProp.GetString() ?? "Right" : "Right";
+                    bool lockInput = doc.RootElement.TryGetProperty("lockInput", out var lockProp) ? lockProp.GetBoolean() : true;
                     int delay = doc.RootElement.TryGetProperty("delay", out var delayProp) ? delayProp.GetInt32() : 150;
                     int cornerSize = doc.RootElement.TryGetProperty("cornerSize", out var cornerProp) ? cornerProp.GetInt32() : 50;
                     double sensitivity = doc.RootElement.TryGetProperty("sensitivity", out var sensProp) ? sensProp.GetDouble() : 0.7;
                     int gestureThreshold = doc.RootElement.TryGetProperty("gestureThreshold", out var gestureProp) ? gestureProp.GetInt32() : 1000;
                     string? pairingCode = doc.RootElement.TryGetProperty("pairingCode", out var pinProp) ? pinProp.GetString() : null;
-                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity, gestureThreshold, pairingCode);
+                    string? activeMonitor = doc.RootElement.TryGetProperty("activeMonitor", out var monitorProp) ? monitorProp.GetString() : null;
+                    _controlManager!.UpdateSettings(activeEdge, lockInput, delay, cornerSize, sensitivity, gestureThreshold, pairingCode, activeMonitor);
                     break;
                 case "reset_settings":
                     _controlManager!.ResetSettings();

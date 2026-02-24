@@ -21,6 +21,7 @@ public class UniversalControlManager : IDisposable
     private PhotinoWindow? _window;
     private string? _targetPairingCode;
     private bool _disposed;
+    private DateTime _lastSystemInfoTime = DateTime.MinValue;
 
     public string PairingCode => _settingsService.GetSettings().PairingCode;
 
@@ -233,16 +234,22 @@ public class UniversalControlManager : IDisposable
                 break;
         }
         _settingsService.Save();
+        SendSettingsToWeb();
     }
 
     public string GetSettingsJson()
     {
-        SendSystemInfo(); // Refresh system info when settings are requested
+        // Only refresh system info (expensive monitor scan) if it hasn't been done in the last 2 minutes
+        if ((DateTime.Now - _lastSystemInfoTime).TotalMinutes > 2)
+        {
+            SendSystemInfo();
+        }
         return JsonSerializer.Serialize(_settingsService.GetSettings());
     }
 
     private void SendSystemInfo()
     {
+        _lastSystemInfoTime = DateTime.Now;
         var monitors = new List<object>();
 #if WINDOWS
         try {
@@ -261,7 +268,7 @@ public class UniversalControlManager : IDisposable
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
-    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500, string? pairingCode = null)
+    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500, string? pairingCode = null, string? activeMonitor = null)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
@@ -278,6 +285,7 @@ public class UniversalControlManager : IDisposable
         s.MouseSensitivity = sensitivity;
         s.GestureThreshold = gestureThreshold;
         s.LockInput = lockInput;
+        if (!string.IsNullOrEmpty(activeMonitor)) s.ActiveMonitor = activeMonitor;
 
         if (!string.IsNullOrEmpty(pairingCode) && pairingCode.Length == 6)
         {
@@ -287,6 +295,7 @@ public class UniversalControlManager : IDisposable
         }
 
         _settingsService.Save();
+        SendSettingsToWeb();
     }
 
     public void ResetSettings()
@@ -310,10 +319,13 @@ public class UniversalControlManager : IDisposable
         if (System.Enum.TryParse<ScreenEdge>(s.ActiveEdge, out var edge))
             _inputService.SetActiveEdge(s.ActiveEdge);
 
-        // Apply service states
-        ToggleService("input", s.EnableInput);
-        ToggleService("clipboard", s.EnableClipboard);
-        ToggleService("audio", s.EnableAudio);
+        // Apply service states without pushing back to UI to avoid loops
+        if (s.EnableInput) _inputService.Start(); else _inputService.Stop();
+        
+        if (s.EnableClipboard) _clipboardService.StartMonitoring(t => _networkService.Send(PacketSerializer.SerializeClipboardPush(t)));
+        else _clipboardService.StopMonitoring();
+
+        if (s.EnableAudio) _audioService.StartCapture(); else _audioService.StopCapture();
 
         // Update discovery PIN
         _discoveryService.UpdatePairingCode(s.PairingCode);

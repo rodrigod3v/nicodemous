@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './layout/Sidebar';
 import OverviewTab from './tabs/OverviewTab';
 import DiscoveryTab from './tabs/DiscoveryTab';
@@ -10,14 +10,20 @@ const Dashboard = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const { connectionStatus, sendMessage, sessionRole } = useNicodemous();
     const [isScanning, setIsScanning] = useState(false);
+    const prevConnectionStatus = useRef(connectionStatus);
 
-    // Auto-navigate to Active Device tab on connection and redirect back on disconnection
+    // Auto-navigate to Active Device tab only on initial connection
     useEffect(() => {
-        if (connectionStatus.includes('Connected')) {
+        const wasConnected = prevConnectionStatus.current.includes('Connected');
+        const isConnected = connectionStatus.includes('Connected');
+
+        if (!wasConnected && isConnected) {
             setActiveTab('device');
-        } else if (activeTab === 'device') {
+        } else if (wasConnected && !isConnected && activeTab === 'device') {
             setActiveTab('overview');
         }
+
+        prevConnectionStatus.current = connectionStatus;
     }, [connectionStatus, activeTab]);
 
     const handleStartDiscovery = () => {

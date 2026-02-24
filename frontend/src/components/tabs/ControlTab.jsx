@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useNicodemous } from '../../context/NicodemousContext';
 import Switch from '../Switch';
 
@@ -10,30 +10,48 @@ const ControlTab = () => {
         settings,
         toggleService,
         updateSettings,
-        sendMessage,
         systemInfo
     } = useNicodemous();
 
+    const lastUpdateRef = useRef(0);
+
     const handleConfigChange = (key, value) => {
+        // Map from UI simple keys to Backend PascalCase keys
         const map = {
             borderSide: 'ActiveEdge',
             lockInput: 'LockInput',
             delay: 'SwitchingDelayMs',
             cornerSize: 'DeadCornerSize',
             sensitivity: 'MouseSensitivity',
-            gestureThreshold: 'GestureThreshold'
+            gestureThreshold: 'GestureThreshold',
+            ActiveMonitor: 'ActiveMonitor'
         };
 
         const backendKey = map[key] || key;
-        const newSettings = { ...settings, [backendKey]: value };
+
+        // Use a stable current state from the context
+        if (!settings) return;
+
+        const updated = {
+            ...settings,
+            [backendKey]: value
+        };
+
+        // Rate limiting: prevent flooding the backend with too many settings messages
+        const now = Date.now();
+        if (now - lastUpdateRef.current < 50 && key !== 'lockInput' && key !== 'borderSide' && key !== 'ActiveMonitor') {
+            return; // Skip rapid slider ticks, but allow toggles/selects
+        }
+        lastUpdateRef.current = now;
 
         updateSettings({
-            edge: key === 'borderSide' ? value : settings.ActiveEdge,
-            lockInput: key === 'lockInput' ? value : settings.LockInput,
-            delay: key === 'delay' ? parseInt(value) : settings.SwitchingDelayMs,
-            cornerSize: key === 'cornerSize' ? parseInt(value) : settings.DeadCornerSize,
-            sensitivity: key === 'sensitivity' ? parseFloat(value) : settings.MouseSensitivity,
-            gestureThreshold: key === 'gestureThreshold' ? parseInt(value) : settings.GestureThreshold
+            edge: updated.ActiveEdge || 'Right',
+            lockInput: updated.LockInput !== undefined ? updated.LockInput : true,
+            delay: parseInt(updated.SwitchingDelayMs || 150),
+            cornerSize: parseInt(updated.DeadCornerSize || 50),
+            sensitivity: parseFloat(updated.MouseSensitivity || 1.0),
+            gestureThreshold: parseInt(updated.GestureThreshold || 1000),
+            activeMonitor: updated.ActiveMonitor || ''
         });
     };
 
@@ -92,13 +110,15 @@ const ControlTab = () => {
                 {services.map(slot => (
                     <div
                         key={slot.id}
-                        className="glass animate-fade"
+                        onClick={() => !slot.disabled && toggleService(slot.id, !slot.enabled)}
+                        className={`glass animate-fade ${slot.disabled ? '' : 'glow-on-hover'}`}
                         style={{
                             padding: '24px',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '18px',
                             opacity: slot.disabled ? 0.4 : 1,
+                            cursor: slot.disabled ? 'default' : 'pointer',
                             background: !slot.disabled && slot.enabled ? `linear-gradient(135deg, rgba(255,255,255,0.03) 0%, ${slot.color}08 100%)` : 'rgba(255,255,255,0.02)',
                             border: !slot.disabled && slot.enabled ? `1px solid ${slot.color}33` : '1px solid rgba(255,255,255,0.05)',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -118,7 +138,7 @@ const ControlTab = () => {
                             }}>
                                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d={slot.icon} /></svg>
                             </div>
-                            {!slot.disabled && <Switch checked={slot.enabled} onChange={() => toggleService(slot.id, !slot.enabled)} />}
+                            {!slot.disabled && <Switch checked={slot.enabled} pointerEvents="none" />}
                             {slot.disabled && <span style={{ fontSize: '10px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold' }}>TBD</span>}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -197,16 +217,31 @@ const ControlTab = () => {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '700' }}>Active Monitor</span>
-                            <select
-                                className="glass-input"
-                                value={settings?.ActiveMonitor || ''}
-                                onChange={(e) => handleConfigChange('ActiveMonitor', e.target.value)}
-                                style={{ width: '100%', padding: '12px', background: 'rgba(255,255,255,0.02)', fontWeight: '600' }}
-                            >
-                                {systemInfo.monitors?.map((m, i) => (
-                                    <option key={i} value={m.name} style={{ background: '#1e1e2e' }}>{m.name} {m.isPrimary ? '(Main)' : ''}</option>
-                                ))}
-                            </select>
+                            <div style={{ position: 'relative' }}>
+                                <select
+                                    className="glass-input"
+                                    value={settings?.ActiveMonitor || ''}
+                                    onChange={(e) => handleConfigChange('ActiveMonitor', e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 40px 14px 15px',
+                                        background: 'rgba(255,255,255,0.04)',
+                                        fontWeight: '700',
+                                        fontSize: '14px',
+                                        border: '1px solid rgba(255,255,255,0.08)',
+                                        appearance: 'none',
+                                        cursor: 'pointer',
+                                        color: 'white'
+                                    }}
+                                >
+                                    {systemInfo.monitors?.map((m, i) => (
+                                        <option key={i} value={m.name} style={{ background: '#1e1e2e', color: 'white' }}>{m.name} {m.isPrimary ? '(Primary Monitor)' : ''}</option>
+                                    ))}
+                                </select>
+                                <div style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--accent-primary)' }}>
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -214,7 +249,7 @@ const ControlTab = () => {
                     <div className="glass" style={{ padding: '35px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
                         <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                            Session Settings
+                            Intelligence
                         </h2>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
@@ -239,19 +274,32 @@ const ControlTab = () => {
                             {/* Switching Latency */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '700' }}>Switching Latency</span>
+                                    <span style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '700' }}>Auto-Switch Delay</span>
                                     <span style={{ fontSize: '14px', color: 'var(--accent-primary)', fontWeight: '800' }}>{settings?.SwitchingDelayMs || 150}ms</span>
                                 </div>
                                 <input type="range" min="0" max="1000" step="50" value={settings?.SwitchingDelayMs || 150} onChange={(e) => handleConfigChange('delay', e.target.value)} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
                             </div>
 
                             {/* Input Locking Toggle */}
-                            <div className="glass" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: settings?.LockInput ? 'rgba(99, 102, 241, 0.05)' : 'transparent', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div
+                                onClick={() => handleConfigChange('lockInput', !settings?.LockInput)}
+                                className="glass glow-on-hover"
+                                style={{
+                                    padding: '18px 20px',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    background: settings?.LockInput ? 'rgba(99, 102, 241, 0.08)' : 'rgba(255,255,255,0.02)',
+                                    border: settings?.LockInput ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(255,255,255,0.05)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    <span style={{ fontSize: '14px', fontWeight: '800' }}>Lock Local Input</span>
-                                    <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>Block local movement on remote control.</span>
+                                    <span style={{ fontSize: '14px', fontWeight: '800', color: settings?.LockInput ? 'white' : 'var(--text-dim)' }}>Lock Local Input</span>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', opacity: 0.7 }}>Prevents accidental movement when remote.</span>
                                 </div>
-                                <Switch checked={settings?.LockInput} onChange={() => handleConfigChange('lockInput', !settings?.LockInput)} />
+                                <Switch checked={settings?.LockInput} pointerEvents="none" />
                             </div>
                         </div>
                     </div>

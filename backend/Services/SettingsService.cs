@@ -16,6 +16,7 @@ public class AppSettings
     public bool EnableInput { get; set; } = true;
     public bool EnableAudio { get; set; } = false;
     public bool EnableClipboard { get; set; } = true;
+    public string ActiveMonitor { get; set; } = "";
 }
 
 public class SettingsService
