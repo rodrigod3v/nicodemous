@@ -154,8 +154,8 @@ public class ClipboardService
                     string current = GetText();
                     if (!string.IsNullOrEmpty(current) && current != _lastText)
                     {
+                        Console.WriteLine($"[CLIPBOARD-MAC] Local change detected ({current.Length} chars) — syncing.");
                         _lastText = current;
-                        Console.WriteLine($"[CLIPBOARD] Local change detected ({current.Length} chars) — syncing.");
                         onChange(current);
                     }
                 }
@@ -286,7 +286,8 @@ internal static class MacClipboardNative
     {
         if (nsString == IntPtr.Zero) return null;
         IntPtr utf8Ptr = objc_msgSend(nsString, sel_registerName("UTF8String"));
-        return Marshal.PtrToStringAnsi(utf8Ptr);
+        if (utf8Ptr == IntPtr.Zero) return null;
+        return Marshal.PtrToStringUTF8(utf8Ptr);
     }
 
     public static string? GetText()
@@ -308,10 +309,14 @@ internal static class MacClipboardNative
             objc_msgSend(pb, sel_registerName("clearContents"));
             
             IntPtr nsStr = CreateNSString(text);
-            objc_msgSend(pb, sel_registerName("setString:forType:"), nsStr, _utf8Type);
-            // We don't explicitly release nsStr here to avoid double-free if pb takes ownership or if autoreleasepool handles it,
-            // but in a long-running app with many sets, we might want an autorelease pool or use CFRelease if it's a CFString.
-            // For now, stability is priority.
+            try
+            {
+                objc_msgSend(pb, sel_registerName("setString:forType:"), nsStr, _utf8Type);
+            }
+            finally
+            {
+                objc_msgSend(nsStr, sel_registerName("release"));
+            }
         }
         catch (Exception ex)
         {
