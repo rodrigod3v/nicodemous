@@ -143,7 +143,7 @@ public class NetworkService : IDisposable
     public void SetTarget(string ipAddress, int port)
     {
         // Disconnect any previous connection
-        DisconnectClient();
+        Disconnect();
 
         if (!IPAddress.TryParse(ipAddress, out var addr))
         {
