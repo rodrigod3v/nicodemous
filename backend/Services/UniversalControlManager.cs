@@ -458,6 +458,14 @@ public class UniversalControlManager : IDisposable
     // UI Messaging
     // -----------------------------------------------------------------------
 
+    public void SendSettingsToWeb()
+    {
+        if (_window == null) return;
+        string settingsJson = GetSettingsJson();
+        _window.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+    }
+
     private void SendUiMessage(string type, string value)
     {
         _window?.Invoke(() =>
