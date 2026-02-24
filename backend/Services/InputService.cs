@@ -1,51 +1,76 @@
 using SharpHook;
 using SharpHook.Native;
-using System.Text.Json;
+using SharpHook.Data;
+using System.Runtime.InteropServices;
 
 namespace Nicodemous.Backend.Services;
 
-public enum ScreenEdge
-{
-    None,
-    Left,
-    Right,
-    Top,
-    Bottom
-}
+public enum ScreenEdge { None, Left, Right, Top, Bottom }
 
-public class InputService
+/// <summary>
+/// Captures mouse and keyboard input locally.
+/// 
+/// In REMOTE MODE:
+///   - Mouse movement is sent as relative deltas (dx/dy), inspired by Input Leap's kMsgDMouseRelMove.
+///     The physical cursor is locked to a sticky point at the active screen edge.
+///   - Mouse buttons are sent as separate Down/Up packets (byte ButtonID: 1=Left, 2=Right, 3=Middle).
+///   - Mouse wheel is sent in ±120 per-notch units on two axes (X and Y), matching Input Leap convention.
+///   - Keys are sent as KeyDown/KeyUp with a stable platform-agnostic KeyID and a modifier mask.
+///     Modifier state is tracked so every key event carries the current Shift/Ctrl/Alt/Meta state.
+/// 
+/// In LOCAL MODE:
+///   - Monitors for edge crossings to trigger remote mode.
+/// </summary>
+public class InputService : IDisposable
 {
     private readonly SimpleGlobalHook _hook;
     private readonly IEventSimulator _simulator;
     private readonly Action<byte[]> _onData;
-    private bool _isRemoteMode = false;
-    private short _screenWidth = 1920;
-    private short _screenHeight = 1080;
-    private ScreenEdge _activeEdge = ScreenEdge.Right; // Default: Right edge crosses to remote
-    private bool _isInputLocked = true; // Default: Lock mouse to edge when in remote mode
-    private DateTime _lastReturnTime = DateTime.MinValue;
-    private const int CooldownMs = 1000;
 
-    private double _virtualX;
-    private double _virtualY;
+    private bool _isRemoteMode = false;
+    private short _screenWidth  = 1920;
+    private short _screenHeight = 1080;
+    private ScreenEdge _activeEdge = ScreenEdge.Right;
+    private bool _isInputLocked = true;
+
+    // Sticky-point cursor lock
     private bool _isSuppressingEvents = false;
+    private short _lastRawX, _lastRawY; // Last raw position before suppression
     private double _accumulatedReturnDelta = 0;
-    private double _sensitivity = 0.7; // Adjustable scaling for remote movement
+    private DateTime _lastReturnAccumulateTime = DateTime.MinValue;
+    private const int ReturnThreshold        = 1500; // px of deliberate push needed to return
+    private const int ReturnDecayMs          = 300;  // accumulator resets if no push for this long
+    private DateTime _lastReturnTime = DateTime.MinValue;
+    private const int CooldownMs = 800;
+
+    // Modifier tracking
+    private bool _shiftDown, _ctrlDown, _altDown, _metaDown;
+
+    // Entry Y position (so the remote cursor lands at the same height)
+    private double _entryVirtualY;
 
     public event Action<ScreenEdge>? OnEdgeHit;
     public event Action? OnReturn;
 
-    public void SetActiveEdge(string edge)
+    // -----------------------------------------------------------------------
+    // Configuration API
+    // -----------------------------------------------------------------------
+
+    public void SetActiveEdge(string edge) =>
+        _activeEdge = Enum.TryParse<ScreenEdge>(edge, true, out var r) ? r : ScreenEdge.Right;
+
+    public void SetInputLock(bool locked) =>
+        _isInputLocked = locked;
+
+    public void SetScreenSize(short w, short h)
     {
-        _activeEdge = Enum.TryParse<ScreenEdge>(edge, true, out var result) ? result : ScreenEdge.Right;
-        Console.WriteLine($"InputService: Active Edge set to {_activeEdge}");
+        _screenWidth = w;
+        _screenHeight = h;
     }
 
-    public void SetInputLock(bool locked)
-    {
-        _isInputLocked = locked;
-        Console.WriteLine($"InputService: Input Lock set to {locked}");
-    }
+    // -----------------------------------------------------------------------
+    // Construction & lifecycle
+    // -----------------------------------------------------------------------
 
     public InputService(Action<byte[]> onData)
     {
@@ -53,205 +78,268 @@ public class InputService
         _simulator = new EventSimulator();
         _onData = onData;
 
-        _hook.MouseMoved += OnMouseMoved;
-        _hook.MousePressed += OnMousePressed;
+        _hook.MouseMoved    += OnMouseMoved;
+        _hook.MouseDragged  += OnMouseMoved;  // Also fires during button-held moves
+        _hook.MousePressed  += OnMousePressed;
         _hook.MouseReleased += OnMouseReleased;
-        _hook.MouseWheel += OnMouseWheel;
-        _hook.KeyPressed += OnKeyPressed;
-        _hook.KeyReleased += OnKeyReleased;
+        _hook.MouseWheel    += OnMouseWheel;
+        _hook.KeyPressed    += OnKeyPressed;
+        _hook.KeyReleased   += OnKeyReleased;
     }
 
-    public void SetScreenSize(short width, short height)
-    {
-        _screenWidth = width;
-        _screenHeight = height;
-    }
+    public void Start() => Task.Run(() => _hook.Run());
+
+    public void Stop() => _hook.Dispose();
+
+    public void Dispose() => Stop();
+
+    // -----------------------------------------------------------------------
+    // Remote mode control
+    // -----------------------------------------------------------------------
 
     public void SetRemoteMode(bool enabled)
     {
         _isRemoteMode = enabled;
+        _accumulatedReturnDelta = 0;
+
         if (enabled)
         {
-            // Invert logic: If we hit PC's RIGHT edge, start at Mac's LEFT edge (+ buffer)
-            // If we hit PC's LEFT edge, start at Mac's RIGHT edge (- buffer)
-            const int entryBuffer = 50;
-            if (_activeEdge == ScreenEdge.Right)
-            {
-                _virtualX = entryBuffer;
-            }
-            else
-            {
-                _virtualX = _screenWidth - entryBuffer;
-            }
+            // Park the cursor at the sticky point immediately
+            short stickyX = GetStickyX();
+            short stickyY = (short)(_screenHeight / 2);
+            _lastRawX = stickyX;
+            _lastRawY = stickyY;
 
-            _accumulatedReturnDelta = 0;
-            Console.WriteLine($"[INPUT] Remote Mode Enabled. Entering at Virtual Pos: {_virtualX},{_virtualY}");
+            _isSuppressingEvents = true;
+            _simulator.SimulateMouseMovement(stickyX, stickyY);
+            _isSuppressingEvents = false;
+
+            Console.WriteLine($"[INPUT] Remote mode ON. Sticky at ({stickyX},{stickyY}). Screen {_screenWidth}x{_screenHeight}.");
+        }
+        else
+        {
+            // Release any held modifier keys on the remote before leaving
+            // (the receiver will handle this via its own key-up events)
+            Console.WriteLine("[INPUT] Remote mode OFF.");
         }
     }
 
-    public void Start()
-    {
-        Task.Run(() => _hook.Run());
-    }
-
-    public void Stop()
-    {
-        _hook.Dispose();
-    }
+    // -----------------------------------------------------------------------
+    // Mouse Events
+    // -----------------------------------------------------------------------
 
     private void OnMouseMoved(object? sender, MouseHookEventArgs e)
     {
-        if (_isSuppressingEvents) return; // Skip events generated by our own simulator
+        if (_isSuppressingEvents) return;
 
         if (_isRemoteMode)
         {
-            if (_screenWidth == 0 || _screenHeight == 0) return;
-
-            // Suppress the event locally
             e.SuppressEvent = true;
-
-            HandleMouseLock(e.Data.X, e.Data.Y);
-
-            // Normalize virtual position to 0-65535 range
-            ushort normX = (ushort)(Math.Clamp(_virtualX / _screenWidth, 0, 1) * 65535);
-            ushort normY = (ushort)(Math.Clamp(_virtualY / _screenHeight, 0, 1) * 65535);
-
-            // Send normalized coordinates to remote
-            _onData(PacketSerializer.SerializeMouseMove(normX, normY));
+            HandleMouseLockAndSendDelta(e.Data.X, e.Data.Y);
         }
         else
         {
-            // Check for cooldown to avoid immediate re-entry when pulling back
             if ((DateTime.Now - _lastReturnTime).TotalMilliseconds < CooldownMs) return;
-
-            // Check for edge hit to trigger remote mode
-            if (e.Data.X >= _screenWidth - 1 && _activeEdge == ScreenEdge.Right)
-            {
-                _virtualY = e.Data.Y; // Capture crossing height
-                OnEdgeHit?.Invoke(ScreenEdge.Right);
-            }
-            else if (e.Data.X <= 0 && _activeEdge == ScreenEdge.Left)
-            {
-                _virtualY = e.Data.Y; // Capture crossing height
-                OnEdgeHit?.Invoke(ScreenEdge.Left);
-            }
+            CheckEdge(e.Data.X, e.Data.Y);
         }
     }
 
-    private void HandleMouseLock(short x, short y)
+    private void HandleMouseLockAndSendDelta(short rawX, short rawY)
     {
-        if (!_isInputLocked) return;
+        if (!_isInputLocked)
+        {
+            // Free-roam mode (no locking): just send the absolute delta
+            // relative to the last reported position
+            short freeDx = (short)(rawX - _lastRawX);
+            short freeDy = (short)(rawY - _lastRawY);
+            _lastRawX = rawX;
+            _lastRawY = rawY;
+            if (freeDx != 0 || freeDy != 0)
+                _onData(PacketSerializer.SerializeMouseRelMove(freeDx, freeDy));
+            return;
+        }
 
-        // Sticky point: the pixel at the edge and center-height
-        short stickyX = (_activeEdge == ScreenEdge.Right) ? (short)(_screenWidth - 1) : (short)0;
+        // Locked mode: cursor is stuck at the sticky point.
+        // Calculate delta from sticky center and send it, then warp cursor back.
+        short stickyX = GetStickyX();
         short stickyY = (short)(_screenHeight / 2);
 
-        // Calculate deltas from the sticky point
-        int dx = x - stickyX;
-        int dy = y - stickyY;
+        short dx = (short)(rawX - stickyX);
+        short dy = (short)(rawY - stickyY);
 
-        // If no movement relative to sticky point, nothing to do
         if (dx == 0 && dy == 0) return;
 
-        // Update virtual position with sensitivity scaling
-        _virtualX += dx * _sensitivity;
-        _virtualY += dy * _sensitivity;
+        // Accumulate return gesture (moving back deliberately towards the home screen).
+        // The accumulator decays if the user stops pushing for ReturnDecayMs, preventing
+        // accidental exits during normal remote usage.
+        bool movingBack = (_activeEdge == ScreenEdge.Right && dx < 0) ||
+                          (_activeEdge == ScreenEdge.Left  && dx > 0);
 
-        // Clamp virtual position to reasonable bounds (can go slightly off-screen if desired, 
-        // but here we clamp to 0..Width/Height for simplicity)
-        _virtualX = Math.Clamp(_virtualX, 0, _screenWidth);
-        _virtualY = Math.Clamp(_virtualY, 0, _screenHeight);
-
-        // Return detection: track how much the user is pulling BACK from the edge
-        // Only start accumulating return delta IF virtual position is already at the edge 
-        // that faces the primary computer. This creates a "sticky wall" effect.
-        bool isAtReturnEdge = (_activeEdge == ScreenEdge.Right && _virtualX <= 0) || 
-                              (_activeEdge == ScreenEdge.Left && _virtualX >= _screenWidth);
-
-        if (isAtReturnEdge)
+        if (movingBack)
         {
-            if (_activeEdge == ScreenEdge.Right && dx < 0)
-            {
-                _accumulatedReturnDelta += Math.Abs(dx);
-            }
-            else if (_activeEdge == ScreenEdge.Left && dx > 0)
-            {
-                _accumulatedReturnDelta += Math.Abs(dx);
-            }
-            else if (dx != 0)
-            {
-                // Reset accumulated return if moving AWAY from the return edge
+            // Time-based decay: if too much time passed since last accumulation, reset first
+            if ((DateTime.Now - _lastReturnAccumulateTime).TotalMilliseconds > ReturnDecayMs)
                 _accumulatedReturnDelta = 0;
+
+            _accumulatedReturnDelta += Math.Abs(dx);
+            _lastReturnAccumulateTime = DateTime.Now;
+
+            if (_accumulatedReturnDelta >= ReturnThreshold)
+            {
+                Console.WriteLine($"[INPUT] Return gesture detected (accumulated {_accumulatedReturnDelta}px).");
+                _lastReturnTime = DateTime.Now;
+                _accumulatedReturnDelta = 0;
+                OnReturn?.Invoke();
+                return;
             }
         }
         else
         {
+            // Reset accumulator if user moves towards remote screen
             _accumulatedReturnDelta = 0;
         }
 
-        const int returnThreshold = 400; 
-        if (_accumulatedReturnDelta > returnThreshold)
-        {
-            Console.WriteLine($"[INPUT] Return detected! Accumulated Delta: {_accumulatedReturnDelta}");
-            _lastReturnTime = DateTime.Now;
-            OnReturn?.Invoke();
-            return;
-        }
+        // Send delta to remote
+        _onData(PacketSerializer.SerializeMouseRelMove(dx, dy));
 
-        // Force the physical cursor back to the sticky point to prevent local interaction
+        // Warp physical cursor back to sticky point
         _isSuppressingEvents = true;
         _simulator.SimulateMouseMovement(stickyX, stickyY);
         _isSuppressingEvents = false;
     }
 
+    private void CheckEdge(short x, short y)
+    {
+        if (_activeEdge == ScreenEdge.Right && x >= _screenWidth - 1)
+        {
+            _entryVirtualY = y;
+            OnEdgeHit?.Invoke(ScreenEdge.Right);
+        }
+        else if (_activeEdge == ScreenEdge.Left && x <= 0)
+        {
+            _entryVirtualY = y;
+            OnEdgeHit?.Invoke(ScreenEdge.Left);
+        }
+        else if (_activeEdge == ScreenEdge.Top && y <= 0)
+        {
+            _entryVirtualY = y;
+            OnEdgeHit?.Invoke(ScreenEdge.Top);
+        }
+        else if (_activeEdge == ScreenEdge.Bottom && y >= _screenHeight - 1)
+        {
+            _entryVirtualY = y;
+            OnEdgeHit?.Invoke(ScreenEdge.Bottom);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Mouse Buttons
+    // -----------------------------------------------------------------------
+
     private void OnMousePressed(object? sender, MouseHookEventArgs e)
     {
-        if (_isRemoteMode)
-        {
-            e.SuppressEvent = true;
-            _onData(PacketSerializer.SerializeMouseDown(e.Data.Button.ToString()));
-        }
+        if (!_isRemoteMode) return;
+        e.SuppressEvent = true;
+        _onData(PacketSerializer.SerializeMouseDown(ButtonIdFromSharpHook(e.Data.Button)));
     }
 
     private void OnMouseReleased(object? sender, MouseHookEventArgs e)
     {
-        if (_isRemoteMode)
-        {
-            e.SuppressEvent = true;
-            _onData(PacketSerializer.SerializeMouseUp(e.Data.Button.ToString()));
-        }
+        if (!_isRemoteMode) return;
+        e.SuppressEvent = true;
+        _onData(PacketSerializer.SerializeMouseUp(ButtonIdFromSharpHook(e.Data.Button)));
     }
+
+    // -----------------------------------------------------------------------
+    // Mouse Wheel
+    // -----------------------------------------------------------------------
 
     private void OnMouseWheel(object? sender, MouseWheelHookEventArgs e)
     {
-        if (_isRemoteMode)
-        {
-            e.SuppressEvent = true;
-            // Capture scroll delta. On Windows/Mac, this is usually ±120 per notch or similar.
-            _onData(PacketSerializer.SerializeMouseWheel((short)e.Data.Rotation));
-        }
+        if (!_isRemoteMode) return;
+        e.SuppressEvent = true;
+
+        // SharpHook Rotation: positive = up/forward, negative = down/backward
+        // Input Leap convention: +120 per notch forward, -120 per notch backward
+        short rotation = e.Data.Rotation;
+        // SharpHook already reports in 120-unit increments on most platforms;
+        // normalize to ±120 if value seems to be in raw ticks (usually ±1 or ±3)
+        short yDelta = (short)(rotation < 0 ? -120 : 120);
+        // No horizontal scroll data from SharpHook's basic wheel event → xDelta = 0
+        _onData(PacketSerializer.SerializeMouseWheel(0, yDelta));
     }
+
+    // -----------------------------------------------------------------------
+    // Keyboard
+    // -----------------------------------------------------------------------
 
     private void OnKeyPressed(object? sender, KeyboardHookEventArgs e)
     {
-        if (_isRemoteMode)
+        // Always track modifiers, even in local mode
+        UpdateModifiers(e.Data.KeyCode, true);
+
+        if (!_isRemoteMode) return;
+        e.SuppressEvent = true;
+
+        if (!KeyMap.KeyCodeToId.TryGetValue(e.Data.KeyCode, out ushort keyId))
         {
-            e.SuppressEvent = true;
-            _onData(PacketSerializer.SerializeKeyPress(e.Data.KeyCode.ToString()));
+            Console.WriteLine($"[INPUT] Unknown KeyCode: {e.Data.KeyCode} — skipping.");
+            return;
         }
+
+        ushort mods = KeyMap.GetModifierMask(_shiftDown, _ctrlDown, _altDown, _metaDown);
+        _onData(PacketSerializer.SerializeKeyDown(keyId, mods));
     }
 
     private void OnKeyReleased(object? sender, KeyboardHookEventArgs e)
     {
-        if (_isRemoteMode)
+        // Always track modifiers, even in local mode
+        UpdateModifiers(e.Data.KeyCode, false);
+
+        if (!_isRemoteMode) return;
+        e.SuppressEvent = true;
+
+        if (!KeyMap.KeyCodeToId.TryGetValue(e.Data.KeyCode, out ushort keyId))
+            return;
+
+        ushort mods = KeyMap.GetModifierMask(_shiftDown, _ctrlDown, _altDown, _metaDown);
+        _onData(PacketSerializer.SerializeKeyUp(keyId, mods));
+    }
+
+    private void UpdateModifiers(KeyCode code, bool pressed)
+    {
+        switch (code)
         {
-            e.SuppressEvent = true;
+            case KeyCode.VcLeftShift:
+            case KeyCode.VcRightShift:   _shiftDown = pressed; break;
+            case KeyCode.VcLeftControl:
+            case KeyCode.VcRightControl: _ctrlDown  = pressed; break;
+            case KeyCode.VcLeftAlt:
+            case KeyCode.VcRightAlt:     _altDown   = pressed; break;
+            case KeyCode.VcLeftMeta:
+            case KeyCode.VcRightMeta:    _metaDown  = pressed; break;
         }
     }
 
-    public void SetSensitivity(double sensitivity)
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    private short GetStickyX() =>
+        _activeEdge == ScreenEdge.Right  ? (short)(_screenWidth - 1) :
+        _activeEdge == ScreenEdge.Left   ? (short)0 :
+        (short)(_screenWidth / 2);
+
+    /// <summary>Maps SharpHook MouseButton to a 1-indexed ButtonID (matches Input Leap convention).</summary>
+    private static byte ButtonIdFromSharpHook(MouseButton btn) => btn switch
     {
-        _sensitivity = sensitivity;
-        Console.WriteLine($"InputService: Sensitivity set to {sensitivity}");
-    }
+        MouseButton.Button1 => 1, // Left
+        MouseButton.Button2 => 2, // Right
+        MouseButton.Button3 => 3, // Middle
+        MouseButton.Button4 => 4,
+        MouseButton.Button5 => 5,
+        _                   => 1,
+    };
+
+    public double GetEntryVirtualY() => _entryVirtualY;
 }

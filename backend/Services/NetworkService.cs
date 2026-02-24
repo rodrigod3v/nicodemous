@@ -1,90 +1,217 @@
+using System;
+using System.Buffers.Binary;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Nicodemous.Backend.Services;
 
-public class NetworkService
+/// <summary>
+/// TCP-based network service with 4-byte big-endian length-prefixed framing.
+/// 
+/// Architecture:
+///   - Always listens as a server on the configured port (passive side / receiver).
+///   - When SetTarget is called, also opens a TCP client connection to the target (active side / controller).
+///   - This means both machines run the same code; the first to call SetTarget becomes the controller.
+/// </summary>
+public class NetworkService : IDisposable
 {
-    private readonly UdpClient _udpClient;
     private readonly int _port;
-    private IPEndPoint? _targetEndPoint;
-    private bool _isRunning;
+    private TcpListener? _listener;
+    private TcpClient? _client;       // Active connection to target (controller side)
+    private NetworkStream? _sendStream;
+    private Action<byte[]>? _onPacketReceived;
 
-    public bool HasTarget => _targetEndPoint != null;
+    private CancellationTokenSource _cts = new();
+    private bool _disposed;
+
+    public bool IsConnected => _client?.Connected == true && _sendStream != null;
+
+    public event Action? OnConnected;
+    public event Action? OnDisconnected;
 
     public NetworkService(int port)
     {
         _port = port;
-        _udpClient = new UdpClient(_port);
-        
-        // On Windows, ignore "Connection Reset" error from ICMP Port Unreachable
-        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-        {
-            const int SIO_UDP_CONNRESET = -1744830452;
-            _udpClient.Client.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, null);
-        }
     }
 
-    public void SetTarget(string ipAddress, int port)
-    {
-        if (string.IsNullOrWhiteSpace(ipAddress))
-        {
-            _targetEndPoint = null;
-            return;
-        }
+    // -----------------------------------------------------------------------
+    // Server (receive) side
+    // -----------------------------------------------------------------------
 
-        if (IPAddress.TryParse(ipAddress, out var parsedAddr))
-        {
-            _targetEndPoint = new IPEndPoint(parsedAddr, port);
-        }
-        else
-        {
-            Console.WriteLine($"[NETWORK] Attempted to set invalid target IP: {ipAddress}");
-            _targetEndPoint = null;
-        }
-    }
-
-    public void StartListening(Action<byte[]> onDataReceived)
+    public void StartListening(Action<byte[]> onPacketReceived)
     {
-        _isRunning = true;
+        _onPacketReceived = onPacketReceived; // Store for client-side use
+        _listener = new TcpListener(IPAddress.Any, _port);
+        _listener.Start();
+        Console.WriteLine($"[NETWORK] TCP listener started on port {_port}");
+
         Task.Run(async () =>
         {
-            Console.WriteLine($"[NETWORK] Listener started on port {_port}");
-            while (_isRunning)
+            while (!_cts.Token.IsCancellationRequested)
             {
                 try
                 {
-                    var result = await _udpClient.ReceiveAsync();
-                    if (result.Buffer.Length > 0)
-                    {
-                        // Trace log for specific packet types to verify flow
-                        byte type = result.Buffer[0];
-                        if (type != 0) // Don't spam mouse moves, but log Handshake/Clicks
-                        {
-                            Console.WriteLine($"[NETWORK] Packet received from {result.RemoteEndPoint}: Type {type}, Size {result.Buffer.Length}");
-                        }
-                        onDataReceived(result.Buffer);
-                    }
+                    var incoming = await _listener.AcceptTcpClientAsync(_cts.Token);
+                    incoming.NoDelay = true;
+                    Console.WriteLine($"[NETWORK] Accepted connection from {incoming.Client.RemoteEndPoint}");
+
+                    // Save the stream so Send() works bidirectionally from the listener side too.
+                    // Replaces any stale previous connection.
+                    DisconnectClient();
+                    _client = incoming;
+                    _sendStream = incoming.GetStream();
+                    
+                    Console.WriteLine($"[NETWORK] Triggering OnConnected for incoming connection.");
+                    OnConnected?.Invoke();
+
+                    // Handle receive in its own task
+                    _ = Task.Run(() => ReceiveLoop(incoming, _sendStream, onPacketReceived, _cts.Token));
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception ex)
+                {
+                    if (!_cts.Token.IsCancellationRequested)
+                        Console.WriteLine($"[NETWORK] Accept error: {ex.Message}");
+                }
+            }
+        }, _cts.Token);
+    }
+
+    private static async Task ReceiveLoop(TcpClient tcp, NetworkStream stream, Action<byte[]> onPacket, CancellationToken ct)
+    {
+        byte[] lenBuf = new byte[4];
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                // Read 4-byte length prefix
+                await ReadExact(stream, lenBuf, 4, ct);
+                int len = BinaryPrimitives.ReadInt32BigEndian(lenBuf);
+
+                if (len <= 0 || len > 4 * 1024 * 1024)
+                {
+                    Console.WriteLine($"[NETWORK] Invalid packet length {len}, dropping connection.");
+                    break;
+                }
+
+                byte[] payload = new byte[len];
+                await ReadExact(stream, payload, len, ct);
+
+                // Log non-mouse-move packets
+                if (payload.Length > 0 && payload[0] != 0 && payload[0] != 12)
+                    Console.WriteLine($"[NETWORK] Packet received: type={payload[0]}, len={len}");
+
+                onPacket(payload);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NETWORK] Receive loop ended: {ex.Message}");
+        }
+    }
+
+    private static async Task ReadExact(NetworkStream stream, byte[] buf, int count, CancellationToken ct)
+    {
+        int read = 0;
+        while (read < count)
+        {
+            int n = await stream.ReadAsync(buf.AsMemory(read, count - read), ct);
+            if (n == 0) throw new EndOfStreamException("Connection closed by remote.");
+            read += n;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Client (send) side
+    // -----------------------------------------------------------------------
+
+    public void SetTarget(string ipAddress, int port)
+    {
+        // Disconnect any previous connection
+        DisconnectClient();
+
+        if (!IPAddress.TryParse(ipAddress, out var addr))
+        {
+            Console.WriteLine($"[NETWORK] Invalid target IP: {ipAddress}");
+            return;
+        }
+
+        Task.Run(async () =>
+        {
+            const int maxRetries = 5;
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    var tcp = new TcpClient();
+                    tcp.NoDelay = true; // Disable Nagle for low-latency input events
+                    await tcp.ConnectAsync(addr, port);
+                    _client = tcp;
+                    _sendStream = tcp.GetStream();
+                    Console.WriteLine($"[NETWORK] Connected to {ipAddress}:{port}");
+                    
+                    // Start receiving from the controller side too!
+                    if (_onPacketReceived != null)
+                        _ = Task.Run(() => ReceiveLoop(tcp, _sendStream, _onPacketReceived, _cts.Token));
+                    
+                    OnConnected?.Invoke();
+                    return;
                 }
                 catch (Exception ex)
                 {
-                    if (_isRunning) Console.WriteLine($"[NETWORK] UDP Receive Error: {ex.Message}");
+                    Console.WriteLine($"[NETWORK] Connect attempt {i + 1} failed: {ex.Message}. Retrying in 1s...");
+                    await Task.Delay(1000);
                 }
             }
+            Console.WriteLine($"[NETWORK] Could not connect to {ipAddress}:{port} after {maxRetries} attempts.");
+            OnDisconnected?.Invoke();
         });
     }
 
-    public void Send(byte[] data)
+    public void Send(byte[] framedPacket)
     {
-        if (_targetEndPoint == null) return;
-        _udpClient.Send(data, data.Length, _targetEndPoint);
+        var stream = _sendStream;
+        if (stream == null) return;
+        try
+        {
+            // Write is not thread-safe; lock micro-scope around the write
+            lock (stream)
+            {
+                stream.Write(framedPacket, 0, framedPacket.Length);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NETWORK] Send error: {ex.Message}. Disconnecting.");
+            DisconnectClient();
+            OnDisconnected?.Invoke();
+        }
+    }
+
+    private void DisconnectClient()
+    {
+        try { _sendStream?.Close(); } catch { }
+        try { _client?.Close(); } catch { }
+        _sendStream = null;
+        _client = null;
     }
 
     public void Stop()
     {
-        _isRunning = false;
-        _udpClient.Close();
+        _cts.Cancel();
+        try { _listener?.Stop(); } catch { }
+        DisconnectClient();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Stop();
+        _cts.Dispose();
     }
 }

@@ -1,128 +1,87 @@
-using System.Text.Json;
+using System.Diagnostics;
 using System.Linq;
-using Photino.NET;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using Photino.NET;
 
 namespace Nicodemous.Backend.Services;
 
-public class UniversalControlManager
+public class UniversalControlManager : IDisposable
 {
-    private readonly InputService _inputService;
-    private readonly NetworkService _networkService;
-    private readonly InjectionService _injectionService;
-    private readonly AudioService _audioService;
+    private readonly InputService        _inputService;
+    private readonly NetworkService      _networkService;
+    private readonly InjectionService    _injectionService;
+    private readonly ClipboardService    _clipboardService;
+    private readonly AudioService        _audioService;
     private readonly AudioReceiveService _audioReceiveService;
-    private readonly DiscoveryService _discoveryService;
-    
+    private readonly DiscoveryService    _discoveryService;
+
     private bool _isRemoteControlActive = false;
     private PhotinoWindow? _window;
+    private bool _disposed;
 
     public string PairingCode => _discoveryService.PairingCode;
+
+    // -----------------------------------------------------------------------
+    // Construction
+    // -----------------------------------------------------------------------
+
+    public UniversalControlManager()
+    {
+        _clipboardService    = new ClipboardService();
+        _injectionService    = new InjectionService(_clipboardService);
+        _networkService      = new NetworkService(8890);
+        _inputService        = new InputService(SendLocalData);
+        _audioService        = new AudioService(HandleAudioCaptured);
+        _audioReceiveService = new AudioReceiveService();
+        _discoveryService    = new DiscoveryService(Environment.MachineName);
+
+        // Network
+        _networkService.StartListening(HandleRemoteData);
+        _networkService.OnConnected += () =>
+        {
+            // TCP ready — send handshake
+            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
+            Console.WriteLine("[MANAGER] Handshake sent after TCP connection established.");
+            SendUiMessage("connection_status", "Handshaking...");
+
+            // Start syncing our local clipboard to the peer immediately
+            _clipboardService.StartMonitoring(text =>
+                _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
+
+            // Also request the peer's current clipboard content
+            _networkService.Send(PacketSerializer.SerializeClipboardPull());
+        };
+        _networkService.OnDisconnected += () =>
+        {
+            Console.WriteLine("[MANAGER] Remote disconnected.");
+            _clipboardService.StopMonitoring();
+            if (_isRemoteControlActive) SetRemoteControlState(false);
+            SendUiMessage("connection_status", "Disconnected");
+        };
+
+        // Input
+        _inputService.OnEdgeHit += HandleEdgeHit;
+        _inputService.OnReturn  += () => SetRemoteControlState(false);
+
+        DetectAndSetScreenSize();
+    }
 
     public void SetWindow(PhotinoWindow window)
     {
         _window = window;
-        _discoveryService.OnDeviceDiscovered += (devices) => {
-            _window.Invoke(() => {
-                _window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }));
-            });
-        };
+        
+        // Connect the clipboard service to the UI thread for macOS stability
+        _clipboardService.InvokeOnMainThread = (action) => window.Invoke(action);
+
+        _discoveryService.OnDeviceDiscovered += devices =>
+            window.Invoke(() =>
+                window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices })));
     }
 
-    public UniversalControlManager()
-    {
-        _injectionService = new InjectionService();
-        _networkService = new NetworkService(8890); // Switched to 8890 to avoid 8888 conflicts
-        _inputService = new InputService(HandleLocalData);
-        _audioService = new AudioService(HandleAudioCaptured);
-        _audioReceiveService = new AudioReceiveService();
-        _discoveryService = new DiscoveryService(Environment.MachineName);
-
-        _networkService.StartListening(HandleRemoteData);
-        _inputService.OnEdgeHit += HandleEdgeHit;
-        _inputService.OnReturn += () => SetRemoteControlState(false);
-
-        // Detect Primary Screen Size based on OS
-        DetectScreenSize();
-    }
-
-    private void DetectScreenSize()
-    {
-        // Default fallback
-        short width = 1920;
-        short height = 1080;
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-#if WINDOWS
-            try 
-            {
-                var screen = System.Windows.Forms.Screen.PrimaryScreen;
-                if (screen != null)
-                {
-                    width = (short)screen.Bounds.Width;
-                    height = (short)screen.Bounds.Height;
-                }
-            }
-            catch { }
-#endif
-        }
-        else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
-        {
-            try 
-            {
-                // Run system_profiler to get the actual display resolution on Mac
-                var proc = new System.Diagnostics.Process {
-                    StartInfo = new System.Diagnostics.ProcessStartInfo {
-                        FileName = "system_profiler",
-                        Arguments = "SPDisplaysDataType",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true
-                    }
-                };
-                proc.Start();
-                string output = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit();
-
-                // Look for "Resolution: 2560 x 1600" or similar
-                var lines = output.Split('\n');
-                foreach (var line in lines)
-                {
-                    if (line.Contains("Resolution:"))
-                    {
-                        var parts = line.Split(':')[1].Trim().Split(' ');
-                        // Parts might be ["2560", "x", "1600"] or ["2560", "x", "1600", "@", "60Hz"]
-                        if (parts.Length >= 3)
-                        {
-                            width = short.Parse(parts[0]);
-                            height = short.Parse(parts[2]);
-                            break;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MANAGER] Mac Resolution Detection Failed: {ex.Message}. Using fallback 1440x900.");
-                width = 1440;
-                height = 900;
-            }
-        }
-
-        _inputService.SetScreenSize(width, height);
-        _injectionService.SetScreenSize(width, height);
-        Console.WriteLine($"System Resolution Detected: {width}x{height}");
-    }
-
-    private void HandleEdgeHit(ScreenEdge edge)
-    {
-        // When edge is hit, we AUTOMATICALLY enter remote mode IF a target is set
-        if (!_isRemoteControlActive && _networkService.HasTarget)
-        {
-            SetRemoteControlState(true);
-        }
-    }
+    // -----------------------------------------------------------------------
+    // Lifecycle
+    // -----------------------------------------------------------------------
 
     public void Start()
     {
@@ -139,73 +98,72 @@ public class UniversalControlManager
         _discoveryService.Stop();
     }
 
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        Stop();
+    }
+
+    // -----------------------------------------------------------------------
+    // Remote Control State
+    // -----------------------------------------------------------------------
+
+    public void SetRemoteControlState(bool active)
+    {
+        _isRemoteControlActive = active;
+        _inputService.SetRemoteMode(active);
+        Console.WriteLine(active ? "[MANAGER] Remote Control: ACTIVE" : "[MANAGER] Remote Control: LOCAL");
+    }
+
+    private void HandleEdgeHit(ScreenEdge edge)
+    {
+        if (!_isRemoteControlActive && _networkService.IsConnected)
+        {
+            SetRemoteControlState(true);
+        }
+        else if (!_networkService.IsConnected)
+        {
+            Console.WriteLine("[MANAGER] Edge hit but no active connection — ignored.");
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Connection
+    // -----------------------------------------------------------------------
+
     public void Connect(string target, PhotinoWindow? window = null)
     {
-        string? ip = null;
-
-        // Try to resolve as Pairing Code first
-        var device = _discoveryService.GetDiscoveredDevices().FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
-        if (device != null)
+        string? ip = ResolveTarget(target);
+        if (ip == null)
         {
-            ip = device.Ip;
-            Console.WriteLine($"Resolved Pairing Code {target} to {ip} ({device.Name})");
-        }
-        else if (System.Net.IPAddress.TryParse(target, out _))
-        {
-            // It's a valid IP address
-            ip = target;
+            string msg = $"Cannot resolve '{target}' — not a discovered code or valid IP.";
+            Console.WriteLine($"[MANAGER] {msg}");
+            (window ?? _window)?.Invoke(() =>
+                (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" })));
+            return;
         }
 
-        if (ip != null)
-        {
-            _networkService.SetTarget(ip, 8890);
-            
-            // Send Handshake so the target knows we are controlling it
-            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
+        _networkService.SetTarget(ip, 8890);
+        // Handshake is sent inside OnConnected (after TCP is actually ready)
 
-            if (window != null)
-            {
-                window.Invoke(() => {
-                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connected" }));
-                });
-            }
-            Console.WriteLine($"[MANAGER] Connection target set to {ip}");
-        }
-        else
-        {
-            string errorMsg = $"Connection FAILED for target: {target}. Not a discovered code nor a valid IP.";
-            Console.WriteLine($"[MANAGER] {errorMsg}");
-            if (window != null)
-            {
-                window.Invoke(() => {
-                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }));
-                });
-            }
-        }
+        Console.WriteLine($"[MANAGER] Connecting to {ip}...");
+        (window ?? _window)?.Invoke(() =>
+            (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." })));
     }
 
-    public void ConnectTo(string destination)
+    private string? ResolveTarget(string target)
     {
-        // Check if destination is a Pairing Code or IP
-        string? ip = _discoveryService.GetIpByCode(destination);
-        if (ip != null)
-        {
-            Console.WriteLine($"Resolved Pairing Code {destination} to {ip}");
-            _networkService.SetTarget(ip, 8888);
-        }
-        else
-        {
-            // Assume it's an IP
-            _networkService.SetTarget(destination, 8888);
-        }
+        var device = _discoveryService.GetDiscoveredDevices()
+                                       .FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
+        if (device != null) return device.Ip;
+        if (System.Net.IPAddress.TryParse(target, out _)) return target;
+        return null;
     }
 
-    public List<DiscoveredDevice> GetDevices() 
+    public List<DiscoveredDevice> GetDevices()
     {
-        // Trigger an immediate broadcast to refresh the network
         _discoveryService.BroadcastNow();
-        
-        // Returning what we currently have
         return _discoveryService.GetDiscoveredDevices();
     }
 
@@ -214,26 +172,30 @@ public class UniversalControlManager
         switch (name)
         {
             case "input":
-                if (enabled) _inputService.Start();
-                else _inputService.Stop();
+                if (enabled) _inputService.Start(); else _inputService.Stop();
                 break;
             case "audio":
-                if (enabled) _audioService.StartCapture();
-                else _audioService.StopCapture();
+                if (enabled) _audioService.StartCapture(); else _audioService.StopCapture();
                 break;
         }
     }
 
-    private void HandleLocalData(byte[] data)
+    public void UpdateSettings(string edge, bool lockInput, double sensitivity = 1.0)
+    {
+        _inputService.SetActiveEdge(edge);
+        _inputService.SetInputLock(lockInput);
+        // Sensitivity is now baked into delta movement — no separate scaling needed
+        // (kept for API compat; could be used to scale dx/dy in future).
+    }
+
+    // -----------------------------------------------------------------------
+    // Data Routing — Local → Remote
+    // -----------------------------------------------------------------------
+
+    private void SendLocalData(byte[] framedPacket)
     {
         if (!_isRemoteControlActive) return;
-        _networkService.Send(data);
-        
-        // Occasionally send a Handshake/Ping to keep the remote side aware of who is controlling it
-        if (DateTime.Now.Second % 5 == 0 && DateTime.Now.Millisecond < 50)
-        {
-             _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName));
-        }
+        _networkService.Send(framedPacket);
     }
 
     private void HandleAudioCaptured(byte[] data)
@@ -241,86 +203,179 @@ public class UniversalControlManager
         _networkService.Send(PacketSerializer.SerializeAudioFrame(data));
     }
 
-    private void HandleRemoteData(byte[] data)
+    // -----------------------------------------------------------------------
+    // Data Routing — Remote → Injection
+    // -----------------------------------------------------------------------
+
+    private void HandleRemoteData(byte[] buffer)
     {
-        var (type, payload) = PacketSerializer.Deserialize(data);
-
-        switch (type)
+        try
         {
-            case PacketType.MouseMove:
-                var moveData = (MouseMoveData)payload;
-                _injectionService.InjectMouseMove(moveData.X, moveData.Y);
-                break;
-            case PacketType.MouseClick:
-                var clickData = (MouseClickData)payload;
-                _injectionService.InjectMouseClick(clickData.Button);
-                break;
-            case PacketType.MouseDown:
-                var downData = (MouseClickData)payload;
-                _injectionService.InjectMouseDown(downData.Button);
-                break;
-            case PacketType.MouseUp:
-                var upData = (MouseClickData)payload;
-                _injectionService.InjectMouseUp(upData.Button);
-                break;
-            case PacketType.MouseWheel:
-                var wheelData = (MouseWheelData)payload;
-                _injectionService.InjectMouseWheel(wheelData.Delta);
-                break;
-            case PacketType.KeyPress:
-                var keyData = (KeyPressData)payload;
-                _injectionService.InjectKeyPress(keyData.Key);
-                break;
-            case PacketType.AudioFrame:
-                _audioReceiveService.ProcessFrame((byte[])payload);
-                break;
-            case PacketType.Handshake:
-                var handshakeData = (HandshakeData)payload;
-                string remoteName = handshakeData.MachineName;
-                
-                if (_window != null)
-                {
-                    _window.Invoke(() => {
-                        _window.SendWebMessage(JsonSerializer.Serialize(new { 
-                            type = "connection_status", 
-                            status = $"Controlled by {remoteName}" 
-                        }));
-                    });
-                }
+            var (type, payload) = PacketSerializer.Deserialize(buffer);
 
-                // Send ACK back so the controller knows we received it
-                _networkService.Send(new byte[] { (byte)PacketType.HandshakeAck });
-                Console.WriteLine($"[MANAGER] Remote handshake received from: {remoteName}. Sending ACK.");
-                break;
+            switch (type)
+            {
+                case PacketType.MouseRelMove:
+                    var rel = (MouseRelMoveData)payload;
+                    _injectionService.InjectMouseRelMove(rel.Dx, rel.Dy);
+                    break;
 
-            case PacketType.HandshakeAck:
-                Console.WriteLine("[MANAGER] Handshake ACK received. Connection confirmed.");
-                if (_window != null)
-                {
-                    _window.Invoke(() => {
-                        _window.SendWebMessage(JsonSerializer.Serialize(new { 
-                            type = "connection_status", 
-                            status = "Connected (Verified)" 
-                        }));
-                    });
-                }
-                break;
+                case PacketType.MouseMove:
+                    var abs = (MouseMoveData)payload;
+                    _injectionService.InjectMouseMove(abs.X, abs.Y);
+                    break;
+
+                case PacketType.MouseDown:
+                    var down = (MouseButtonData)payload;
+                    _injectionService.InjectMouseDown(down.ButtonId);
+                    break;
+
+                case PacketType.MouseUp:
+                    var up = (MouseButtonData)payload;
+                    _injectionService.InjectMouseUp(up.ButtonId);
+                    break;
+
+                case PacketType.MouseWheel:
+                    var wheel = (MouseWheelData)payload;
+                    _injectionService.InjectMouseWheel(wheel.XDelta, wheel.YDelta);
+                    break;
+
+                case PacketType.KeyDown:
+                    var kd = (KeyEventData)payload;
+                    _injectionService.InjectKeyDown(kd.KeyId, kd.Modifiers);
+                    break;
+
+                case PacketType.KeyUp:
+                    var ku = (KeyEventData)payload;
+                    _injectionService.InjectKeyUp(ku.KeyId, ku.Modifiers);
+                    break;
+
+                case PacketType.AudioFrame:
+                    var audio = (AudioFrameData)payload;
+                    _audioReceiveService.ProcessFrame(audio.Data);
+                    break;
+
+                case PacketType.Handshake:
+                    var hs = (HandshakeData)payload;
+                    Console.WriteLine($"[MANAGER] Handshake from '{hs.MachineName}'. Sending ACK.");
+                    _networkService.Send(PacketSerializer.SerializeHandshakeAck());
+                    SendUiMessage("connection_status", $"Controlled by {hs.MachineName}");
+                    // Also start monitoring our clipboard so we push changes back to the controller
+                    _clipboardService.StartMonitoring(text =>
+                        _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
+                    
+                    // Request the controller's current clipboard too
+                    _networkService.Send(PacketSerializer.SerializeClipboardPull());
+                    break;
+
+                case PacketType.ClipboardPush:
+                    // Peer sent us their clipboard — apply it locally
+                    // Ctrl+V now works natively since both machines share the same clipboard
+                    var cbPush = (ClipboardData)payload;
+                    Console.WriteLine($"[MANAGER] ClipboardPush received ({cbPush.Text.Length} chars).");
+                    _clipboardService.SetText(cbPush.Text);
+                    break;
+
+                case PacketType.HandshakeAck:
+                    Console.WriteLine("[MANAGER] Handshake ACK — connection verified.");
+                    SendUiMessage("connection_status", "Connected ✓");
+                    break;
+
+                case PacketType.ClipboardPull:
+                    // Peer wants our current clipboard content
+                    string currentText = _clipboardService.GetText();
+                    if (!string.IsNullOrEmpty(currentText))
+                    {
+                        Console.WriteLine($"[MANAGER] ClipboardPull received. Sending current content ({currentText.Length} chars).");
+                        _networkService.Send(PacketSerializer.SerializeClipboardPush(currentText));
+                    }
+                    else
+                    {
+                        Console.WriteLine("[MANAGER] ClipboardPull received, but local clipboard is empty.");
+                    }
+                    break;
+
+                case PacketType.Ping:
+                    _networkService.Send(PacketSerializer.SerializePing()); // Pong
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MANAGER] HandleRemoteData error: {ex.Message}");
         }
     }
 
-    public void UpdateSettings(string edge, bool lockInput, double sensitivity = 0.7)
+    // -----------------------------------------------------------------------
+    // Screen Size Detection
+    // -----------------------------------------------------------------------
+
+    private void DetectAndSetScreenSize()
     {
-        _inputService.SetActiveEdge(edge);
-        _inputService.SetInputLock(lockInput);
-        _inputService.SetSensitivity(sensitivity);
+        short width = 1920, height = 1080;
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            (width, height) = DetectScreenWindows();
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            (width, height) = DetectScreenMacOS();
+
+        _inputService.SetScreenSize(width, height);
+        _injectionService.SetScreenSize(width, height);
+        Console.WriteLine($"[MANAGER] Screen size: {width}x{height}");
     }
 
-    public void SetRemoteControlState(bool active)
+    private static (short w, short h) DetectScreenWindows()
     {
-        _isRemoteControlActive = active;
-        _inputService.SetRemoteMode(active);
-        
-        if (active) Console.WriteLine("Remote Control Mode: ACTIVE (Input Redirection On)");
-        else Console.WriteLine("Remote Control Mode: LOCAL");
+#if WINDOWS
+        try
+        {
+            var screen = System.Windows.Forms.Screen.PrimaryScreen;
+            if (screen != null)
+                return ((short)screen.Bounds.Width, (short)screen.Bounds.Height);
+        }
+        catch (Exception ex) { Console.WriteLine($"[MANAGER] Windows screen detect failed: {ex.Message}"); }
+#endif
+        return (1920, 1080);
+    }
+
+    /// <summary>
+    /// Uses CoreGraphics CGDisplayBounds to get the LOGICAL (point) resolution,
+    /// which is what the OS uses for mouse coordinates and is correct for Retina displays.
+    /// (system_profiler reports physical pixels — e.g. 2560 — which would be wrong for a
+    ///  1280-point Retina display and cause the cursor to land at double the expected position.)
+    /// </summary>
+    private static (short w, short h) DetectScreenMacOS()
+    {
+        try
+        {
+            uint displayId = CGMainDisplayID();
+            var bounds = CGDisplayBounds(displayId);
+            Console.WriteLine($"[MANAGER] macOS CGDisplayBounds: {bounds.Width}x{bounds.Height} @ ({bounds.X},{bounds.Y})");
+            return ((short)bounds.Width, (short)bounds.Height);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MANAGER] macOS CoreGraphics screen detect failed: {ex.Message}. Falling back to 1440x900.");
+            return (1440, 900);
+        }
+    }
+
+    [DllImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private static extern uint CGMainDisplayID();
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct CGRect { public double X; public double Y; public double Width; public double Height; }
+
+    [DllImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private static extern CGRect CGDisplayBounds(uint display);
+
+    // -----------------------------------------------------------------------
+    // UI Messaging
+    // -----------------------------------------------------------------------
+
+    private void SendUiMessage(string type, string value)
+    {
+        _window?.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { type, status = value })));
     }
 }
