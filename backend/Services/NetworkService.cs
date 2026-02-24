@@ -33,7 +33,7 @@ public class NetworkService : IDisposable
 
     public bool IsConnected => _client?.Connected == true && _sendStream != null;
 
-    public event Action? OnConnected;
+    public event Action<bool>? OnConnected; // true if incoming (controlled), false if outgoing (controller)
     public event Action? OnDisconnected;
 
     public NetworkService(int port)
@@ -75,8 +75,8 @@ public class NetworkService : IDisposable
                     _sendStream = sslStream;
                     Console.WriteLine($"[NETWORK] TLS Handshake complete (Incoming).");
                     
-                    Console.WriteLine($"[NETWORK] Triggering OnConnected for incoming connection.");
-                    OnConnected?.Invoke();
+                    Console.WriteLine($"[NETWORK] Triggering OnConnected(isIncoming: true).");
+                    OnConnected?.Invoke(true);
 
                     // Handle receive in its own task
                     _ = Task.Run(() => ReceiveLoop(incoming, sslStream, onPacketReceived, _cts.Token));
@@ -175,7 +175,7 @@ public class NetworkService : IDisposable
                     if (_onPacketReceived != null)
                         _ = Task.Run(() => ReceiveLoop(tcp, sslStream, _onPacketReceived, _cts.Token));
                     
-                    OnConnected?.Invoke();
+                    OnConnected?.Invoke(false);
                     return;
                 }
                 catch (Exception ex)

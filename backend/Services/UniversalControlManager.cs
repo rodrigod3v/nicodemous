@@ -43,19 +43,28 @@ public class UniversalControlManager : IDisposable
 
         // Network
         _networkService.StartListening(HandleRemoteData);
-        _networkService.OnConnected += () =>
+        _networkService.OnConnected += (isIncoming) =>
         {
-            // TCP ready — send handshake with local PairingCode
-            _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, PairingCode));
-            Console.WriteLine($"[MANAGER] Handshake sent (PIN: {PairingCode}) after TCP connection established.");
-            SendUiMessage("connection_status", "Handshaking...");
+            if (!isIncoming)
+            {
+                // We are the initiator (Controller)
+                _networkService.Send(PacketSerializer.SerializeHandshake(Environment.MachineName, PairingCode));
+                Console.WriteLine($"[MANAGER] Handshake sent (PIN: {PairingCode}) as Controller.");
+                SendUiMessage("connection_status", "Handshaking...");
+            }
+            else
+            {
+                // We are the receiver (Client/Controlled)
+                Console.WriteLine("[MANAGER] Incoming connection — waiting for handshake...");
+            }
 
-            // Start syncing our local clipboard to the peer immediately
+            // Both sides can start monitoring clipboard (stays bidirectional)
             _clipboardService.StartMonitoring(text =>
                 _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
 
-            // Also request the peer's current clipboard content
-            _networkService.Send(PacketSerializer.SerializeClipboardPull());
+            // If we are the controller, request initial content
+            if (!isIncoming)
+                _networkService.Send(PacketSerializer.SerializeClipboardPull());
         };
         _networkService.OnDisconnected += () =>
         {
