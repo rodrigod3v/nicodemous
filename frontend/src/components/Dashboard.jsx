@@ -29,7 +29,8 @@ const Dashboard = () => {
         autoConnect: true,
         lockInput: true,
         delay: 150,
-        cornerSize: 50
+        cornerSize: 50,
+        gestureThreshold: 1500
     });
 
     const [systemInfo, setSystemInfo] = useState({
@@ -71,7 +72,8 @@ const Dashboard = () => {
                     sensitivity: s.MouseSensitivity || prev.sensitivity,
                     delay: s.SwitchingDelayMs ?? prev.delay,
                     cornerSize: s.DeadCornerSize ?? prev.cornerSize,
-                    lockInput: s.LockInput ?? prev.lockInput
+                    lockInput: s.LockInput ?? prev.lockInput,
+                    gestureThreshold: s.GestureThreshold ?? prev.gestureThreshold
                 }));
                 setTimeout(() => { isInitialLoad.current = false; }, 100);
             } catch (err) {
@@ -127,9 +129,10 @@ const Dashboard = () => {
             lockInput: config.lockInput,
             delay: parseInt(config.delay),
             cornerSize: parseInt(config.cornerSize),
-            sensitivity: parseFloat(config.sensitivity)
+            sensitivity: parseFloat(config.sensitivity),
+            gestureThreshold: parseInt(config.gestureThreshold)
         });
-    }, [config.borderSide, config.lockInput, config.delay, config.cornerSize, config.sensitivity]);
+    }, [config.borderSide, config.lockInput, config.delay, config.cornerSize, config.sensitivity, config.gestureThreshold]);
 
     const toggleService = (name) => {
         const newState = !services[name];
@@ -312,15 +315,40 @@ const Dashboard = () => {
                                         </div>
                                     </div>
 
+                                    <div className="glass" style={{ padding: '30px' }}>
+                                        <h2 style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '20px' }}>
+                                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2z" />
+                                            </svg>
+                                            Mouse Dynamics & Precision
+                                        </h2>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
+                                            <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Sensitivity</span>
+                                                    <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{Math.round(config.sensitivity * 100)}%</span>
+                                                </div>
+                                                <input type="range" min="0.1" max="3.0" step="0.1" value={config.sensitivity} onChange={(e) => setConfig({ ...config, sensitivity: e.target.value })} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
+                                            </label>
+                                            <label style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Return Force</span>
+                                                    <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{config.gestureThreshold}px</span>
+                                                </div>
+                                                <input type="range" min="500" max="5000" step="100" value={config.gestureThreshold} onChange={(e) => setConfig({ ...config, gestureThreshold: e.target.value })} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
+                                            </label>
+                                        </div>
+                                    </div>
+
                                     <div className="glass" style={{ padding: '30px', display: 'flex', flexDirection: 'column', gap: '25px' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <div>
-                                                <h3 style={{ margin: 0 }}>Advanced Input Locking</h3>
-                                                <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Prevent local mouse movement while controlling remote.</p>
+                                                <h3 style={{ margin: 0 }}>Input Locking & Crossing</h3>
+                                                <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Behavior when cursor is at the edge or on remote.</p>
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                                                 <Switch checked={config.lockInput} onChange={() => setConfig(prev => ({ ...prev, lockInput: !prev.lockInput }))} />
-                                                <span style={{ fontSize: '14px', fontWeight: '600' }}>{config.lockInput ? 'Enabled' : 'Disabled'}</span>
+                                                <span style={{ fontSize: '14px', fontWeight: '600' }}>{config.lockInput ? 'Locked' : 'Free'}</span>
                                             </div>
                                         </div>
 

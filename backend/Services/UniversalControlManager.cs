@@ -211,12 +211,14 @@ public class UniversalControlManager : IDisposable
             }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
-    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0)
+    public void UpdateSettings(string edge, bool lockInput, int delay, int cornerSize, double sensitivity = 1.0, int gestureThreshold = 1500)
     {
         _inputService.SetActiveEdge(edge);
         _inputService.SetInputLock(lockInput);
         _inputService.SwitchDelayMs = delay;
         _inputService.CornerSize = cornerSize;
+        _inputService.MouseSensitivity = sensitivity;
+        _inputService.ReturnThreshold = gestureThreshold;
 
         // Persist
         var s = _settingsService.GetSettings();
@@ -224,6 +226,7 @@ public class UniversalControlManager : IDisposable
         s.SwitchingDelayMs = delay;
         s.DeadCornerSize = cornerSize;
         s.MouseSensitivity = sensitivity;
+        s.GestureThreshold = gestureThreshold;
         s.LockInput = lockInput;
         _settingsService.Save();
     }
@@ -234,6 +237,7 @@ public class UniversalControlManager : IDisposable
         _inputService.SwitchDelayMs = s.SwitchingDelayMs;
         _inputService.CornerSize = s.DeadCornerSize;
         _inputService.MouseSensitivity = s.MouseSensitivity;
+        _inputService.ReturnThreshold = s.GestureThreshold;
         _inputService.SetInputLock(s.LockInput);
 
         if (System.Enum.TryParse<ScreenEdge>(s.ActiveEdge, out var edge))

@@ -38,7 +38,7 @@ public class InputService : IDisposable
     private short _lastRawX, _lastRawY; // Last raw position before suppression
     private double _accumulatedReturnDelta = 0;
     private DateTime _lastReturnAccumulateTime = DateTime.MinValue;
-    private const int ReturnThreshold        = 1500; // px of deliberate push needed to return
+    public int ReturnThreshold { get; set; } = 1500; // px of deliberate push needed to return
     private const int ReturnDecayMs          = 300;  // accumulator resets if no push for this long
     private DateTime _lastReturnTime = DateTime.MinValue;
     private const int CooldownMs = 800;
