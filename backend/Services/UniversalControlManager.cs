@@ -184,7 +184,8 @@ public class UniversalControlManager : IDisposable
     public void ToggleService(string name, bool enabled)
     {
         var s = _settingsService.GetSettings();
-        switch (name)
+        Console.WriteLine($"[MANAGER] ToggleService called: name='{name}', enabled={enabled}");
+        switch (name.Trim().ToLowerInvariant())
         {
             case "input":
                 if (enabled) _inputService.Start(); else _inputService.Stop();
@@ -200,8 +201,11 @@ public class UniversalControlManager : IDisposable
                 s.EnableAudio = enabled;
                 break;
             case "disconnect":
-                Console.WriteLine("[MANAGER] Disconnection requested by UI.");
+                Console.WriteLine("[MANAGER] Disconnection requested by UI. Calling NetworkService.Disconnect()");
                 _networkService.Disconnect();
+                break;
+            default:
+                Console.WriteLine($"[MANAGER] Warning: ToggleService received unknown service name: '{name}'");
                 break;
         }
         _settingsService.Save();

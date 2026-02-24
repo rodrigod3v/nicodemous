@@ -211,10 +211,18 @@ public class NetworkService : IDisposable
 
     public void Disconnect()
     {
+        bool wasConnected = IsConnected;
+        Console.WriteLine($"[NETWORK] Disconnecting (WasConnected={wasConnected})");
         try { _sendStream?.Close(); } catch { }
         try { _client?.Close(); } catch { }
         _sendStream = null;
         _client = null;
+        
+        if (wasConnected)
+        {
+            Console.WriteLine("[NETWORK] Invoking OnDisconnected event.");
+            OnDisconnected?.Invoke();
+        }
     }
 
     public void Stop()
