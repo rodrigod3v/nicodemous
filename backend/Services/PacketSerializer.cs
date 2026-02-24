@@ -34,7 +34,7 @@ public class MouseRelMoveData { public short Dx { get; set; } public short Dy { 
 public class MouseButtonData  { public byte ButtonId { get; set; } }
 public class MouseWheelData   { public short XDelta { get; set; } public short YDelta { get; set; } }
 public class KeyEventData     { public ushort KeyId { get; set; } public ushort Modifiers { get; set; } }
-public class HandshakeData    { public string MachineName { get; set; } = ""; }
+public class HandshakeData    { public string MachineName { get; set; } = ""; public string PairingCode { get; set; } = ""; }
 public class AudioFrameData   { public byte[] Data { get; set; } = Array.Empty<byte>(); }
 public class ClipboardData    { public string Text { get; set; } = ""; }
 
@@ -116,12 +116,15 @@ public static class PacketSerializer
         return Frame(buf);
     }
 
-    public static byte[] SerializeHandshake(string machineName)
+    public static byte[] SerializeHandshake(string machineName, string pairingCode)
     {
         byte[] nameBytes = Encoding.UTF8.GetBytes(machineName);
-        byte[] buf = new byte[1 + nameBytes.Length];
+        byte[] pinBytes = Encoding.UTF8.GetBytes(pairingCode?.PadRight(6).Substring(0, 6) ?? "000000");
+        
+        byte[] buf = new byte[1 + 6 + nameBytes.Length];
         buf[0] = (byte)PacketType.Handshake;
-        nameBytes.CopyTo(buf, 1);
+        pinBytes.CopyTo(buf, 1);
+        nameBytes.CopyTo(buf, 7);
         return Frame(buf);
     }
 
@@ -214,7 +217,12 @@ public static class PacketSerializer
                 });
 
             case PacketType.Handshake:
-                return (type, new HandshakeData { MachineName = Encoding.UTF8.GetString(payload) });
+                if (payload.Length < 6) return (type, new HandshakeData());
+                return (type, new HandshakeData 
+                { 
+                    PairingCode = Encoding.UTF8.GetString(payload.Slice(0, 6)).Trim(),
+                    MachineName = Encoding.UTF8.GetString(payload.Slice(6)) 
+                });
 
             case PacketType.AudioFrame:
                 return (type, new AudioFrameData { Data = payload.ToArray() });

@@ -3,6 +3,9 @@ using System.Buffers.Binary;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Security;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,8 +24,9 @@ public class NetworkService : IDisposable
     private readonly int _port;
     private TcpListener? _listener;
     private TcpClient? _client;       // Active connection to target (controller side)
-    private NetworkStream? _sendStream;
+    private Stream? _sendStream;      // SslStream or NetworkStream
     private Action<byte[]>? _onPacketReceived;
+    private static readonly X509Certificate2 _serverCert = GenerateSelfSignedCertificate();
 
     private CancellationTokenSource _cts = new();
     private bool _disposed;
@@ -62,13 +66,20 @@ public class NetworkService : IDisposable
                     // Replaces any stale previous connection.
                     DisconnectClient();
                     _client = incoming;
-                    _sendStream = incoming.GetStream();
+                    var netStream = incoming.GetStream();
+                    
+                    // Upgrade to SSL
+                    var sslStream = new SslStream(netStream, false);
+                    await sslStream.AuthenticateAsServerAsync(_serverCert, false, false);
+                    
+                    _sendStream = sslStream;
+                    Console.WriteLine($"[NETWORK] TLS Handshake complete (Incoming).");
                     
                     Console.WriteLine($"[NETWORK] Triggering OnConnected for incoming connection.");
                     OnConnected?.Invoke();
 
                     // Handle receive in its own task
-                    _ = Task.Run(() => ReceiveLoop(incoming, _sendStream, onPacketReceived, _cts.Token));
+                    _ = Task.Run(() => ReceiveLoop(incoming, sslStream, onPacketReceived, _cts.Token));
                 }
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
@@ -80,7 +91,7 @@ public class NetworkService : IDisposable
         }, _cts.Token);
     }
 
-    private static async Task ReceiveLoop(TcpClient tcp, NetworkStream stream, Action<byte[]> onPacket, CancellationToken ct)
+    private static async Task ReceiveLoop(TcpClient tcp, Stream stream, Action<byte[]> onPacket, CancellationToken ct)
     {
         byte[] lenBuf = new byte[4];
         try
@@ -114,7 +125,7 @@ public class NetworkService : IDisposable
         }
     }
 
-    private static async Task ReadExact(NetworkStream stream, byte[] buf, int count, CancellationToken ct)
+    private static async Task ReadExact(Stream stream, byte[] buf, int count, CancellationToken ct)
     {
         int read = 0;
         while (read < count)
@@ -151,12 +162,18 @@ public class NetworkService : IDisposable
                     tcp.NoDelay = true; // Disable Nagle for low-latency input events
                     await tcp.ConnectAsync(addr, port);
                     _client = tcp;
-                    _sendStream = tcp.GetStream();
-                    Console.WriteLine($"[NETWORK] Connected to {ipAddress}:{port}");
+                    var netStream = tcp.GetStream();
+
+                    // Upgrade to SSL
+                    var sslStream = new SslStream(netStream, false, (s, c, ch, e) => true); // Trust peer self-signed
+                    await sslStream.AuthenticateAsClientAsync(ipAddress);
+                    
+                    _sendStream = sslStream;
+                    Console.WriteLine($"[NETWORK] TLS Handshake complete (Outgoing). Connected to {ipAddress}:{port}");
                     
                     // Start receiving from the controller side too!
                     if (_onPacketReceived != null)
-                        _ = Task.Run(() => ReceiveLoop(tcp, _sendStream, _onPacketReceived, _cts.Token));
+                        _ = Task.Run(() => ReceiveLoop(tcp, sslStream, _onPacketReceived, _cts.Token));
                     
                     OnConnected?.Invoke();
                     return;
@@ -205,6 +222,22 @@ public class NetworkService : IDisposable
         _cts.Cancel();
         try { _listener?.Stop(); } catch { }
         DisconnectClient();
+    }
+
+    private static X509Certificate2 GenerateSelfSignedCertificate()
+    {
+        try
+        {
+            using var rsa = RSA.Create(2048);
+            var request = new CertificateRequest("cn=Nicodemous", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using var cert = request.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddYears(10));
+            return new X509Certificate2(cert.Export(X509ContentType.Pfx));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NETWORK] Cert generation failed: {ex.Message}");
+            return null!;
+        }
     }
 
     public void Dispose()
