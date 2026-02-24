@@ -183,10 +183,19 @@ public class UniversalControlManager : IDisposable
 
     private string? ResolvePin(string target)
     {
+        // 1. Try to find device by Code
         var device = _discoveryService.GetDiscoveredDevices()
                                        .FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
         if (device != null) return device.Code;
+
+        // 2. Try to find device by IP (if target is an IP)
+        var deviceByIp = _discoveryService.GetDiscoveredDevices()
+                                         .FirstOrDefault(d => d.Ip.Equals(target, StringComparison.OrdinalIgnoreCase));
+        if (deviceByIp != null) return deviceByIp.Code;
+
+        // 3. If target looks like a PIN itself
         if (target.Length == 6) return target;
+        
         return null;
     }
 
