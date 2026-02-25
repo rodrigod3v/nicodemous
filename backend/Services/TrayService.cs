@@ -117,6 +117,9 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
+                IntPtr nsWindow = _window.WindowHandle;
+                objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
+                // Also ensure it's not minimized
                 _window.SetMinimized(false);
             });
         }
@@ -124,7 +127,7 @@ public class TrayService : IDisposable
 
     public void HideWindow()
     {
-        Console.WriteLine("[TRAY] HideWindow called.");
+        Console.WriteLine("[TRAY] HideWindow called (Native Mac).");
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
 #if WINDOWS
@@ -137,7 +140,8 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
-                _window.SetMinimized(true);
+                IntPtr nsWindow = _window.WindowHandle;
+                objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
             });
         }
     }
@@ -275,26 +279,43 @@ public class TrayService : IDisposable
             try {
                 InitializeTray();
             } catch (Exception ex) {
-                Console.WriteLine($"[MACTRAY] Error initializing: {ex.Message}");
+                Console.WriteLine($"[MACTRAY] Critical Exception during initialization: {ex}");
             }
         }
 
         private void InitializeTray()
         {
+            Console.WriteLine("[MACTRAY] Starting initialization...");
+            
+            // 0. Ensure AppKit is loaded
+            IntPtr appKit = dlopen("/System/Library/Frameworks/AppKit.framework/AppKit", 2);
+            Console.WriteLine($"[MACTRAY] AppKit library handle: {appKit}");
+
             // 1. Register a target class to receive actions
             _target = CreateTargetInstance();
+            Console.WriteLine($"[MACTRAY] Target instance created: {_target}");
 
             // 2. Get NSStatusBar.systemStatusBar
-            _statusBar = objc_msgSend(objc_getClass("NSStatusBar"), sel_registerName("systemStatusBar"));
+            IntPtr nsStatusBarCls = objc_getClass("NSStatusBar");
+            Console.WriteLine($"[MACTRAY] NSStatusBar class: {nsStatusBarCls}");
+            if (nsStatusBarCls == IntPtr.Zero) return;
+
+            _statusBar = objc_msgSend(nsStatusBarCls, sel_registerName("systemStatusBar"));
+            Console.WriteLine($"[MACTRAY] System status bar handle: {_statusBar}");
+            if (_statusBar == IntPtr.Zero) return;
             
             // 3. statusItemWithLength: -1 (NSSquareStatusItemLength)
             _statusItem = objc_msgSend(_statusBar, sel_registerName("statusItemWithLength:"), (double)-1);
+            Console.WriteLine($"[MACTRAY] Status item handle: {_statusItem}");
+            if (_statusItem == IntPtr.Zero) return;
+
             objc_msgSend(_statusItem, sel_registerName("setHighlightMode:"), 1);
 
             // 4. Set Icon Image
             string iconPath = FindIcon();
             if (!string.IsNullOrEmpty(iconPath))
             {
+                Console.WriteLine($"[MACTRAY] Loading icon from: {iconPath}");
                 IntPtr nsStringPath = objc_msgSend(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), iconPath);
                 IntPtr image = objc_msgSend(objc_getClass("NSImage"), sel_registerName("alloc"));
                 objc_msgSend(image, sel_registerName("initWithContentsOfFile:"), nsStringPath);
@@ -303,7 +324,12 @@ public class TrayService : IDisposable
                 objc_msgSend(image, sel_registerName("setTemplate:"), 1); 
 
                 IntPtr button = objc_msgSend(_statusItem, sel_registerName("button"));
+                Console.WriteLine($"[MACTRAY] Status item button handle: {button}");
                 objc_msgSend(button, sel_registerName("setImage:"), image);
+            }
+            else
+            {
+                Console.WriteLine("[MACTRAY] WARNING: Icon file not found!");
             }
 
             // 5. Create Menu
@@ -381,6 +407,9 @@ public class TrayService : IDisposable
                 _statusItem = IntPtr.Zero;
             }
         }
+
+        [DllImport("libdl.dylib")]
+        private static extern IntPtr dlopen(string path, int mode);
 
         [DllImport("/usr/lib/libobjc.A.dylib")]
         private static extern IntPtr objc_getClass(string name);
