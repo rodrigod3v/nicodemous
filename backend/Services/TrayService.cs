@@ -87,11 +87,12 @@ public class TrayService : IDisposable
         {
             if (!_isExiting)
             {
-#if WINDOWS
+#if !WINDOWS
                 HideWindow();
                 return true; // Cancel close, just hide
 #else
-                return false; // Allow close on other platforms (for now)
+                HideWindow();
+                return true; // Already handled by windows-specific logic above usually, but keeping it clean
 #endif
             }
             return false; // Allow close if exiting from tray
@@ -113,7 +114,6 @@ public class TrayService : IDisposable
     public void ShowWindow()
     {
         Console.WriteLine("[TRAY] ShowWindow called.");
-#if WINDOWS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
 #if WINDOWS
@@ -125,13 +125,18 @@ public class TrayService : IDisposable
             });
 #endif
         }
-#endif
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            _window.Invoke(() => {
+                _window.SetVisible(true);
+                _window.SetMinimized(false);
+            });
+        }
     }
 
     public void HideWindow()
     {
         Console.WriteLine("[TRAY] HideWindow called.");
-#if WINDOWS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
 #if WINDOWS
@@ -141,7 +146,12 @@ public class TrayService : IDisposable
             });
 #endif
         }
-#endif
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            _window.Invoke(() => {
+                _window.SetVisible(false);
+            });
+        }
     }
 
     private void Disconnect()

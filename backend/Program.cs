@@ -33,11 +33,14 @@ class Program
 
         // Robust Icon Loading
         string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+        bool isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        string iconFilename = isMac ? "logo_n.png" : "app_icon.ico";
+
         string[] potentialIconPaths = {
-            Path.Combine(exeDir, "Assets", "app_icon.ico"),
-            Path.Combine(exeDir, "backend", "Assets", "app_icon.ico"),
-            Path.Combine(exeDir, "..", "..", "..", "Assets", "app_icon.ico"),
-            Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", "app_icon.ico")
+            Path.Combine(exeDir, "Assets", iconFilename),
+            Path.Combine(exeDir, "backend", "Assets", iconFilename),
+            Path.Combine(exeDir, "..", "..", "..", "Assets", iconFilename),
+            Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", iconFilename)
         };
 
         string? iconPath = null;
