@@ -38,6 +38,11 @@ function App() {
     setAuthToken(token);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('nicodemouse_token');
+    setAuthToken(null);
+  };
+
   return (
     <div className="app">
       <SimpleErrorBoundary>
@@ -45,7 +50,7 @@ function App() {
           <Login onLogin={handleLogin} />
         ) : (
           <NicodemouseProvider>
-            <Dashboard />
+            <Dashboard onLogout={handleLogout} />
           </NicodemouseProvider>
         )}
       </SimpleErrorBoundary>

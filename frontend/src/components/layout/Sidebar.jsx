@@ -2,7 +2,7 @@ import React from 'react';
 import TabButton from '../TabButton';
 import { usenicodemouse } from '../../context/nicodemouseContext';
 
-const Sidebar = ({ activeTab, onTabChange }) => {
+const Sidebar = ({ activeTab, onTabChange, onLogout }) => {
     const { connectionStatus, localIp, sessionRole } = usenicodemouse();
 
     return (
@@ -44,6 +44,25 @@ const Sidebar = ({ activeTab, onTabChange }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>PIN</span><span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{localIp?.code || '......'}</span></div>
                 </div>
             </div>
+
+            <button
+                onClick={onLogout}
+                className="glass-btn-small"
+                style={{
+                    marginTop: '10px',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.1)'
+                }}
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                Logout
+            </button>
         </div>
     );
 };

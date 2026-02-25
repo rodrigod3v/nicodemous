@@ -9,6 +9,9 @@ const Login = ({ onLogin }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [serverLocation, setServerLocation] = useState(
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'local' : 'remote'
+    );
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -17,11 +20,13 @@ const Login = ({ onLogin }) => {
 
         const endpoint = isSetupMode ? '/api/auth/signup' : '/api/auth/login';
 
-        // Detect current environment to choose signaling server
-        const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const signalingServerBase = isLocalHost ? 'http://localhost:5219' : 'http://144.22.254.132:8080';
+        // Robust server detection with override
+        const signalingServerBase = serverLocation === 'local'
+            ? 'http://localhost:5219'
+            : 'http://144.22.254.132:8080';
 
         try {
+            console.log(`[AUTH] Attempting ${endpoint} at ${signalingServerBase}`);
             const response = await fetch(`${signalingServerBase}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -120,7 +125,26 @@ const Login = ({ onLogin }) => {
                     </button>
                 </form>
 
-                <div className="login-footer">
+                <div className="login-footer" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div className="server-toggle" style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                        <button
+                            type="button"
+                            className={`glass-btn-small ${serverLocation === 'local' ? 'active' : ''}`}
+                            onClick={() => setServerLocation('local')}
+                            style={{ opacity: serverLocation === 'local' ? 1 : 0.5 }}
+                        >
+                            Local Server
+                        </button>
+                        <button
+                            type="button"
+                            className={`glass-btn-small ${serverLocation === 'remote' ? 'active' : ''}`}
+                            onClick={() => setServerLocation('remote')}
+                            style={{ opacity: serverLocation === 'remote' ? 1 : 0.5 }}
+                        >
+                            Remote (VM)
+                        </button>
+                    </div>
+
                     <span
                         onClick={() => setIsSetupMode(!isSetupMode)}
                         className="setup-link"
