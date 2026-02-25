@@ -20,7 +20,7 @@ public class DiscoveryController : ControllerBase
         Registry[device.Code] = device;
         
         // Cleanup old entries (simple)
-        var cutoff = DateTime.UtcNow.AddMinutes(-5);
+        var cutoff = DateTime.UtcNow.AddMinutes(-2);
         foreach (var key in Registry.Keys)
         {
             if (Registry[key].LastSeen < cutoff)

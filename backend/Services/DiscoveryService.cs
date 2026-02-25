@@ -252,21 +252,20 @@ public class DiscoveryService
                     code = _pairingCode 
                 };
                 
-                var content = new StringContent(
-                    JsonSerializer.Serialize(payload), 
-                    Encoding.UTF8, 
-                    "application/json");
+                var jsonPayload = JsonSerializer.Serialize(payload);
+                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
                 string url = $"{SignalingServerUrl.TrimEnd('/')}/api/discovery/register";
                 var response = await client.PostAsync(url, content, token);
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"[DISCOVERY] Registered with signaling server at {url}");
+                    Console.WriteLine($"[DISCOVERY] Registered successfully as '{_deviceName}' with VM at {url}");
                 }
                 else
                 {
-                    Console.WriteLine($"[DISCOVERY] Registration failed: {response.StatusCode}");
+                    string error = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"[DISCOVERY] Registration failed: {response.StatusCode} - {error}");
                 }
             }
             catch (Exception ex)
@@ -274,7 +273,7 @@ public class DiscoveryService
                 Console.WriteLine($"[DISCOVERY] Remote Registrar Error: {ex.Message}");
             }
 
-            await Task.Delay(30000, token); // Register every 30s
+            await Task.Delay(15000, token); // Register more frequently (15s) for better responsiveness
         }
     }
 
