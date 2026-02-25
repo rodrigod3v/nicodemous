@@ -20,10 +20,12 @@ public class TrayService : IDisposable
 #endif
     private bool _isExiting = false;
 
+#if WINDOWS
     private readonly List<Icon> _activeFrames = new();
     private Icon? _idleIcon;
     private Icon? _connectedIcon;
     private int _currentFrame = 0;
+#endif
 #if WINDOWS
     private System.Windows.Forms.Timer? _animationTimer;
 #endif
@@ -149,6 +151,7 @@ public class TrayService : IDisposable
         _window.Close();
     }
 
+#if WINDOWS
     private void LoadIcons()
     {
         try {
@@ -208,6 +211,7 @@ public class TrayService : IDisposable
             }
         }
     }
+#endif
 
     private void UpdateTrayIcon()
     {
