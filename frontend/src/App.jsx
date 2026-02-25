@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
-import { NicodemouseProvider, usenicodemouse } from './context/nicodemouseContext';
+import { NicodemouseProvider, useNicodemouse } from './context/nicodemouseContext';
 import './App.css';
 
 console.log('[FRONTEND] App.jsx module loading...');
@@ -60,7 +60,7 @@ function App() {
 
 // Wrapper to consume context inside the same file if needed, or just let Login handle its own context
 const LoginWithContext = ({ onLogin }) => {
-  const { localIp } = usenicodemouse();
+  const { localIp } = useNicodemouse();
   return <Login onLogin={onLogin} backendIp={localIp?.ip} />;
 };
 export default App;

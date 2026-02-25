@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { usenicodemouse } from '../../context/nicodemouseContext';
+import { useNicodemouse } from '../../context/nicodemouseContext';
 
 const SettingsTab = () => {
     const {
@@ -7,7 +7,7 @@ const SettingsTab = () => {
         systemInfo,
         updateSettings,
         sendMessage
-    } = usenicodemouse();
+    } = useNicodemouse();
 
     const [pin, setPin] = useState('');
     const [pinError, setPinError] = useState('');

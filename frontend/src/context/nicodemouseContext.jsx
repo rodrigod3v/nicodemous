@@ -72,12 +72,6 @@ export const NicodemouseProvider = ({ children }) => {
                 case 'settings_data':
                     setSettings(typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings);
                     break;
-                case 'discovery_result':
-                    setDiscoveredDevices(data.devices || []);
-                    break;
-                case 'local_ip':
-                    setLocalIp(data.detail);
-                    break;
                 default:
                     console.log('[FRONTEND] Unhandled message type:', data.type);
             }
@@ -129,10 +123,10 @@ export const NicodemouseProvider = ({ children }) => {
     );
 };
 
-export const usenicodemouse = () => {
+export const useNicodemouse = () => {
     const context = useContext(NicodemouseContext);
     if (!context) {
-        throw new Error('usenicodemouse must be used within a NicodemouseProvider');
+        throw new Error('useNicodemouse must be used within a NicodemouseProvider');
     }
     return context;
 };

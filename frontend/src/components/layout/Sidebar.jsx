@@ -1,9 +1,9 @@
 import React from 'react';
 import TabButton from '../TabButton';
-import { usenicodemouse } from '../../context/nicodemouseContext';
+import { useNicodemouse } from '../../context/nicodemouseContext';
 
 const Sidebar = ({ activeTab, onTabChange, onLogout }) => {
-    const { connectionStatus, localIp, sessionRole } = usenicodemouse();
+    const { connectionStatus, localIp, sessionRole } = useNicodemouse();
 
     return (
         <div className="glass sidebar" style={{
