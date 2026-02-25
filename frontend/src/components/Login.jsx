@@ -18,16 +18,19 @@ const Login = ({ onLogin, backendIp }) => {
 
         const endpoint = isSetupMode ? '/api/auth/signup' : '/api/auth/login';
 
-        // Try multiple bases if local, otherwise just remote
+        // Determine points of contact
         const basesToTry = serverLocation === 'local'
             ? [
                 'http://localhost:5219',
                 'http://127.0.0.1:5219',
                 ...(backendIp ? [`http://${backendIp}:5219`] : [])
             ]
-            : ['http://144.22.254.132:8080'];
+            : [
+                'http://144.22.254.132:8080',
+                'http://localhost:8080' // Just in case it's port-forwarded
+            ];
 
-        let lastErr = '';
+        let lastErr = 'Server is unreachable.';
         for (const base of basesToTry) {
             try {
                 console.log(`[AUTH] Attempting ${endpoint} at ${base}`);
