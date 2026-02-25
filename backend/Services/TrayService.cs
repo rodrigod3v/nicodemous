@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -19,18 +20,42 @@ public class TrayService : IDisposable
 #endif
     private bool _isExiting = false;
 
+    private readonly List<Icon> _activeFrames = new();
+    private Icon? _idleIcon;
+    private Icon? _connectedIcon;
+    private int _currentFrame = 0;
+#if WINDOWS
+    private System.Windows.Forms.Timer? _animationTimer;
+#endif
+    private bool _isConnected = false;
+    private bool _isControlling = false;
+
     public TrayService(PhotinoWindow window, UniversalControlManager controlManager)
     {
         _window = window;
         _controlManager = controlManager;
 
 #if WINDOWS
-        string iconPath = Path.GetFullPath("../frontend/public/favicon.ico");
+        LoadIcons();
+
         _notifyIcon = new NotifyIcon
         {
-            Icon = File.Exists(iconPath) ? new Icon(iconPath) : SystemIcons.Application,
-            Text = "nicodemouse - Universal Control",
+            Icon = _idleIcon ?? SystemIcons.Application,
+            Text = "Nicodemous",
             Visible = true
+        };
+
+        _animationTimer = new System.Windows.Forms.Timer { Interval = 500 };
+        _animationTimer.Tick += (s, e) => CycleActiveIcon();
+
+        _controlManager.OnConnectionChanged += (connected) => {
+            _isConnected = connected;
+            UpdateTrayIcon();
+        };
+
+        _controlManager.OnRemoteControlChanged += (active) => {
+            _isControlling = active;
+            UpdateTrayIcon();
         };
 
         var contextMenu = new ContextMenuStrip();
@@ -124,9 +149,95 @@ public class TrayService : IDisposable
         _window.Close();
     }
 
+    private void LoadIcons()
+    {
+        try {
+            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            
+            // 1. Look for Assets folder locally or in project structure
+            string[] potentialAssetsPaths = {
+                Path.Combine(exeDir, "Assets"),                                   // Deployed alongside exe
+                Path.Combine(exeDir, "..", "..", "..", "Assets"),                  // Near bin/Debug
+                Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets"), // Project root dev
+                Path.Combine(exeDir, "..", "..", "..", "..", "Assets"),           // Project root generic
+                exeDir                                                            // Fallback to exe dir
+            };
+
+            string? baseDir = null;
+            foreach (var p in potentialAssetsPaths) {
+                if (Directory.Exists(p) && File.Exists(Path.Combine(p, "tray_idle.ico"))) {
+                    baseDir = p;
+                    break;
+                }
+            }
+
+            if (baseDir == null) baseDir = exeDir;
+            Console.WriteLine($"[TRAY] Final Icon Path: {baseDir}");
+
+            LoadIconSet(baseDir);
+
+        } catch (Exception ex) {
+            Console.WriteLine($"[TRAY] Error in LoadIcons: {ex.Message}");
+            _idleIcon ??= SystemIcons.Application;
+            _connectedIcon ??= _idleIcon;
+        }
+    }
+
+    private void LoadIconSet(string baseDir)
+    {
+        string idlePath = Path.Combine(baseDir, "tray_idle.ico");
+        string connectedPath = Path.Combine(baseDir, "tray_connected.ico");
+        
+        try {
+            if (File.Exists(idlePath)) _idleIcon = new Icon(idlePath);
+            if (File.Exists(connectedPath)) _connectedIcon = new Icon(connectedPath);
+        } catch (Exception ex) {
+            Console.WriteLine($"[TRAY] Critical: Failed to load idle/connected icons: {ex.Message}");
+        }
+
+        _idleIcon ??= SystemIcons.Application;
+        _connectedIcon ??= _idleIcon;
+
+        _activeFrames.Clear();
+        for (int i = 1; i <= 6; i++) {
+            string framePath = Path.Combine(baseDir, $"tray_active_{i}.ico");
+            try {
+                if (File.Exists(framePath)) _activeFrames.Add(new Icon(framePath));
+            } catch (Exception ex) {
+                Console.WriteLine($"[TRAY] Error loading active frame {i}: {ex.Message}");
+            }
+        }
+    }
+
+    private void UpdateTrayIcon()
+    {
+#if WINDOWS
+        if (_notifyIcon == null) return;
+
+        if (_isControlling && _activeFrames.Count > 0) {
+            _animationTimer?.Start();
+        } else {
+            _animationTimer?.Stop();
+            _notifyIcon.Icon = _isControlling ? (_activeFrames.Count > 0 ? _activeFrames[0] : _connectedIcon) 
+                             : (_isConnected ? _connectedIcon : _idleIcon);
+        }
+#endif
+    }
+
+    private void CycleActiveIcon()
+    {
+#if WINDOWS
+        if (_notifyIcon == null || _activeFrames.Count == 0) return;
+        _currentFrame = (_currentFrame + 1) % _activeFrames.Count;
+        _notifyIcon.Icon = _activeFrames[_currentFrame];
+#endif
+    }
+
     public void Dispose()
     {
 #if WINDOWS
+        _animationTimer?.Stop();
+        _animationTimer?.Dispose();
         _notifyIcon?.Dispose();
 #endif
     }

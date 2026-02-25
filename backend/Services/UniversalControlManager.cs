@@ -25,6 +25,9 @@ public class UniversalControlManager : IDisposable
     private DateTime _lastSystemInfoTime = DateTime.MinValue;
     private bool _isWindowReady = false;
     private readonly ConcurrentQueue<Action> _messageQueue = new();
+    
+    public event Action<bool>? OnConnectionChanged;
+    public event Action<bool>? OnRemoteControlChanged;
 
     public string PairingCode => _settingsService.GetSettings().PairingCode;
 
@@ -66,6 +69,8 @@ public class UniversalControlManager : IDisposable
                 Console.WriteLine("[MANAGER] Incoming connection — waiting for handshake...");
             }
 
+            OnConnectionChanged?.Invoke(true);
+
             // Both sides can start monitoring clipboard (stays bidirectional)
             _clipboardService.StartMonitoring(text =>
                 _networkService.Send(PacketSerializer.SerializeClipboardPush(text)));
@@ -79,6 +84,7 @@ public class UniversalControlManager : IDisposable
             Console.WriteLine("[MANAGER] Remote disconnected.");
             _clipboardService.StopMonitoring();
             if (_isRemoteControlActive) SetRemoteControlState(false);
+            OnConnectionChanged?.Invoke(false);
             SendUiMessage("connection_status", "Disconnected");
         };
 
@@ -170,6 +176,7 @@ public class UniversalControlManager : IDisposable
     {
         _isRemoteControlActive = active;
         _inputService.SetRemoteMode(active);
+        OnRemoteControlChanged?.Invoke(active);
         Console.WriteLine(active ? "[MANAGER] Remote Control: ACTIVE" : "[MANAGER] Remote Control: LOCAL");
     }
 

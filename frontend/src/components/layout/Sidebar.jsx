@@ -16,11 +16,23 @@ const Sidebar = ({ activeTab, onTabChange, onLogout }) => {
             flexShrink: 0,
             overflow: 'hidden'
         }}>
-            <div className="brand animate-fade" style={{ fontSize: '26px', fontWeight: '800', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <img src="/logo.png" alt="nicodemouse Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <div className="brand animate-fade" style={{
+                marginBottom: '40px',
+                display: 'flex',
+                justifyContent: 'center',
+                width: '100%'
+            }}>
+                <div style={{
+                    width: '120px',
+                    height: '120px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    filter: 'drop-shadow(0 0 20px var(--accent-primary))'
+                }}>
+                    <img src="/nicodemous_brand_v1.svg" alt="nicodemous Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
-                <span className="gradient-text sidebar-label">nicodemouse</span>
             </div>
 
             <TabButton active={activeTab === 'overview'} onClick={() => onTabChange('overview')} label="Overview" icon="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
