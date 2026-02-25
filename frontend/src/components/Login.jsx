@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Shield, Lock, User } from 'lucide-react';
 import './Login.css';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, backendIp }) => {
     const [isSetupMode, setIsSetupMode] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -22,7 +22,11 @@ const Login = ({ onLogin }) => {
 
         // Try multiple bases if local, otherwise just remote
         const basesToTry = serverLocation === 'local'
-            ? ['http://localhost:5219', 'http://127.0.0.1:5219']
+            ? [
+                'http://localhost:5219',
+                'http://127.0.0.1:5219',
+                ...(backendIp ? [`http://${backendIp}:5219`] : [])
+            ]
             : ['http://144.22.254.132:8080'];
 
         let lastErr = '';
