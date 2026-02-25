@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
+import Login from './components/Login';
 import { NicodemouseProvider } from './context/nicodemouseContext';
 import './App.css';
 
@@ -31,13 +32,22 @@ class SimpleErrorBoundary extends React.Component {
 
 function App() {
   console.log('[FRONTEND] App component initializing...');
+  const [authToken, setAuthToken] = useState(localStorage.getItem('nicodemouse_token'));
+
+  const handleLogin = (token) => {
+    setAuthToken(token);
+  };
 
   return (
     <div className="app">
       <SimpleErrorBoundary>
-        <NicodemouseProvider>
-          <Dashboard />
-        </NicodemouseProvider>
+        {!authToken ? (
+          <Login onLogin={handleLogin} />
+        ) : (
+          <NicodemouseProvider>
+            <Dashboard />
+          </NicodemouseProvider>
+        )}
       </SimpleErrorBoundary>
     </div>
   );
