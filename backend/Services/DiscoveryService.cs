@@ -13,11 +13,10 @@ public class DiscoveryService
     private const string MulticastGroup = "239.0.0.1";
     private readonly string _deviceName;
     private string _pairingCode;
-    private string? _signalingServerUrl;
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
     private CancellationTokenSource? _broadcastCts;
-    private readonly HttpClient _httpClient = new();
+    private readonly HttpClient _httpClient;
 
     public event Action<List<DiscoveredDevice>>? OnDeviceDiscovered;
 
@@ -28,6 +27,7 @@ public class DiscoveryService
     {
         _deviceName = deviceName;
         _pairingCode = GeneratePairingCode();
+        _httpClient = new HttpClient();
     }
 
     private string GeneratePairingCode()
@@ -47,19 +47,17 @@ public class DiscoveryService
         Task.Run(RunListener);
         
         // Use the setting URL
-        _signalingServerUrl = SignalingServerUrl;
 
-        if (!string.IsNullOrEmpty(_signalingServerUrl))
+        if (!string.IsNullOrEmpty(SignalingServerUrl))
         {
             Task.Run(() => RunRemoteRegistrar(_broadcastCts.Token));
             Task.Run(() => RunRemoteFetcher(_broadcastCts.Token));
         }
     }
 
-    public void SetSignalingServerUrl(string url)
+    public void UpdateSignalingServerUrl(string url)
     {
         SignalingServerUrl = url;
-        _signalingServerUrl = url;
         // Optionally trigger immediate fetch/register here if needed
     }
 
@@ -170,11 +168,11 @@ public class DiscoveryService
         var localIp = GetIpByCode(code);
         if (localIp != null) return localIp;
 
-        if (string.IsNullOrEmpty(_signalingServerUrl)) return null;
+        if (string.IsNullOrEmpty(SignalingServerUrl)) return null;
 
         try
         {
-            var response = await _httpClient.GetAsync($"{_signalingServerUrl.TrimEnd('/')}/api/discovery/resolve/{code}");
+            var response = await _httpClient.GetAsync($"{SignalingServerUrl.TrimEnd('/')}/api/discovery/resolve/{code}");
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
@@ -220,13 +218,13 @@ public class DiscoveryService
         {
             try
             {
-                if (string.IsNullOrEmpty(_signalingServerUrl)) {
+                if (string.IsNullOrEmpty(SignalingServerUrl)) {
                     await Task.Delay(5000, token);
                     continue;
                 }
 
-                string url = $"{_signalingServerUrl.TrimEnd('/')}/api/discovery/list";
-                var response = await _httpClient.GetAsync(url, token);
+                string url = $"{SignalingServerUrl.TrimEnd('/')}/api/discovery/list";
+                var response = await this._httpClient.GetAsync(url, token);
                 
                 if (response.IsSuccessStatusCode)
                 {
@@ -281,7 +279,7 @@ public class DiscoveryService
         {
             try
             {
-                if (string.IsNullOrEmpty(_signalingServerUrl)) {
+                if (string.IsNullOrEmpty(SignalingServerUrl)) {
                     await Task.Delay(5000, token);
                     continue;
                 }
@@ -294,7 +292,7 @@ public class DiscoveryService
                 };
                 
                 var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-                string url = $"{_signalingServerUrl.TrimEnd('/')}/api/discovery/register";
+                string url = $"{SignalingServerUrl.TrimEnd('/')}/api/discovery/register";
                 var response = await _httpClient.PostAsync(url, content, token);
                 
                 if (response.IsSuccessStatusCode)

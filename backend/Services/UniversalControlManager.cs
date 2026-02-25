@@ -48,7 +48,7 @@ public class UniversalControlManager : IDisposable
         _discoveryService.SignalingServerUrl = _settingsService.GetSettings().SignalingServerUrl;
 
         // Set signaling server from settings
-        _discoveryService.SetSignalingServerUrl(_settingsService.GetSettings().SignalingServerUrl);
+        _discoveryService.UpdateSignalingServerUrl(_settingsService.GetSettings().SignalingServerUrl);
 
         // Apply initial settings
         ApplySettings();
@@ -384,7 +384,7 @@ public class UniversalControlManager : IDisposable
 
         // Update discovery settings
         _discoveryService.UpdatePairingCode(s.PairingCode);
-        _discoveryService.SetSignalingServerUrl(s.SignalingServerUrl);
+        _discoveryService.UpdateSignalingServerUrl(s.SignalingServerUrl);
     }
 
     // -----------------------------------------------------------------------

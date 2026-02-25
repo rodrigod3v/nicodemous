@@ -29,8 +29,10 @@ public class TrayService : IDisposable
 #if WINDOWS
     private System.Windows.Forms.Timer? _animationTimer;
 #endif
+#if WINDOWS
     private bool _isConnected = false;
     private bool _isControlling = false;
+#endif
 
     public TrayService(PhotinoWindow window, UniversalControlManager controlManager)
     {
@@ -50,6 +52,7 @@ public class TrayService : IDisposable
         _animationTimer = new System.Windows.Forms.Timer { Interval = 500 };
         _animationTimer.Tick += (s, e) => CycleActiveIcon();
 
+#if WINDOWS
         _controlManager.OnConnectionChanged += (connected) => {
             _isConnected = connected;
             UpdateTrayIcon();
@@ -59,6 +62,7 @@ public class TrayService : IDisposable
             _isControlling = active;
             UpdateTrayIcon();
         };
+#endif
 
         var contextMenu = new ContextMenuStrip();
         
