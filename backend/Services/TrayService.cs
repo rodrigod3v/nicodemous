@@ -60,6 +60,12 @@ public class TrayService : IDisposable
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg);
 
     [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, ulong arg);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, int arg);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, IntPtr arg3);
 
     [DllImport("/usr/lib/libobjc.A.dylib")]
@@ -216,11 +222,16 @@ public class TrayService : IDisposable
     {
         try {
             // First attempt: Reflection to get internal 'nativeWindow'
-            var field = typeof(PhotinoWindow).GetField("nativeWindow", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (field != null)
+            // We check common internal field names in Photino versions
+            string[] fieldNames = { "nativeWindow", "_nativeWindow" };
+            foreach (var fieldName in fieldNames)
             {
-                var val = field.GetValue(_window);
-                if (val is IntPtr handle) return handle;
+                var field = typeof(PhotinoWindow).GetField(fieldName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (field != null)
+                {
+                    var val = field.GetValue(_window);
+                    if (val is IntPtr handle && handle != IntPtr.Zero) return handle;
+                }
             }
         } catch (Exception ex) {
             Console.WriteLine($"[MACTRAY] Reflection failed for handle: {ex.Message}");
@@ -231,15 +242,23 @@ public class TrayService : IDisposable
             IntPtr nsAppCls = objc_getClass("NSApplication");
             IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
             IntPtr windows = objc_msgSend(sharedApp, sel_registerName("windows"));
-            int count = (int)(long)objc_msgSend(windows, sel_registerName("count"));
             
-            for (int i = 0; i < count; i++)
+            // count returns NSUInteger
+            ulong count = (ulong)objc_msgSend(windows, sel_registerName("count"));
+            
+            for (ulong i = 0; i < count; i++)
             {
-                IntPtr win = objc_msgSend(windows, sel_registerName("objectAtIndex:"), (double)i);
+                // objectAtIndex takes NSUInteger
+                IntPtr win = objc_msgSend(windows, sel_registerName("objectAtIndex:"), i);
+                if (win == IntPtr.Zero) continue;
+
                 IntPtr titleNS = objc_msgSend(win, sel_registerName("title"));
+                if (titleNS == IntPtr.Zero) continue;
+
                 IntPtr utf8Ptr = objc_msgSend(titleNS, sel_registerName("UTF8String"));
+                if (utf8Ptr == IntPtr.Zero) continue;
+
                 string? title = Marshal.PtrToStringUTF8(utf8Ptr);
-                
                 if (title == "nicodemouse") return win;
             }
         } catch (Exception ex) {
