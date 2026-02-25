@@ -52,6 +52,7 @@ class Program
         // Send actual Pairing Code and IP to UI
         Task.Run(async () => {
             await Task.Delay(3000); // Give UI time to fully load
+            _controlManager!.NotifyWindowReady();
             _controlManager!.SendLocalIpToWeb();
         });
 
@@ -62,6 +63,7 @@ class Program
 
     private static void ProcessUiMessage(string message, PhotinoWindow window)
     {
+        _controlManager?.NotifyWindowReady();
         Console.WriteLine($"[BACKEND] Received UI Message: {message}");
         try 
         {

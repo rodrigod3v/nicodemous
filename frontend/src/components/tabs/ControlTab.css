@@ -1,0 +1,441 @@
+.control-tab-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Header Section */
+.control-header {
+    padding: 20px 30px;
+    position: relative;
+    overflow: hidden;
+}
+
+.header-accent-glow {
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, var(--accent-primary) 0%, transparent 70%);
+    opacity: 0.05;
+    pointer-events: none;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.device-info-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    flex-wrap: wrap;
+}
+
+.device-icon-container {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.device-icon-box {
+    width: 70px;
+    height: 70px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.device-status-badge {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1e1e2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.device-status-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #22c55e;
+}
+
+.device-details {
+    min-width: 200px;
+}
+
+.session-role-label {
+    font-size: 12px;
+    color: var(--accent-primary);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+}
+
+.device-name {
+    margin: 5px 0 0 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    word-break: break-word;
+}
+
+.disconnect-btn {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+/* Service Grid */
+.service-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.service-card {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.service-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.service-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.service-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.service-label {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.service-status-text {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+.tbd-badge {
+    font-size: 10px;
+    color: var(--text-dim);
+    background: rgba(255, 255, 255, 0.08);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+/* Settings Grid */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 25px;
+}
+
+.settings-card {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.settings-card-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Spatial Setup Visualization */
+.spatial-toggle-group {
+    display: flex;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.spatial-toggle-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.monitor-visualization-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.monitor-box {
+    width: 160px;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 2px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.monitor-box.remote {
+    border: 2px solid var(--accent-primary);
+    background: rgba(99, 102, 241, 0.05);
+    color: var(--accent-primary);
+}
+
+.monitor-label-top {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.monitor-label-main {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0 10px;
+    text-align: center;
+}
+
+.monitor-box.remote .monitor-label-top {
+    color: inherit;
+}
+
+.active-edge-indicator {
+    position: absolute;
+    width: 4px;
+    height: 80%;
+    background: var(--accent-primary);
+    border-radius: 50px;
+    box-shadow: 0 0 15px var(--accent-primary);
+}
+
+.crossing-arrow {
+    color: var(--accent-primary);
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* Form Controls */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-label {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 700;
+}
+
+.select-wrapper {
+    position: relative;
+}
+
+.select-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--accent-primary);
+}
+
+/* Intelligence Sliders */
+.intelligence-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.slider-label {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-weight: 700;
+}
+
+.slider-value {
+    font-size: 14px;
+    color: var(--accent-primary);
+    font-weight: 800;
+}
+
+.slider-input {
+    width: 100%;
+    accent-color: var(--accent-primary);
+}
+
+/* Lock Input Toggle */
+.lock-input-toggle {
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.no-session-wrapper {
+    padding: 80px 40px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.no-session-icon-box {
+    width: 80px;
+    height: 80px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.managed-session-banner {
+    padding: 40px;
+    text-align: center;
+    border: 2px dashed rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+/* MEDIA QUERIES */
+
+@media (max-width: 1200px) {
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .control-header {
+        padding: 20px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .disconnect-btn {
+        width: 100%;
+    }
+
+    .service-grid {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .monitor-visualization-container {
+        flex-direction: column;
+    }
+
+    .crossing-arrow {
+        transform: rotate(90deg);
+    }
+
+    .monitor-box {
+        width: 100%;
+        max-width: 250px;
+    }
+
+    .active-edge-indicator {
+        width: 80%;
+        height: 4px;
+        right: auto !important;
+        left: 50% !important;
+        transform: translateX(-50%);
+    }
+
+    /* Top edge fallback if it was Right/Left in desktop */
+    .monitor-box .active-edge-indicator {
+        top: -2px;
+        /* For mobile vertical layout, we might want to represent it differently */
+    }
+}
+
+@media (max-width: 480px) {
+    .service-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .device-info-wrapper {
+        gap: 15px;
+    }
+
+    .device-icon-box {
+        width: 50px;
+        height: 50px;
+    }
+
+    .device-name {
+        font-size: 22px;
+    }
+
+    .settings-card {
+        padding: 20px;
+    }
+}

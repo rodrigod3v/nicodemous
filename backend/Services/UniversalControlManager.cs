@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Collections.Concurrent;
 using Photino.NET;
 
 namespace nicodemouse.Backend.Services;
@@ -22,6 +23,8 @@ public class UniversalControlManager : IDisposable
     private string? _targetPairingCode;
     private bool _disposed;
     private DateTime _lastSystemInfoTime = DateTime.MinValue;
+    private bool _isWindowReady = false;
+    private readonly ConcurrentQueue<Action> _messageQueue = new();
 
     public string PairingCode => _settingsService.GetSettings().PairingCode;
 
@@ -89,13 +92,43 @@ public class UniversalControlManager : IDisposable
     public void SetWindow(PhotinoWindow window)
     {
         _window = window;
-        
+
         // Connect the clipboard service to the UI thread for macOS stability
-        _clipboardService.InvokeOnMainThread = (action) => window.Invoke(action);
+        _clipboardService.InvokeOnMainThread = (action) => 
+        {
+            if (_window != null && _isWindowReady) _window.Invoke(action);
+            else _messageQueue.Enqueue(() => _window?.Invoke(action));
+        };
 
         _discoveryService.OnDeviceDiscovered += devices =>
-            window.Invoke(() =>
-                window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+        {
+            QueueOrSend(() =>
+                _window?.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+        };
+    }
+
+    public void NotifyWindowReady()
+    {
+        if (_isWindowReady) return;
+        _isWindowReady = true;
+
+        Console.WriteLine("[MANAGER] Window signal: READY. Flushing message queue...");
+        while (_messageQueue.TryDequeue(out var action))
+        {
+            try { _window?.Invoke(action); } catch { }
+        }
+    }
+
+    private void QueueOrSend(Action action)
+    {
+        if (_window != null && _isWindowReady)
+        {
+            _window.Invoke(action);
+        }
+        else
+        {
+            _messageQueue.Enqueue(action);
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -163,7 +196,7 @@ public class UniversalControlManager : IDisposable
         {
             string msg = $"Cannot resolve '{target}' — not a discovered code or valid IP.";
             Console.WriteLine($"[MANAGER] {msg}");
-            (window ?? _window)?.Invoke(() =>
+            QueueOrSend(() =>
                 (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Error: Invalid IP" }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
             return;
         }
@@ -175,7 +208,7 @@ public class UniversalControlManager : IDisposable
         // Handshake is sent inside OnConnected (after TCP is actually ready)
 
         Console.WriteLine($"[MANAGER] Connecting to {ip}...");
-        (window ?? _window)?.Invoke(() =>
+        QueueOrSend(() =>
             (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
@@ -266,8 +299,8 @@ public class UniversalControlManager : IDisposable
 #endif
         if (monitors.Count == 0) monitors.Add(new { name = "Default Monitor", isPrimary = true });
 
-        _window?.Invoke(() =>
-            _window.SendWebMessage(JsonSerializer.Serialize(new { 
+        QueueOrSend(() =>
+            _window!.SendWebMessage(JsonSerializer.Serialize(new { 
                 type = "system_info", 
                 machineName = Environment.MachineName,
                 monitors = monitors
@@ -542,7 +575,7 @@ public class UniversalControlManager : IDisposable
     {
         if (_window == null) return;
         string settingsJson = GetSettingsJson();
-        _window.Invoke(() =>
+        QueueOrSend(() =>
             _window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
         
         // Also send current identity and discovered devices whenever settings are requested
@@ -554,7 +587,7 @@ public class UniversalControlManager : IDisposable
     {
         if (_window == null) return;
         var devices = _discoveryService.GetDiscoveredDevices();
-        _window.Invoke(() =>
+        QueueOrSend(() =>
             _window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
@@ -569,8 +602,8 @@ public class UniversalControlManager : IDisposable
             }
         } catch { }
 
-        _window.Invoke(() =>
-            _window.SendWebMessage(JsonSerializer.Serialize(new { 
+        QueueOrSend(() =>
+            _window!.SendWebMessage(JsonSerializer.Serialize(new { 
                 type = "local_ip", 
                 detail = new {
                     ip = localIp,
@@ -581,7 +614,7 @@ public class UniversalControlManager : IDisposable
 
     private void SendUiMessage(string type, string value)
     {
-        _window?.Invoke(() =>
-            _window.SendWebMessage(JsonSerializer.Serialize(new { type, status = value }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+        QueueOrSend(() =>
+            _window!.SendWebMessage(JsonSerializer.Serialize(new { type, status = value }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 }
