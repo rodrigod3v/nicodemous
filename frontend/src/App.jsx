@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
-import { NicodemouseProvider } from './context/nicodemouseContext';
+import { NicodemouseProvider, usenicodemouse } from './context/nicodemouseContext';
 import './App.css';
 
 console.log('[FRONTEND] App.jsx module loading...');
