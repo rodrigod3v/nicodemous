@@ -47,6 +47,7 @@ public class DiscoveryController : ControllerBase
     }
 }
 
+
 public class RegisteredDevice
 {
     public string Name { get; set; } = "";
