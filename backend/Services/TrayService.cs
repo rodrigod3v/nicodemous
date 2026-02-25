@@ -180,8 +180,8 @@ public class TrayService : IDisposable
                         Console.WriteLine("[MACTRAY] WARNING: Could not find window handle for ShowWindow");
                     }
                     
-                    // Activate app to bring to front
-                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), 1);
+                    // Activate app to bring to front and force Dock refresh
+                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
 
                     _window.SetMinimized(false);
                 } catch (Exception ex) {
@@ -224,6 +224,9 @@ public class TrayService : IDisposable
                     // Update activation policy to hide from Dock
                     Console.WriteLine("[MACTRAY] Setting activation policy to Accessory (1)");
                     objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (ulong)1); // NSApplicationActivationPolicyAccessory
+                    
+                    // Force Dock refresh by re-activating (briefly)
+                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
                     
                 } catch (Exception ex) {
                     Console.WriteLine($"[MACTRAY] Error in HideWindow: {ex}");
