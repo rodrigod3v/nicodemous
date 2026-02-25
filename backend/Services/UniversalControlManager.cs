@@ -108,6 +108,11 @@ public class UniversalControlManager : IDisposable
         _discoveryService.Start();
     }
 
+    public void RefreshDiscovery()
+    {
+        _discoveryService.BroadcastNow();
+        _discoveryService.TriggerRemoteFetch();
+    }
     public void Stop()
     {
         _inputService.Stop();
@@ -539,6 +544,18 @@ public class UniversalControlManager : IDisposable
         string settingsJson = GetSettingsJson();
         _window.Invoke(() =>
             _window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
+        
+        // Also send current identity and discovered devices whenever settings are requested
+        SendLocalIpToWeb();
+        SendDiscoveredDevicesToWeb();
+    }
+
+    public void SendDiscoveredDevicesToWeb()
+    {
+        if (_window == null) return;
+        var devices = _discoveryService.GetDiscoveredDevices();
+        _window.Invoke(() =>
+            _window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
     public void SendLocalIpToWeb()

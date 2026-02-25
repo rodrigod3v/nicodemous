@@ -33,30 +33,6 @@ class SimpleErrorBoundary extends React.Component {
 function App() {
   console.log('[FRONTEND] App component initializing...');
   const [authToken, setAuthToken] = useState(localStorage.getItem('nicodemouse_token'));
-  const [localIp, setLocalIp] = useState(null);
-
-  useEffect(() => {
-    const handleMessage = (message) => {
-      try {
-        const data = typeof message === 'string' ? JSON.parse(message) : message;
-        console.log('[FRONTEND] App received message:', data.type);
-        if (data.type === 'local_ip') {
-          setLocalIp(data.detail.ip);
-        }
-      } catch (e) {
-        console.error('[FRONTEND] Error in App message listener:', e);
-      }
-    };
-
-    // Setup unified message listener
-    if (window.external && window.external.receiveMessage) {
-      window.external.receiveMessage(handleMessage);
-    } else if (window.chrome && window.chrome.webview) {
-      window.chrome.webview.addEventListener('message', (e) => handleMessage(e.data || e));
-    } else if (window.photino) {
-      window.photino.receive && window.photino.receive(handleMessage);
-    }
-  }, []);
 
   const handleLogin = (token) => {
     setAuthToken(token);
@@ -70,16 +46,21 @@ function App() {
   return (
     <div className="app">
       <SimpleErrorBoundary>
-        {!authToken ? (
-          <Login onLogin={handleLogin} backendIp={localIp} />
-        ) : (
-          <NicodemouseProvider>
+        <NicodemouseProvider>
+          {!authToken ? (
+            <LoginWithContext onLogin={handleLogin} />
+          ) : (
             <Dashboard onLogout={handleLogout} />
-          </NicodemouseProvider>
-        )}
+          )}
+        </NicodemouseProvider>
       </SimpleErrorBoundary>
     </div>
   );
 }
 
+// Wrapper to consume context inside the same file if needed, or just let Login handle its own context
+const LoginWithContext = ({ onLogin }) => {
+  const { localIp } = usenicodemouse();
+  return <Login onLogin={onLogin} backendIp={localIp?.ip} />;
+};
 export default App;

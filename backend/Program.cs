@@ -72,7 +72,8 @@ class Program
             switch (type)
             {
                 case "start_discovery":
-                    Console.WriteLine("[BACKEND] Starting device discovery...");
+                    Console.WriteLine("[BACKEND] Refreshing discovery...");
+                    _controlManager!.RefreshDiscovery();
                     var devices = _controlManager!.GetDevices();
                     window.SendWebMessage(JsonSerializer.Serialize(new { type = "discovery_result", devices }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
                     break;
@@ -89,8 +90,7 @@ class Program
                     }
                     break;
                 case "get_settings":
-                    string settingsJson = _controlManager!.GetSettingsJson();
-                    window.SendWebMessage(JsonSerializer.Serialize(new { type = "settings_data", settings = settingsJson }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                    _controlManager!.SendSettingsToWeb();
                     break;
                 case "update_settings":
                     string activeEdge = doc.RootElement.TryGetProperty("edge", out var edgeProp) ? edgeProp.GetString() ?? "Right" : "Right";

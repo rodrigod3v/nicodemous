@@ -52,6 +52,11 @@ public class DiscoveryService
         _broadcastCts?.Cancel();
     }
 
+    public void TriggerRemoteFetch()
+    {
+        // This will cancel the Delay in RunRemoteFetcher and trigger an immediate fetch
+        _broadcastCts?.Cancel(); 
+    }
     public void Stop()
     {
         _isRunning = false;
@@ -187,6 +192,8 @@ public class DiscoveryService
                     var json = await response.Content.ReadAsStringAsync();
                     var remoteDevices = JsonSerializer.Deserialize<List<DiscoveredDevice>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     
+                    Console.WriteLine($"[DISCOVERY] Remote Fetcher: Received {remoteDevices?.Count ?? 0} devices from {SignalingServerUrl}");
+                    
                     if (remoteDevices != null)
                     {
                         bool listChanged = false;
@@ -217,6 +224,7 @@ public class DiscoveryService
                         if (listChanged)
                         {
                             OnDeviceDiscovered?.Invoke(GetDiscoveredDevices());
+                            Console.WriteLine($"[DISCOVERY] Remote Fetcher: Discovered devices count updated to {GetDiscoveredDevices().Count}");
                         }
                     }
                 }
