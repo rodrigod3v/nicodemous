@@ -8,11 +8,11 @@ if [ ! -d "frontend/node_modules" ]; then
     cd frontend && npm install && cd ..
 fi
 
-# 2. Start Signaling Server in background
-echo "--- Iniciando Signaling Server (.NET)... ---"
-osascript -e 'tell app "Terminal" to do script "cd \"'$(pwd)'/server\" && dotnet run --launch-profile http"'
+# 2. Start Signaling Server in a separate terminal window
+echo "--- Iniciando Signaling Server (.NET) na porta 5219... ---"
+osascript -e 'tell app "Terminal" to do script "cd \"'$(pwd)'/server\" && dotnet run --urls http://0.0.0.0:5219"'
 
-# 3. Start Frontend in background
+# 3. Start Frontend in a separate terminal window
 echo "--- Iniciando Servidor Vite (Frontend)... ---"
 osascript -e 'tell app "Terminal" to do script "cd \"'$(pwd)'/frontend\" && npm run dev"'
 

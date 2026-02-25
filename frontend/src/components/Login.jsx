@@ -33,7 +33,7 @@ const Login = ({ onLogin }) => {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password }),
-                    signal: AbortSignal.timeout(3000) // 3s timeout
+                    signal: AbortSignal.timeout(10000) // Increase to 10s for slower connections
                 });
 
                 if (response.ok) {
@@ -53,8 +53,8 @@ const Login = ({ onLogin }) => {
                     lastErr = text || 'Action failed.';
                 }
             } catch (err) {
-                console.warn(`[AUTH] Failed to connect to ${base}:`, err);
-                lastErr = 'Could not connect to Signaling Server.';
+                console.error(`[AUTH] Failed to connect to ${base}:`, err);
+                lastErr = `Could not connect to ${base}. Check if Signaling Server is running.`;
             }
         }
 
