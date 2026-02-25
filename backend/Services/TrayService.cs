@@ -110,12 +110,14 @@ public class TrayService : IDisposable
 #if WINDOWS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
+#if WINDOWS
             _window.Invoke(() => {
                 Console.WriteLine($"[TRAY] Restoring window handle: {_window.WindowHandle}");
                 _window.SetMinimized(false);
                 ShowWindow(_window.WindowHandle, SW_RESTORE);
                 SetForegroundWindow(_window.WindowHandle);
             });
+#endif
         }
 #endif
     }
@@ -126,10 +128,12 @@ public class TrayService : IDisposable
 #if WINDOWS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
+#if WINDOWS
             _window.Invoke(() => {
                 Console.WriteLine($"[TRAY] Hiding window handle: {_window.WindowHandle}");
                 ShowWindow(_window.WindowHandle, SW_HIDE);
             });
+#endif
         }
 #endif
     }
