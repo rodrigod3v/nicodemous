@@ -59,6 +59,7 @@ nicodemouse/
 ```
 
 For a detailed technical breakdown of services, protocol, and internal logic, see the [Architecture Documentation](ARCHITECTURE.md).
+For information on how to deploy the signaling server and distribute the application, see the [Deployment Guide](DEPLOYMENT.md).
 
 ---
 
