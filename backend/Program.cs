@@ -34,6 +34,10 @@ class Program
         _controlManager = new UniversalControlManager(settings);
         _controlManager.SetWindow(window);
 
+        // Initialize Tray Support
+        using var trayService = new TrayService(window, _controlManager);
+
+
         // UI Callbacks
         window.RegisterWebMessageReceivedHandler((object? sender, string message) => 
         {
@@ -56,7 +60,7 @@ class Program
         _controlManager.Stop();
     }
 
-    private static void ProcessUiMessage(string message, PhotinoWindow window)
+    private static async void ProcessUiMessage(string message, PhotinoWindow window)
     {
         Console.WriteLine($"[BACKEND] Received UI Message: {message}");
         try 
@@ -81,7 +85,7 @@ class Program
                     string ipOrCode = doc.RootElement.TryGetProperty("ip", out var ipProp) ? ipProp.GetString() ?? "" : "";
                     if (!string.IsNullOrEmpty(ipOrCode))
                     {
-                        _controlManager!.Connect(ipOrCode, window);
+                        await _controlManager!.ConnectAsync(ipOrCode, window);
                     }
                     break;
                 case "get_settings":

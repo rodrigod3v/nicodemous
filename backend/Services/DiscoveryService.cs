@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Linq;
+using System.Net.Http;
 
 namespace nicodemouse.Backend.Services;
 
@@ -12,9 +13,11 @@ public class DiscoveryService
     private const string MulticastGroup = "239.0.0.1";
     private readonly string _deviceName;
     private string _pairingCode;
+    private string? _signalingServerUrl;
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
     private CancellationTokenSource? _broadcastCts;
+    private readonly HttpClient _httpClient = new();
 
     public event Action<List<DiscoveredDevice>>? OnDeviceDiscovered;
 
@@ -41,6 +44,21 @@ public class DiscoveryService
 
         Task.Run(() => RunBroadcaster(_broadcastCts.Token));
         Task.Run(RunListener);
+        
+        if (!string.IsNullOrEmpty(_signalingServerUrl))
+        {
+            Task.Run(() => RunCloudHeartbeat(_broadcastCts.Token));
+        }
+    }
+
+    public void SetSignalingServerUrl(string url)
+    {
+        _signalingServerUrl = url;
+        if (_isRunning && !string.IsNullOrEmpty(_signalingServerUrl))
+        {
+             // Trigger heartbeat immediately if already running
+             Task.Run(() => RunCloudHeartbeat(_broadcastCts?.Token ?? default));
+        }
     }
 
     public void BroadcastNow()
@@ -142,6 +160,61 @@ public class DiscoveryService
             }
             catch { /* Ignore listener errors */ }
         }
+    }
+
+    private async Task RunCloudHeartbeat(CancellationToken token)
+    {
+        while (_isRunning && !string.IsNullOrEmpty(_signalingServerUrl))
+        {
+            try
+            {
+                var device = new { 
+                    name = _deviceName, 
+                    code = _pairingCode, 
+                    ip = GetLocalIPAddress() 
+                };
+                var content = new StringContent(JsonSerializer.Serialize(device), Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync($"{_signalingServerUrl}/api/discovery/register", content, token);
+                
+                if (response.IsSuccessStatusCode)
+                    Console.WriteLine("[DISCOVERY] Cloud heartbeat sent successfully.");
+                else
+                    Console.WriteLine($"[DISCOVERY] Cloud heartbeat error: {response.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DISCOVERY] Cloud heartbeat exception: {ex.Message}");
+            }
+            
+            try { await Task.Delay(30000, token); } catch { break; } // Every 30s
+        }
+    }
+
+    public async Task<string?> ResolveCodeAsync(string code)
+    {
+        // 1. Check local cache
+        var localIp = GetIpByCode(code);
+        if (localIp != null) return localIp;
+
+        // 2. Query signaling server
+        if (string.IsNullOrEmpty(_signalingServerUrl)) return null;
+
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_signalingServerUrl}/api/discovery/resolve/{code}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var device = JsonSerializer.Deserialize<DiscoveredDevice>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                return device?.Ip;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DISCOVERY] Cloud resolution error: {ex.Message}");
+        }
+
+        return null;
     }
 
     public string? GetIpByCode(string code)

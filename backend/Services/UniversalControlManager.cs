@@ -40,6 +40,9 @@ public class UniversalControlManager : IDisposable
         _audioReceiveService = new AudioReceiveService();
         _discoveryService    = new DiscoveryService(Environment.MachineName);
 
+        // Set signaling server from settings
+        _discoveryService.SetSignalingServerUrl(_settingsService.GetSettings().SignalingServerUrl);
+
         // Apply initial settings
         ApplySettings();
 
@@ -150,9 +153,9 @@ public class UniversalControlManager : IDisposable
     // Connection
     // -----------------------------------------------------------------------
 
-    public void Connect(string target, PhotinoWindow? window = null)
+    public async Task ConnectAsync(string target, PhotinoWindow? window = null)
     {
-        string? ip = ResolveTarget(target);
+        string? ip = await ResolveTargetAsync(target);
         if (ip == null)
         {
             string msg = $"Cannot resolve '{target}' — not a discovered code or valid IP.";
@@ -173,11 +176,17 @@ public class UniversalControlManager : IDisposable
             (window ?? _window)!.SendWebMessage(JsonSerializer.Serialize(new { type = "connection_status", status = "Connecting..." }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })));
     }
 
-    private string? ResolveTarget(string target)
+    private async Task<string?> ResolveTargetAsync(string target)
     {
+        // Try local cache first
         var device = _discoveryService.GetDiscoveredDevices()
                                        .FirstOrDefault(d => d.Code.Equals(target, StringComparison.OrdinalIgnoreCase));
         if (device != null) return device.Ip;
+        
+        // Try cloud registry
+        var cloudIp = await _discoveryService.ResolveCodeAsync(target);
+        if (cloudIp != null) return cloudIp;
+
         if (System.Net.IPAddress.TryParse(target, out _)) return target;
         return null;
     }
@@ -327,8 +336,9 @@ public class UniversalControlManager : IDisposable
 
         if (s.EnableAudio) _audioService.StartCapture(); else _audioService.StopCapture();
 
-        // Update discovery PIN
+        // Update discovery settings
         _discoveryService.UpdatePairingCode(s.PairingCode);
+        _discoveryService.SetSignalingServerUrl(s.SignalingServerUrl);
     }
 
     // -----------------------------------------------------------------------
