@@ -38,10 +38,10 @@ class Program
         string iconFilename = isMac ? "logo_n.png" : "app_icon.ico";
 
         string[] potentialIconPaths = {
-            Path.Combine(exeDir, "Assets", iconFilename),
-            Path.Combine(exeDir, "backend", "Assets", iconFilename),
-            Path.Combine(exeDir, "..", "..", "..", "Assets", iconFilename),
-            Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", iconFilename)
+            Path.GetFullPath(Path.Combine(exeDir, "Assets", iconFilename)),
+            Path.GetFullPath(Path.Combine(exeDir, "backend", "Assets", iconFilename)),
+            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "Assets", iconFilename)),
+            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", iconFilename))
         };
 
         string? iconPath = null;
