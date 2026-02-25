@@ -207,24 +207,29 @@ public class TrayService : IDisposable
         {
             _window.Invoke(() => {
                 try {
+                    Console.WriteLine("[MACTRAY] HideWindow: Starting hiding sequence...");
                     IntPtr nsAppCls = objc_getClass("NSApplication");
                     IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
                     
                     IntPtr nsWindow = GetMacWindowHandle();
                     if (nsWindow != IntPtr.Zero)
                     {
-                        Console.WriteLine($"[MACTRAY] Ordering window out: {nsWindow}");
+                        Console.WriteLine($"[MACTRAY] HideWindow: Ordering window out: {nsWindow}");
                         objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
                     }
                     else
                     {
-                        Console.WriteLine("[MACTRAY] WARNING: Could not find window handle for HideWindow");
+                        Console.WriteLine("[MACTRAY] HideWindow WARNING: Could not find window handle");
                     }
 
                     // Update activation policy to hide from Dock
-                    Console.WriteLine("[MACTRAY] Setting activation policy to Accessory (1)");
+                    Console.WriteLine("[MACTRAY] HideWindow: Setting activation policy to Accessory (1)");
                     objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (ulong)1); // NSApplicationActivationPolicyAccessory
                     
+                    // Call hide: to ensure app is truly hidden from foreground
+                    Console.WriteLine("[MACTRAY] HideWindow: Calling hide:");
+                    objc_msgSend(sharedApp, sel_registerName("hide:"), IntPtr.Zero);
+
                     // Force Dock refresh by re-activating (briefly)
                     objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
                     
