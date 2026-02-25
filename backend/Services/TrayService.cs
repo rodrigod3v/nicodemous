@@ -128,7 +128,6 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
-                _window.SetVisible(true);
                 _window.SetMinimized(false);
             });
         }
@@ -149,7 +148,7 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
-                _window.SetVisible(false);
+                _window.SetMinimized(true);
             });
         }
     }
