@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+#if WINDOWS
 using System.Drawing;
+#endif
 using System.Runtime.InteropServices;
 #if WINDOWS
 using System.Windows.Forms;

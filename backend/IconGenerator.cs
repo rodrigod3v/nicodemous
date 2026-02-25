@@ -1,3 +1,4 @@
+#if WINDOWS
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -95,3 +96,4 @@ public class IconGenerator
         return bitmap;
     }
 }
+#endif
