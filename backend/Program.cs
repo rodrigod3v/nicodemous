@@ -16,7 +16,7 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
-        string windowTitle = "nicodemouse - Universal Control";
+        string windowTitle = "nicodemouse";
         
 #if DEBUG
         string initialUrl = "http://localhost:5173"; 
@@ -30,14 +30,34 @@ class Program
             .SetSize(1280, 850)
             .Center()
             .SetResizable(true);
-        string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "app_icon.ico");
-        if (File.Exists(iconPath))
+
+        // Robust Icon Loading
+        string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+        string[] potentialIconPaths = {
+            Path.Combine(exeDir, "Assets", "app_icon.ico"),
+            Path.Combine(exeDir, "backend", "Assets", "app_icon.ico"),
+            Path.Combine(exeDir, "..", "..", "..", "Assets", "app_icon.ico"),
+            Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", "app_icon.ico")
+        };
+
+        string? iconPath = null;
+        foreach (var path in potentialIconPaths)
+        {
+            if (File.Exists(path))
+            {
+                iconPath = path;
+                break;
+            }
+        }
+
+        if (iconPath != null)
         {
             window.SetIconFile(iconPath);
+            Console.WriteLine($"[INFO] Application icon loaded from: {iconPath}");
         }
         else
         {
-            Console.WriteLine($"[ERROR] Application icon not found at: {iconPath}");
+            Console.WriteLine("[ERROR] Application icon not found in any potential paths.");
         }
 
         // Initialize Central Manager

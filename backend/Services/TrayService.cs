@@ -47,7 +47,7 @@ public class TrayService : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = _idleIcon ?? SystemIcons.Application,
-            Text = "Nicodemous",
+            Text = "nicodemouse",
             Visible = true
         };
 
