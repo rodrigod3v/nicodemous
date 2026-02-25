@@ -35,6 +35,7 @@ public class TrayService : IDisposable
     private bool _isConnected = false;
     private bool _isControlling = false;
 #endif
+
 #if !WINDOWS
     private readonly MacTrayManager? _macTray;
 
@@ -66,6 +67,9 @@ public class TrayService : IDisposable
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, int arg);
 
     [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, byte arg);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, IntPtr arg3);
 
     [DllImport("/usr/lib/libobjc.A.dylib")]
@@ -82,6 +86,17 @@ public class TrayService : IDisposable
 
     [StructLayout(LayoutKind.Sequential)]
     private struct NSSize { public double width; public double height; }
+#endif
+
+#if WINDOWS
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    private const int SW_HIDE    = 0;
+    private const int SW_RESTORE = 9;
 #endif
 
     public TrayService(PhotinoWindow window, UniversalControlManager controlManager)
@@ -113,10 +128,10 @@ public class TrayService : IDisposable
         };
 
         var contextMenu = new ContextMenuStrip();
-        
-        var showItem = new ToolStripMenuItem("Show / Restore", null, (s, e) => ShowWindow());
-        var disconnectItem = new ToolStripMenuItem("Disconnect", null, (s, e) => Disconnect());
-        var exitItem = new ToolStripMenuItem("Exit", null, (s, e) => ExitApplication());
+
+        var showItem       = new ToolStripMenuItem("Show / Restore", null, (s, e) => ShowWindow());
+        var disconnectItem = new ToolStripMenuItem("Disconnect",     null, (s, e) => Disconnect());
+        var exitItem       = new ToolStripMenuItem("Exit",           null, (s, e) => ExitApplication());
 
         contextMenu.Items.Add(showItem);
         contextMenu.Items.Add(new ToolStripSeparator());
@@ -129,25 +144,33 @@ public class TrayService : IDisposable
 #else
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
+            // ✅ FIX: Define a política como Accessory ANTES de criar o tray,
+            //         para que o app nunca apareça no Dock ao iniciar.
+            SetMacActivationPolicy(1); // 1 = NSApplicationActivationPolicyAccessory
+
             _macTray = new MacTrayManager(this);
         }
 #endif
 
-        // Handle window close event to minimize to tray
+        // Handle window close/minimize to tray
         _window.WindowClosing += (sender, args) =>
         {
             if (!_isExiting)
             {
                 HideWindow();
-                return true; 
+                return true; // cancela o fechamento real
             }
-            return false; 
+            return false; // permite fechar de verdade
         };
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  PUBLIC: ShowWindow
+    // ─────────────────────────────────────────────────────────────
     public void ShowWindow()
     {
         Console.WriteLine("[TRAY] ShowWindow called.");
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
 #if WINDOWS
@@ -162,12 +185,14 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
-                try {
-                    // Update activation policy to show in Dock
-                    IntPtr nsAppCls = objc_getClass("NSApplication");
+                try
+                {
+                    IntPtr nsAppCls  = objc_getClass("NSApplication");
                     IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-                    Console.WriteLine("[MACTRAY] Setting activation policy to Regular (0)");
-                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (ulong)0); // NSApplicationActivationPolicyRegular
+
+                    // ✅ Volta para Regular para mostrar no Dock enquanto a janela estiver aberta
+                    Console.WriteLine("[MACTRAY] ShowWindow: Setting activation policy to Regular (0)");
+                    SetMacActivationPolicy(0); // 0 = NSApplicationActivationPolicyRegular
 
                     IntPtr nsWindow = GetMacWindowHandle();
                     if (nsWindow != IntPtr.Zero)
@@ -179,21 +204,25 @@ public class TrayService : IDisposable
                     {
                         Console.WriteLine("[MACTRAY] WARNING: Could not find window handle for ShowWindow");
                     }
-                    
-                    // Activate app to bring to front and force Dock refresh
-                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
 
+                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
                     _window.SetMinimized(false);
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     Console.WriteLine($"[MACTRAY] Error in ShowWindow: {ex}");
                 }
             });
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  PUBLIC: HideWindow
+    // ─────────────────────────────────────────────────────────────
     public void HideWindow()
     {
-        Console.WriteLine("[TRAY] HideWindow called (Native Mac).");
+        Console.WriteLine("[TRAY] HideWindow called.");
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
 #if WINDOWS
@@ -206,11 +235,10 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
-                try {
+                try
+                {
                     Console.WriteLine("[MACTRAY] HideWindow: Starting hiding sequence...");
-                    IntPtr nsAppCls = objc_getClass("NSApplication");
-                    IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-                    
+
                     IntPtr nsWindow = GetMacWindowHandle();
                     if (nsWindow != IntPtr.Zero)
                     {
@@ -222,59 +250,85 @@ public class TrayService : IDisposable
                         Console.WriteLine("[MACTRAY] HideWindow WARNING: Could not find window handle");
                     }
 
-                    // Update activation policy to hide from Dock
+                    // ✅ FIX: Volta para Accessory para sumir do Dock
                     Console.WriteLine("[MACTRAY] HideWindow: Setting activation policy to Accessory (1)");
-                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (ulong)1); // NSApplicationActivationPolicyAccessory
-                    
-                    // Call hide: to ensure app is truly hidden from foreground
-                    Console.WriteLine("[MACTRAY] HideWindow: Calling hide:");
-                    objc_msgSend(sharedApp, sel_registerName("hide:"), IntPtr.Zero);
+                    SetMacActivationPolicy(1); // 1 = NSApplicationActivationPolicyAccessory
 
-                    // Force Dock refresh by re-activating (briefly)
-                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
-                    
-                } catch (Exception ex) {
+                    // ✅ FIX: REMOVIDO o activateIgnoringOtherApps após esconder,
+                    //         pois ele re-trazia o app para o foreground desnecessariamente.
+                }
+                catch (Exception ex)
+                {
                     Console.WriteLine($"[MACTRAY] Error in HideWindow: {ex}");
                 }
             });
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  PRIVATE: Mac helpers
+    // ─────────────────────────────────────────────────────────────
+#if !WINDOWS
+    /// <summary>
+    /// Define a NSApplicationActivationPolicy do app.
+    /// 0 = Regular  (aparece no Dock)
+    /// 1 = Accessory (NÃO aparece no Dock — só na status bar)
+    /// 2 = Prohibited
+    /// </summary>
+    private void SetMacActivationPolicy(ulong policy)
+    {
+        try
+        {
+            IntPtr nsAppCls  = objc_getClass("NSApplication");
+            IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+            objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), policy);
+            Console.WriteLine($"[MACTRAY] Activation policy set to {policy}.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MACTRAY] Error setting activation policy: {ex}");
+        }
+    }
+#endif
+
     private IntPtr GetMacWindowHandle()
     {
-        try {
-            // First attempt: Reflection to get internal 'nativeWindow'
-            // We check common internal field names in Photino versions
+        // Tentativa 1: Reflexão nos campos internos do PhotinoWindow
+        try
+        {
             string[] fieldNames = { "nativeWindow", "_nativeWindow" };
             foreach (var fieldName in fieldNames)
             {
-                var field = typeof(PhotinoWindow).GetField(fieldName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var field = typeof(PhotinoWindow).GetField(
+                    fieldName,
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
                 if (field != null)
                 {
                     var val = field.GetValue(_window);
-                    if (val is IntPtr handle && handle != IntPtr.Zero) 
+                    if (val is IntPtr handle && handle != IntPtr.Zero)
                     {
                         Console.WriteLine($"[MACTRAY] Found handle via reflection '{fieldName}': {handle}");
                         return handle;
                     }
                 }
             }
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             Console.WriteLine($"[MACTRAY] Reflection failed for handle: {ex.Message}");
         }
 
-        // Second attempt: iterate windows via Obj-C
-        try {
-            IntPtr nsAppCls = objc_getClass("NSApplication");
+        // Tentativa 2: Iterar janelas via Objective-C
+        try
+        {
+            IntPtr nsAppCls  = objc_getClass("NSApplication");
             IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-            IntPtr windows = objc_msgSend(sharedApp, sel_registerName("windows"));
-            
-            // count returns NSUInteger
-            ulong count = (ulong)objc_msgSend(windows, sel_registerName("count"));
-            
+            IntPtr windows   = objc_msgSend(sharedApp, sel_registerName("windows"));
+            ulong  count     = (ulong)objc_msgSend(windows, sel_registerName("count"));
+
             for (ulong i = 0; i < count; i++)
             {
-                // objectAtIndex takes NSUInteger
                 IntPtr win = objc_msgSend(windows, sel_registerName("objectAtIndex:"), i);
                 if (win == IntPtr.Zero) continue;
 
@@ -285,20 +339,25 @@ public class TrayService : IDisposable
                 if (utf8Ptr == IntPtr.Zero) continue;
 
                 string? title = Marshal.PtrToStringUTF8(utf8Ptr);
-                if (title == "nicodemouse") 
+                if (title == "nicodemouse")
                 {
                     Console.WriteLine($"[MACTRAY] Found handle via window iteration: {win}");
                     return win;
                 }
             }
             Console.WriteLine("[MACTRAY] Window iteration finished without finding 'nicodemouse'");
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             Console.WriteLine($"[MACTRAY] Window iteration failed: {ex.Message}");
         }
 
         return IntPtr.Zero;
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  PRIVATE: Disconnect / Exit
+    // ─────────────────────────────────────────────────────────────
     private void Disconnect()
     {
         _controlManager.ToggleService("disconnect", true);
@@ -316,24 +375,29 @@ public class TrayService : IDisposable
         _window.Close();
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  WINDOWS: Icon management
+    // ─────────────────────────────────────────────────────────────
 #if WINDOWS
     private void LoadIcons()
     {
-        try {
+        try
+        {
             string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-            
-            // 1. Look for Assets folder locally or in project structure
+
             string[] potentialAssetsPaths = {
-                Path.Combine(exeDir, "Assets"),                                   // Deployed alongside exe
-                Path.Combine(exeDir, "..", "..", "..", "Assets"),                  // Near bin/Debug
-                Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets"), // Project root dev
-                Path.Combine(exeDir, "..", "..", "..", "..", "Assets"),           // Project root generic
-                exeDir                                                            // Fallback to exe dir
+                Path.Combine(exeDir, "Assets"),
+                Path.Combine(exeDir, "..", "..", "..", "Assets"),
+                Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets"),
+                Path.Combine(exeDir, "..", "..", "..", "..", "Assets"),
+                exeDir
             };
 
             string? baseDir = null;
-            foreach (var p in potentialAssetsPaths) {
-                if (Directory.Exists(p) && File.Exists(Path.Combine(p, "tray_idle.ico"))) {
+            foreach (var p in potentialAssetsPaths)
+            {
+                if (Directory.Exists(p) && File.Exists(Path.Combine(p, "tray_idle.ico")))
+                {
                     baseDir = p;
                     break;
                 }
@@ -343,35 +407,43 @@ public class TrayService : IDisposable
             Console.WriteLine($"[TRAY] Final Icon Path: {baseDir}");
 
             LoadIconSet(baseDir);
-
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             Console.WriteLine($"[TRAY] Error in LoadIcons: {ex.Message}");
-            _idleIcon ??= SystemIcons.Application;
+            _idleIcon     ??= SystemIcons.Application;
             _connectedIcon ??= _idleIcon;
         }
     }
 
     private void LoadIconSet(string baseDir)
     {
-        string idlePath = Path.Combine(baseDir, "tray_idle.ico");
+        string idlePath      = Path.Combine(baseDir, "tray_idle.ico");
         string connectedPath = Path.Combine(baseDir, "tray_connected.ico");
-        
-        try {
-            if (File.Exists(idlePath)) _idleIcon = new Icon(idlePath);
+
+        try
+        {
+            if (File.Exists(idlePath))      _idleIcon      = new Icon(idlePath);
             if (File.Exists(connectedPath)) _connectedIcon = new Icon(connectedPath);
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             Console.WriteLine($"[TRAY] Critical: Failed to load idle/connected icons: {ex.Message}");
         }
 
-        _idleIcon ??= SystemIcons.Application;
+        _idleIcon      ??= SystemIcons.Application;
         _connectedIcon ??= _idleIcon;
 
         _activeFrames.Clear();
-        for (int i = 1; i <= 6; i++) {
+        for (int i = 1; i <= 6; i++)
+        {
             string framePath = Path.Combine(baseDir, $"tray_active_{i}.ico");
-            try {
+            try
+            {
                 if (File.Exists(framePath)) _activeFrames.Add(new Icon(framePath));
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 Console.WriteLine($"[TRAY] Error loading active frame {i}: {ex.Message}");
             }
         }
@@ -381,23 +453,30 @@ public class TrayService : IDisposable
     {
         if (_notifyIcon == null) return;
 
-        if (_isControlling && _activeFrames.Count > 0) {
+        if (_isControlling && _activeFrames.Count > 0)
+        {
             _animationTimer?.Start();
-        } else {
+        }
+        else
+        {
             _animationTimer?.Stop();
-            _notifyIcon.Icon = _isControlling ? (_activeFrames.Count > 0 ? _activeFrames[0] : _connectedIcon) 
-                             : (_isConnected ? _connectedIcon : _idleIcon);
+            _notifyIcon.Icon = _isControlling
+                ? (_activeFrames.Count > 0 ? _activeFrames[0] : _connectedIcon)
+                : (_isConnected ? _connectedIcon : _idleIcon);
         }
     }
 
     private void CycleActiveIcon()
     {
         if (_notifyIcon == null || _activeFrames.Count == 0) return;
-        _currentFrame = (_currentFrame + 1) % _activeFrames.Count;
-        _notifyIcon.Icon = _activeFrames[_currentFrame];
+        _currentFrame      = (_currentFrame + 1) % _activeFrames.Count;
+        _notifyIcon.Icon   = _activeFrames[_currentFrame];
     }
 #endif
 
+    // ─────────────────────────────────────────────────────────────
+    //  IDisposable
+    // ─────────────────────────────────────────────────────────────
     public void Dispose()
     {
 #if WINDOWS
@@ -409,6 +488,9 @@ public class TrayService : IDisposable
 #endif
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  MAC: MacTrayManager (status bar nativa via Obj-C)
+    // ─────────────────────────────────────────────────────────────
 #if !WINDOWS
     private class MacTrayManager : IDisposable
     {
@@ -417,6 +499,7 @@ public class TrayService : IDisposable
         private IntPtr _statusBar;
         private IntPtr _menu;
         private IntPtr _target;
+
         private delegate void ActionDelegate(IntPtr self, IntPtr _cmd, IntPtr sender);
         private readonly ActionDelegate _onShow;
         private readonly ActionDelegate _onExit;
@@ -425,36 +508,37 @@ public class TrayService : IDisposable
         public MacTrayManager(TrayService parent)
         {
             _parent = parent;
+
             _onShow = (self, cmd, sender) => {
-                try { parent.ShowWindow(); } catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Show): {ex}"); }
+                try { parent.ShowWindow(); }
+                catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Show): {ex}"); }
             };
             _onExit = (self, cmd, sender) => {
-                try { parent.ExitApplication(); } catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Exit): {ex}"); }
+                try { parent.ExitApplication(); }
+                catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Exit): {ex}"); }
             };
             _onDisconnect = (self, cmd, sender) => {
-                try { parent.Disconnect(); } catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Disconnect): {ex}"); }
+                try { parent.Disconnect(); }
+                catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Disconnect): {ex}"); }
             };
 
-            try {
-                InitializeTray();
-            } catch (Exception ex) {
-                Console.WriteLine($"[MACTRAY] Critical Exception during initialization: {ex}");
-            }
+            try { InitializeTray(); }
+            catch (Exception ex) { Console.WriteLine($"[MACTRAY] Critical Exception during initialization: {ex}"); }
         }
 
         private void InitializeTray()
         {
             Console.WriteLine("[MACTRAY] Starting initialization...");
-            
-            // 0. Ensure AppKit is loaded
+
+            // 0. Garante que AppKit está carregado
             IntPtr appKit = dlopen("/System/Library/Frameworks/AppKit.framework/AppKit", 2);
             Console.WriteLine($"[MACTRAY] AppKit library handle: {appKit}");
 
-            // 1. Register a target class to receive actions
+            // 1. Cria instância alvo para receber ações de menu
             _target = CreateTargetInstance();
             Console.WriteLine($"[MACTRAY] Target instance created: {_target}");
 
-            // 2. Get NSStatusBar.systemStatusBar
+            // 2. NSStatusBar.systemStatusBar
             IntPtr nsStatusBarCls = objc_getClass("NSStatusBar");
             Console.WriteLine($"[MACTRAY] NSStatusBar class: {nsStatusBarCls}");
             if (nsStatusBarCls == IntPtr.Zero) return;
@@ -462,7 +546,7 @@ public class TrayService : IDisposable
             _statusBar = objc_msgSend(nsStatusBarCls, sel_registerName("systemStatusBar"));
             Console.WriteLine($"[MACTRAY] System status bar handle: {_statusBar}");
             if (_statusBar == IntPtr.Zero) return;
-            
+
             // 3. statusItemWithLength: -1 (NSSquareStatusItemLength)
             _statusItem = objc_msgSend(_statusBar, sel_registerName("statusItemWithLength:"), (double)-1);
             Console.WriteLine($"[MACTRAY] Status item handle: {_statusItem}");
@@ -470,17 +554,20 @@ public class TrayService : IDisposable
 
             objc_msgSend(_statusItem, sel_registerName("setHighlightMode:"), 1);
 
-            // 4. Set Icon Image
+            // 4. Ícone
             string iconPath = FindIcon();
             if (!string.IsNullOrEmpty(iconPath))
             {
                 Console.WriteLine($"[MACTRAY] Loading icon from: {iconPath}");
-                IntPtr nsStringPath = objc_msgSend(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), iconPath);
+                IntPtr nsStringPath = objc_msgSend(
+                    objc_getClass("NSString"),
+                    sel_registerName("stringWithUTF8String:"),
+                    iconPath);
+
                 IntPtr image = objc_msgSend(objc_getClass("NSImage"), sel_registerName("alloc"));
                 objc_msgSend(image, sel_registerName("initWithContentsOfFile:"), nsStringPath);
-                
                 objc_msgSend(image, sel_registerName("setSize:"), new NSSize { width = 18, height = 18 });
-                objc_msgSend(image, sel_registerName("setTemplate:"), 1); 
+                objc_msgSend(image, sel_registerName("setTemplate:"), 1); // adapta ao dark/light mode
 
                 IntPtr button = objc_msgSend(_statusItem, sel_registerName("button"));
                 Console.WriteLine($"[MACTRAY] Status item button handle: {button}");
@@ -491,33 +578,38 @@ public class TrayService : IDisposable
                 Console.WriteLine("[MACTRAY] WARNING: Icon file not found!");
             }
 
-            // 5. Create Menu
+            // 5. Menu
             _menu = objc_msgSend(objc_getClass("NSMenu"), sel_registerName("alloc"));
-            objc_msgSend(_menu, sel_registerName("initWithTitle:"), 
-                objc_msgSend(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), "nicodemouse"));
+            objc_msgSend(_menu, sel_registerName("initWithTitle:"),
+                objc_msgSend(objc_getClass("NSString"),
+                    sel_registerName("stringWithUTF8String:"), "nicodemouse"));
 
             AddMenuItem("Show / Restore", sel_registerName("onShow:"));
             AddMenuSeparator();
-            AddMenuItem("Disconnect", sel_registerName("onDisconnect:"));
+            AddMenuItem("Disconnect",     sel_registerName("onDisconnect:"));
             AddMenuSeparator();
-            AddMenuItem("Exit", sel_registerName("onExit:"));
+            AddMenuItem("Exit",           sel_registerName("onExit:"));
 
             objc_msgSend(_statusItem, sel_registerName("setMenu:"), _menu);
+            Console.WriteLine("[MACTRAY] Tray initialized successfully.");
         }
 
         private IntPtr CreateTargetInstance()
         {
             IntPtr cls = objc_allocateClassPair(objc_getClass("NSObject"), "TrayTarget", 0);
-            class_addMethod(cls, sel_registerName("onShow:"), _onShow, "v@:@");
-            class_addMethod(cls, sel_registerName("onExit:"), _onExit, "v@:@");
+            class_addMethod(cls, sel_registerName("onShow:"),       _onShow,       "v@:@");
+            class_addMethod(cls, sel_registerName("onExit:"),       _onExit,       "v@:@");
             class_addMethod(cls, sel_registerName("onDisconnect:"), _onDisconnect, "v@:@");
             objc_registerClassPair(cls);
-            return objc_msgSend(objc_msgSend(cls, sel_registerName("alloc")), sel_registerName("init"));
+            return objc_msgSend(
+                objc_msgSend(cls, sel_registerName("alloc")),
+                sel_registerName("init"));
         }
 
         private string FindIcon()
         {
-            try {
+            try
+            {
                 string exeDir = AppDomain.CurrentDomain.BaseDirectory;
                 string[] paths = {
                     Path.GetFullPath(Path.Combine(exeDir, "logo_n.png")),
@@ -527,13 +619,17 @@ public class TrayService : IDisposable
                     Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", "logo_n.png"))
                 };
 
-                foreach (var p in paths) {
-                    if (File.Exists(p)) {
+                foreach (var p in paths)
+                {
+                    if (File.Exists(p))
+                    {
                         Console.WriteLine($"[MACTRAY] Found icon at: {p}");
                         return p;
                     }
                 }
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 Console.WriteLine($"[MACTRAY] Error finding icon: {ex.Message}");
             }
             return "";
@@ -541,12 +637,16 @@ public class TrayService : IDisposable
 
         private void AddMenuItem(string title, IntPtr selector)
         {
-            IntPtr nsTitle = objc_msgSend(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), title);
+            IntPtr nsTitle = objc_msgSend(
+                objc_getClass("NSString"),
+                sel_registerName("stringWithUTF8String:"), title);
+
             IntPtr item = objc_msgSend(objc_getClass("NSMenuItem"), sel_registerName("alloc"));
-            
-            objc_msgSend(item, sel_registerName("initWithTitle:action:keyEquivalent:"), 
-                nsTitle, selector, 
-                objc_msgSend(objc_getClass("NSString"), sel_registerName("stringWithUTF8String:"), ""));
+
+            objc_msgSend(item, sel_registerName("initWithTitle:action:keyEquivalent:"),
+                nsTitle, selector,
+                objc_msgSend(objc_getClass("NSString"),
+                    sel_registerName("stringWithUTF8String:"), ""));
 
             objc_msgSend(item, sel_registerName("setTarget:"), _target);
             objc_msgSend(_menu, sel_registerName("addItem:"), item);
@@ -557,6 +657,7 @@ public class TrayService : IDisposable
             IntPtr sep = objc_msgSend(objc_getClass("NSMenuItem"), sel_registerName("separatorItem"));
             objc_msgSend(_menu, sel_registerName("addItem:"), sep);
         }
+
         public void Dispose()
         {
             if (_statusItem != IntPtr.Zero)
