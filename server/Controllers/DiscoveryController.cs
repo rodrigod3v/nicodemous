@@ -40,7 +40,6 @@ public class DiscoveryController : ControllerBase
         return NotFound("Device not found or offline.");
     }
 
-    [Authorize]
     [HttpGet("list")]
     public IActionResult List()
     {

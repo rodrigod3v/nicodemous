@@ -15,6 +15,7 @@ public class DiscoveryService
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
     private CancellationTokenSource? _broadcastCts;
+    public string SignalingServerUrl { get; set; } = "http://localhost:5219";
 
     public event Action<List<DiscoveredDevice>>? OnDeviceDiscovered;
 
@@ -41,6 +42,8 @@ public class DiscoveryService
 
         Task.Run(() => RunBroadcaster(_broadcastCts.Token));
         Task.Run(RunListener);
+        Task.Run(() => RunRemoteRegistrar(_broadcastCts.Token));
+        Task.Run(() => RunRemoteFetcher(_broadcastCts.Token));
     }
 
     public void BroadcastNow()
@@ -165,6 +168,104 @@ public class DiscoveryService
         lock (_discoveredDevices)
         {
             _discoveredDevices.Clear();
+        }
+    }
+
+    private async Task RunRemoteFetcher(CancellationToken token)
+    {
+        using var client = new HttpClient();
+        while (_isRunning && !token.IsCancellationRequested)
+        {
+            try
+            {
+                string url = $"{SignalingServerUrl.TrimEnd('/')}/api/discovery/list";
+                var response = await client.GetAsync(url, token);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    var remoteDevices = JsonSerializer.Deserialize<List<DiscoveredDevice>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    
+                    if (remoteDevices != null)
+                    {
+                        bool listChanged = false;
+                        lock (_discoveredDevices)
+                        {
+                            foreach (var device in remoteDevices)
+                            {
+                                // Don't add ourselves if we are in the list (though pairing code check handles this)
+                                if (device.Code == _pairingCode) continue;
+
+                                string normalizedIp = device.Ip.Trim();
+                                var existing = _discoveredDevices.FirstOrDefault(d => d.Ip.Trim().Equals(normalizedIp, StringComparison.OrdinalIgnoreCase));
+                                
+                                if (existing == null)
+                                {
+                                    _discoveredDevices.Add(device);
+                                    listChanged = true;
+                                }
+                                else if (!existing.Code.Equals(device.Code, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    existing.Code = device.Code;
+                                    existing.Name = device.Name;
+                                    listChanged = true;
+                                }
+                            }
+                        }
+
+                        if (listChanged)
+                        {
+                            OnDeviceDiscovered?.Invoke(GetDiscoveredDevices());
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DISCOVERY] Remote Fetcher Error: {ex.Message}");
+            }
+
+            await Task.Delay(10000, token); // Fetch every 10s
+        }
+    }
+
+    private async Task RunRemoteRegistrar(CancellationToken token)
+    {
+        using var client = new HttpClient();
+        while (_isRunning && !token.IsCancellationRequested)
+        {
+            try
+            {
+                var payload = new 
+                { 
+                    name = _deviceName, 
+                    ip = GetLocalIPAddress(), 
+                    code = _pairingCode 
+                };
+                
+                var content = new StringContent(
+                    JsonSerializer.Serialize(payload), 
+                    Encoding.UTF8, 
+                    "application/json");
+
+                string url = $"{SignalingServerUrl.TrimEnd('/')}/api/discovery/register";
+                var response = await client.PostAsync(url, content, token);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"[DISCOVERY] Registered with signaling server at {url}");
+                }
+                else
+                {
+                    Console.WriteLine($"[DISCOVERY] Registration failed: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DISCOVERY] Remote Registrar Error: {ex.Message}");
+            }
+
+            await Task.Delay(30000, token); // Register every 30s
         }
     }
 

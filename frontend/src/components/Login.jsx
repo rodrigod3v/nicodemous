@@ -9,9 +9,7 @@ const Login = ({ onLogin, backendIp }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [serverLocation, setServerLocation] = useState(
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'local' : 'remote'
-    );
+    const [serverLocation, setServerLocation] = useState('remote');
 
     const handleSubmit = async (e) => {
         e.preventDefault();

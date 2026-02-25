@@ -39,6 +39,7 @@ public class UniversalControlManager : IDisposable
         _audioService        = new AudioService(HandleAudioCaptured);
         _audioReceiveService = new AudioReceiveService();
         _discoveryService    = new DiscoveryService(Environment.MachineName);
+        _discoveryService.SignalingServerUrl = _settingsService.GetSettings().SignalingServerUrl;
 
         // Apply initial settings
         ApplySettings();
