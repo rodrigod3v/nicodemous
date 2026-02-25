@@ -10,10 +10,6 @@
     <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
   </PropertyGroup>
 
-  <!-- Mac: usa Info.plist customizado com LSUIElement=true para nunca aparecer no Dock -->
-  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
-    <CFBundleInfoPlistFile>Info.plist</CFBundleInfoPlistFile>
-  </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
     <UseWindowsForms>true</UseWindowsForms>
@@ -43,11 +39,5 @@
     </None>
   </ItemGroup>
 
-  <!-- Mac: copia o Info.plist customizado para o output -->
-  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
-    <None Update="Info.plist">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
 
 </Project>

@@ -145,10 +145,8 @@ public class TrayService : IDisposable
 #else
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            // LSUIElement no Info.plist já garante que não aparece no Dock ao iniciar.
-            // Esta chamada é um reforço via código para garantir em todos os cenários.
+            // Oculta o ícone do Dock dinamicamente
             SetMacActivationPolicy(1); // 1 = NSApplicationActivationPolicyAccessory
-
             _macTray = new MacTrayManager(this);
         }
 #endif
