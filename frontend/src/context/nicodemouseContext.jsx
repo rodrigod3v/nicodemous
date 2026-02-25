@@ -72,6 +72,12 @@ export const NicodemouseProvider = ({ children }) => {
                 case 'settings_data':
                     setSettings(typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings);
                     break;
+                case 'discovery_result':
+                    setDiscoveredDevices(data.devices || []);
+                    break;
+                case 'local_ip':
+                    setLocalIp(data.detail);
+                    break;
                 default:
                     console.log('[FRONTEND] Unhandled message type:', data.type);
             }

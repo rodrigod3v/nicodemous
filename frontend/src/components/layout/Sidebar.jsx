@@ -2,7 +2,7 @@ import React from 'react';
 import TabButton from '../TabButton';
 import { usenicodemouse } from '../../context/nicodemouseContext';
 
-const Sidebar = ({ activeTab, onTabChange }) => {
+const Sidebar = ({ activeTab, onTabChange, onLogout }) => {
     const { connectionStatus, localIp, sessionRole } = usenicodemouse();
 
     return (
@@ -16,11 +16,23 @@ const Sidebar = ({ activeTab, onTabChange }) => {
             flexShrink: 0,
             overflow: 'hidden'
         }}>
-            <div className="brand animate-fade" style={{ fontSize: '26px', fontWeight: '800', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <img src="/logo.png" alt="nicodemouse Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <div className="brand animate-fade" style={{
+                marginBottom: '40px',
+                display: 'flex',
+                justifyContent: 'center',
+                width: '100%'
+            }}>
+                <div style={{
+                    width: '120px',
+                    height: '120px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    filter: 'drop-shadow(0 0 20px var(--accent-primary))'
+                }}>
+                    <img src="/logo.svg" alt="nicodemous Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
-                <span className="gradient-text sidebar-label">nicodemouse</span>
             </div>
 
             <TabButton active={activeTab === 'overview'} onClick={() => onTabChange('overview')} label="Overview" icon="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -44,6 +56,25 @@ const Sidebar = ({ activeTab, onTabChange }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>PIN</span><span style={{ color: 'var(--accent-primary)', fontWeight: 'bold' }}>{localIp?.code || '......'}</span></div>
                 </div>
             </div>
+
+            <button
+                onClick={onLogout}
+                className="glass-btn-small"
+                style={{
+                    marginTop: '10px',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '12px',
+                    color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.1)'
+                }}
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                Logout
+            </button>
         </div>
     );
 };

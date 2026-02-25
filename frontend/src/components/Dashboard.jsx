@@ -6,7 +6,7 @@ import ControlTab from './tabs/ControlTab';
 import SettingsTab from './tabs/SettingsTab';
 import { usenicodemouse } from '../context/nicodemouseContext';
 
-const Dashboard = () => {
+const Dashboard = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('overview');
     const { connectionStatus, sendMessage, sessionRole } = usenicodemouse();
     const [isScanning, setIsScanning] = useState(false);
@@ -50,7 +50,7 @@ const Dashboard = () => {
 
     return (
         <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
-            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} onLogout={onLogout} />
 
             <main style={{ flexGrow: 1, padding: 'var(--content-padding)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '30px', transition: 'padding 0.3s ease' }}>
                 <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

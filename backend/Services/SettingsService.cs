@@ -17,7 +17,7 @@ public class AppSettings
     public bool EnableAudio { get; set; } = false;
     public bool EnableClipboard { get; set; } = true;
     public string ActiveMonitor { get; set; } = "";
-    public string SignalingServerUrl { get; set; } = "http://144.22.254.132:8080"; // Default to the VM IP
+    public string SignalingServerUrl { get; set; } = "http://144.22.254.132:8080";
 }
 
 public class SettingsService

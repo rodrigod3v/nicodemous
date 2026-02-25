@@ -5,9 +5,9 @@
   --glass-bg: rgba(255, 255, 255, 0.04);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur: blur(12px);
-  --accent-primary: #6366f1;
-  --accent-secondary: #a855f7;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  --accent-primary: #8b5cf6;
+  --accent-secondary: #d946ef;
+  --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
   --text-main: #f8fafc;
   --text-dim: #94a3b8;
   --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
@@ -187,6 +187,8 @@ button {
   .brand {
     justify-content: center;
     margin-right: 0 !important;
+    transform: scale(0.65);
+    margin-bottom: 10px !important;
   }
 }
 

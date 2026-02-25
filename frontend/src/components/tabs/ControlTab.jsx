@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { usenicodemouse } from '../../context/nicodemouseContext';
 import Switch from '../Switch';
+import './ControlTab.css';
 
 const ControlTab = () => {
     const {
@@ -57,8 +58,8 @@ const ControlTab = () => {
 
     if (!connectionStatus.includes('Connected')) {
         return (
-            <div className="glass animate-fade" style={{ padding: '80px 40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-                <div style={{ width: '80px', height: '80px', borderRadius: '30px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="glass animate-fade no-session-wrapper">
+                <div className="no-session-icon-box">
                     <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
@@ -77,73 +78,61 @@ const ControlTab = () => {
     ];
 
     return (
-        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className="animate-fade control-tab-container">
             {/* Control Center Header */}
-            <div className="glass" style={{ padding: '30px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'radial-gradient(circle, var(--accent-primary) 0%, transparent 70%)', opacity: '0.05', pointerEvents: 'none' }}></div>
+            <div className="glass control-header">
+                <div className="header-accent-glow"></div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '25px', flexWrap: 'wrap' }}>
-                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                            <div className="glow-button" style={{ width: '70px', height: '70px', borderRadius: '24px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="header-content">
+                    <div className="device-info-wrapper">
+                        <div className="device-icon-container">
+                            <div className="device-icon-box">
                                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                             </div>
-                            <div style={{ position: 'absolute', bottom: '-5px', right: '-5px', width: '24px', height: '24px', borderRadius: '50%', background: '#1e1e2e', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid rgba(255,255,255,0.1)' }}>
-                                <div className="status-pulse" style={{ width: '10px', height: '10px', backgroundColor: '#22c55e' }}></div>
+                            <div className="device-status-badge">
+                                <div className="status-pulse device-status-dot"></div>
                             </div>
                         </div>
-                        <div style={{ minWidth: '200px' }}>
-                            <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.2em' }}>
+                        <div className="device-details">
+                            <span className="session-role-label">
                                 {sessionRole === 'controlling' ? 'CONTROLLING SESSION' : 'EXTERNAL ACCESS'}
                             </span>
-                            <h1 style={{ margin: '5px 0 0 0', fontSize: '28px', fontWeight: '800', letterSpacing: '-0.02em', wordBreak: 'break-word' }}>{connectedDevice?.name || 'Remote Host'}</h1>
+                            <h1 className="device-name">{connectedDevice?.name || 'Remote Host'}</h1>
                         </div>
                     </div>
-                    <button onClick={() => toggleService('disconnect', true)} className="glass-btn" style={{ background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px 24px', borderRadius: '14px', fontSize: '13px', fontWeight: '800', transition: 'all 0.2s ease', whiteSpace: 'nowrap' }}>
+                    <button onClick={() => toggleService('disconnect', true)} className="disconnect-btn">
                         {sessionRole === 'controlling' ? 'CLOSE SESSION' : 'STOP SHARING'}
                     </button>
                 </div>
             </div>
 
             {/* Service Intelligence Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+            <div className="service-grid">
                 {services.map(slot => (
                     <div
                         key={slot.id}
                         onClick={() => !slot.disabled && toggleService(slot.id, !slot.enabled)}
-                        className={`glass animate-fade ${slot.disabled ? '' : 'glow-on-hover'}`}
+                        className={`glass animate-fade service-card ${slot.disabled ? '' : 'glow-on-hover'}`}
                         style={{
-                            padding: '24px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '18px',
                             opacity: slot.disabled ? 0.4 : 1,
                             cursor: slot.disabled ? 'default' : 'pointer',
                             background: !slot.disabled && slot.enabled ? `linear-gradient(135deg, rgba(255,255,255,0.03) 0%, ${slot.color}08 100%)` : 'rgba(255,255,255,0.02)',
-                            border: !slot.disabled && slot.enabled ? `1px solid ${slot.color}33` : '1px solid rgba(255,255,255,0.05)',
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                            border: !slot.disabled && slot.enabled ? `1px solid ${slot.color}33` : '1px solid rgba(255,255,255,0.05)'
                         }}
                     >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{
-                                width: '44px',
-                                height: '44px',
-                                borderRadius: '12px',
+                        <div className="service-card-header">
+                            <div className="service-icon-box" style={{
                                 background: !slot.disabled && slot.enabled ? `${slot.color}15` : 'rgba(255,255,255,0.03)',
-                                color: !slot.disabled && slot.enabled ? slot.color : 'var(--text-dim)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'all 0.3s ease'
+                                color: !slot.disabled && slot.enabled ? slot.color : 'var(--text-dim)'
                             }}>
                                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d={slot.icon} /></svg>
                             </div>
                             {!slot.disabled && <Switch checked={slot.enabled} pointerEvents="none" />}
-                            {slot.disabled && <span style={{ fontSize: '10px', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.08)', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold' }}>TBD</span>}
+                            {slot.disabled && <span className="tbd-badge">TBD</span>}
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{ fontSize: '15px', fontWeight: '800' }}>{slot.label}</span>
-                            <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '500' }}>
+                        <div className="service-info">
+                            <span className="service-label">{slot.label}</span>
+                            <span className="service-status-text">
                                 {!slot.disabled && slot.enabled ? 'Enabled' : (slot.disabled ? 'Coming Soon' : 'Inactive')}
                             </span>
                         </div>
@@ -152,29 +141,23 @@ const ControlTab = () => {
             </div>
 
             {sessionRole === 'controlling' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '25px' }}>
+                <div className="settings-grid">
                     {/* Monitor Crossing Setup */}
-                    <div className="glass" style={{ padding: '35px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="glass settings-card">
+                        <div className="header-content">
+                            <h2 className="settings-card-title">
                                 <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
                                 Setup Spatial
                             </h2>
-                            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div className="spatial-toggle-group">
                                 {['Left', 'Right'].map(edge => (
                                     <button
                                         key={edge}
                                         onClick={() => handleConfigChange('borderSide', edge)}
+                                        className="spatial-toggle-btn"
                                         style={{
-                                            padding: '8px 20px',
-                                            borderRadius: '8px',
-                                            fontSize: '12px',
-                                            fontWeight: '800',
                                             background: settings?.ActiveEdge === edge ? 'var(--accent-primary)' : 'transparent',
-                                            color: settings?.ActiveEdge === edge ? 'white' : 'var(--text-dim)',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s ease'
+                                            color: settings?.ActiveEdge === edge ? 'white' : 'var(--text-dim)'
                                         }}
                                     >
                                         {edge.toUpperCase()}
@@ -183,41 +166,28 @@ const ControlTab = () => {
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
-                            <div className="glass" style={{ width: '200px', height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', border: '2px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
-                                <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>YOU</span>
-                                <span style={{ fontSize: '13px', fontWeight: '700', padding: '0 15px', textAlign: 'center', opacity: 0.8 }}>{systemInfo.machineName}</span>
-                                <div style={{
-                                    position: 'absolute',
-                                    right: settings?.ActiveEdge === 'Right' ? '-2px' : 'auto',
-                                    left: settings?.ActiveEdge === 'Left' ? '-2px' : 'auto',
-                                    width: '4px',
-                                    height: '80%',
-                                    background: 'var(--accent-primary)',
-                                    borderRadius: '50px',
-                                    boxShadow: '0 0 15px var(--accent-primary)'
-                                }} />
+                        <div className="monitor-visualization-container">
+                            <div className="glass monitor-box">
+                                <span className="monitor-label-top">YOU</span>
+                                <span className="monitor-label-main">{systemInfo.machineName}</span>
+                                <div
+                                    className="active-edge-indicator"
+                                    style={{
+                                        right: settings?.ActiveEdge === 'Right' ? '-2px' : 'auto',
+                                        left: settings?.ActiveEdge === 'Left' ? '-2px' : 'auto'
+                                    }}
+                                />
                             </div>
-                            <div style={{ color: 'var(--accent-primary)', fontSize: '24px', fontWeight: 'bold' }}>→</div>
-                            <div className="glass" style={{
-                                width: '200px',
-                                height: '120px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                border: '2px solid var(--accent-primary)',
-                                background: 'rgba(99, 102, 241, 0.05)',
-                                color: 'var(--accent-primary)'
-                            }}>
-                                <span style={{ fontSize: '10px', fontWeight: '800', textTransform: 'uppercase', marginBottom: '4px' }}>REMOTE</span>
-                                <span style={{ fontSize: '14px', fontWeight: '800', padding: '0 15px', textAlign: 'center' }}>{connectedDevice?.name}</span>
+                            <div className="crossing-arrow">→</div>
+                            <div className="glass monitor-box remote">
+                                <span className="monitor-label-top">REMOTE</span>
+                                <span className="monitor-label-main">{connectedDevice?.name}</span>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <span style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '700' }}>Active Monitor</span>
-                            <div style={{ position: 'relative' }}>
+                        <div className="form-group">
+                            <span className="form-label">Active Monitor</span>
+                            <div className="select-wrapper">
                                 <select
                                     className="glass-input"
                                     value={settings?.ActiveMonitor || ''}
@@ -238,7 +208,7 @@ const ControlTab = () => {
                                         <option key={i} value={m.name} style={{ background: '#1e1e2e', color: 'white' }}>{m.name} {m.isPrimary ? '(Primary Monitor)' : ''}</option>
                                     ))}
                                 </select>
-                                <div style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--accent-primary)' }}>
+                                <div className="select-icon">
                                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                             </div>
@@ -246,56 +216,50 @@ const ControlTab = () => {
                     </div>
 
                     {/* Session Intelligence */}
-                    <div className="glass" style={{ padding: '35px', display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                        <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="glass settings-card">
+                        <h2 className="settings-card-title">
                             <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                             Intelligence
                         </h2>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                        <div className="intelligence-stack">
                             {/* Sensitivity */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '700' }}>Mouse Sensitivity</span>
-                                    <span style={{ fontSize: '14px', color: 'var(--accent-primary)', fontWeight: '800' }}>{Math.round((settings?.MouseSensitivity || 1.0) * 100)}%</span>
+                            <div className="slider-group">
+                                <div className="slider-header">
+                                    <span className="slider-label">Mouse Sensitivity</span>
+                                    <span className="slider-value">{Math.round((settings?.MouseSensitivity || 1.0) * 100)}%</span>
                                 </div>
-                                <input type="range" min="0.1" max="3.0" step="0.1" value={settings?.MouseSensitivity || 1.0} onChange={(e) => handleConfigChange('sensitivity', e.target.value)} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
+                                <input type="range" min="0.1" max="3.0" step="0.1" value={settings?.MouseSensitivity || 1.0} onChange={(e) => handleConfigChange('sensitivity', e.target.value)} className="slider-input" />
                             </div>
 
                             {/* Return Force */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '700' }}>Snap-back Force</span>
-                                    <span style={{ fontSize: '14px', color: 'var(--accent-primary)', fontWeight: '800' }}>{settings?.GestureThreshold || 1000}px</span>
+                            <div className="slider-group">
+                                <div className="slider-header">
+                                    <span className="slider-label">Snap-back Force</span>
+                                    <span className="slider-value">{settings?.GestureThreshold || 1000}px</span>
                                 </div>
-                                <input type="range" min="500" max="5000" step="100" value={settings?.GestureThreshold || 1000} onChange={(e) => handleConfigChange('gestureThreshold', e.target.value)} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
+                                <input type="range" min="500" max="5000" step="100" value={settings?.GestureThreshold || 1000} onChange={(e) => handleConfigChange('gestureThreshold', e.target.value)} className="slider-input" />
                             </div>
 
                             {/* Switching Latency */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '14px', color: 'var(--text-dim)', fontWeight: '700' }}>Auto-Switch Delay</span>
-                                    <span style={{ fontSize: '14px', color: 'var(--accent-primary)', fontWeight: '800' }}>{settings?.SwitchingDelayMs || 150}ms</span>
+                            <div className="slider-group">
+                                <div className="slider-header">
+                                    <span className="slider-label">Auto-Switch Delay</span>
+                                    <span className="slider-value">{settings?.SwitchingDelayMs || 150}ms</span>
                                 </div>
-                                <input type="range" min="0" max="1000" step="50" value={settings?.SwitchingDelayMs || 150} onChange={(e) => handleConfigChange('delay', e.target.value)} style={{ width: '100%', accentColor: 'var(--accent-primary)' }} />
+                                <input type="range" min="0" max="1000" step="50" value={settings?.SwitchingDelayMs || 150} onChange={(e) => handleConfigChange('delay', e.target.value)} className="slider-input" />
                             </div>
 
                             {/* Input Locking Toggle */}
                             <div
                                 onClick={() => handleConfigChange('lockInput', !settings?.LockInput)}
-                                className="glass glow-on-hover"
+                                className={`glass glow-on-hover lock-input-toggle`}
                                 style={{
-                                    padding: '18px 20px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
                                     background: settings?.LockInput ? 'rgba(99, 102, 241, 0.08)' : 'rgba(255,255,255,0.02)',
-                                    border: settings?.LockInput ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(255,255,255,0.05)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease'
+                                    border: settings?.LockInput ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid rgba(255,255,255,0.05)'
                                 }}
                             >
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <div className="service-info">
                                     <span style={{ fontSize: '14px', fontWeight: '800', color: settings?.LockInput ? 'white' : 'var(--text-dim)' }}>Lock Local Input</span>
                                     <span style={{ fontSize: '11px', color: 'var(--text-dim)', opacity: 0.7 }}>Prevents accidental movement when remote.</span>
                                 </div>
@@ -305,7 +269,7 @@ const ControlTab = () => {
                     </div>
                 </div>
             ) : (
-                <div className="glass" style={{ padding: '40px', textAlign: 'center', border: '2px dashed rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)' }}>
+                <div className="glass managed-session-banner">
                     <div style={{ width: '50px', height: '50px', background: 'rgba(255,255,255,0.03)', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px auto', color: 'var(--accent-primary)' }}>
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                     </div>

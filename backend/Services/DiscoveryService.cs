@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Linq;
-using System.Net.Http;
 
 namespace nicodemouse.Backend.Services;
 
@@ -13,25 +13,26 @@ public class DiscoveryService
     private const string MulticastGroup = "239.0.0.1";
     private readonly string _deviceName;
     private string _pairingCode;
-    private string? _signalingServerUrl;
     private readonly List<DiscoveredDevice> _discoveredDevices = new();
     private bool _isRunning = false;
     private CancellationTokenSource? _broadcastCts;
-    private readonly HttpClient _httpClient = new();
+    private readonly HttpClient _httpClient;
 
     public event Action<List<DiscoveredDevice>>? OnDeviceDiscovered;
 
     public string PairingCode => _pairingCode;
+    public string SignalingServerUrl { get; set; } = "http://144.22.254.132:8080";
 
     public DiscoveryService(string deviceName)
     {
         _deviceName = deviceName;
         _pairingCode = GeneratePairingCode();
+        _httpClient = new HttpClient();
     }
 
     private string GeneratePairingCode()
     {
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed ambiguous O, 0, I, 1
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; 
         var random = new Random();
         return new string(Enumerable.Repeat(chars, 6).Select(s => s[random.Next(s.Length)]).ToArray());
     }
@@ -45,25 +46,29 @@ public class DiscoveryService
         Task.Run(() => RunBroadcaster(_broadcastCts.Token));
         Task.Run(RunListener);
         
-        if (!string.IsNullOrEmpty(_signalingServerUrl))
+        // Use the setting URL
+
+        if (!string.IsNullOrEmpty(SignalingServerUrl))
         {
-            Task.Run(() => RunCloudHeartbeat(_broadcastCts.Token));
+            Task.Run(() => RunRemoteRegistrar(_broadcastCts.Token));
+            Task.Run(() => RunRemoteFetcher(_broadcastCts.Token));
         }
     }
 
-    public void SetSignalingServerUrl(string url)
+    public void UpdateSignalingServerUrl(string url)
     {
-        _signalingServerUrl = url;
-        if (_isRunning && !string.IsNullOrEmpty(_signalingServerUrl))
-        {
-             // Trigger heartbeat immediately if already running
-             Task.Run(() => RunCloudHeartbeat(_broadcastCts?.Token ?? default));
-        }
+        SignalingServerUrl = url;
+        // Optionally trigger immediate fetch/register here if needed
     }
 
     public void BroadcastNow()
     {
         _broadcastCts?.Cancel();
+    }
+
+    public void TriggerRemoteFetch()
+    {
+        _broadcastCts?.Cancel(); 
     }
 
     public void Stop()
@@ -75,7 +80,7 @@ public class DiscoveryService
     public void UpdatePairingCode(string newCode)
     {
         _pairingCode = newCode;
-        BroadcastNow(); // Refresh immediately
+        BroadcastNow();
     }
 
     private async Task RunBroadcaster(CancellationToken token)
@@ -95,20 +100,17 @@ public class DiscoveryService
                 byte[] data = Encoding.UTF8.GetBytes(packet);
 
                 await client.SendAsync(data, data.Length, endPoint);
-                
-                // Wait 5s or until broadcast is manually triggered
                 await Task.Delay(5000, token);
             }
             catch (TaskCanceledException)
             {
-                // Reset CTS for next manual trigger
                 _broadcastCts = new CancellationTokenSource();
                 token = _broadcastCts.Token;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Broadcast Error: {ex.Message}");
-                await Task.Delay(1000); // Backoff
+                await Task.Delay(1000);
             }
         }
     }
@@ -145,7 +147,6 @@ public class DiscoveryService
                         else if (!existing.Code.Equals(device.Code, StringComparison.OrdinalIgnoreCase) || 
                                  !existing.Name.Equals(device.Name, StringComparison.OrdinalIgnoreCase))
                         {
-                            Console.WriteLine($"[DISCOVERY] Updating device info for {normalizedIp}: {existing.Code} -> {device.Code}");
                             existing.Code = device.Code;
                             existing.Name = device.Name;
                             listChanged = true;
@@ -162,46 +163,16 @@ public class DiscoveryService
         }
     }
 
-    private async Task RunCloudHeartbeat(CancellationToken token)
-    {
-        while (_isRunning && !string.IsNullOrEmpty(_signalingServerUrl))
-        {
-            try
-            {
-                var device = new { 
-                    name = _deviceName, 
-                    code = _pairingCode, 
-                    ip = GetLocalIPAddress() 
-                };
-                var content = new StringContent(JsonSerializer.Serialize(device), Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync($"{_signalingServerUrl}/api/discovery/register", content, token);
-                
-                if (response.IsSuccessStatusCode)
-                    Console.WriteLine("[DISCOVERY] Cloud heartbeat sent successfully.");
-                else
-                    Console.WriteLine($"[DISCOVERY] Cloud heartbeat error: {response.StatusCode}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DISCOVERY] Cloud heartbeat exception: {ex.Message}");
-            }
-            
-            try { await Task.Delay(30000, token); } catch { break; } // Every 30s
-        }
-    }
-
     public async Task<string?> ResolveCodeAsync(string code)
     {
-        // 1. Check local cache
         var localIp = GetIpByCode(code);
         if (localIp != null) return localIp;
 
-        // 2. Query signaling server
-        if (string.IsNullOrEmpty(_signalingServerUrl)) return null;
+        if (string.IsNullOrEmpty(SignalingServerUrl)) return null;
 
         try
         {
-            var response = await _httpClient.GetAsync($"{_signalingServerUrl}/api/discovery/resolve/{code}");
+            var response = await _httpClient.GetAsync($"{SignalingServerUrl.TrimEnd('/')}/api/discovery/resolve/{code}");
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
@@ -241,6 +212,107 @@ public class DiscoveryService
         }
     }
 
+    private async Task RunRemoteFetcher(CancellationToken token)
+    {
+        while (_isRunning && !token.IsCancellationRequested)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(SignalingServerUrl)) {
+                    await Task.Delay(5000, token);
+                    continue;
+                }
+
+                string url = $"{SignalingServerUrl.TrimEnd('/')}/api/discovery/list";
+                var response = await this._httpClient.GetAsync(url, token);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    var remoteDevices = JsonSerializer.Deserialize<List<DiscoveredDevice>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    
+                    if (remoteDevices != null)
+                    {
+                        bool listChanged = false;
+                        lock (_discoveredDevices)
+                        {
+                            foreach (var device in remoteDevices)
+                            {
+                                if (device.Code == _pairingCode) continue;
+
+                                string normalizedIp = device.Ip.Trim();
+                                var existing = _discoveredDevices.FirstOrDefault(d => d.Ip.Trim().Equals(normalizedIp, StringComparison.OrdinalIgnoreCase));
+                                
+                                if (existing == null)
+                                {
+                                    _discoveredDevices.Add(device);
+                                    listChanged = true;
+                                }
+                                else if (!existing.Code.Equals(device.Code, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    existing.Code = device.Code;
+                                    existing.Name = device.Name;
+                                    listChanged = true;
+                                }
+                            }
+                        }
+
+                        if (listChanged)
+                        {
+                            OnDeviceDiscovered?.Invoke(GetDiscoveredDevices());
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DISCOVERY] Remote Fetcher Error: {ex.Message}");
+            }
+
+            await Task.Delay(10000, token);
+        }
+    }
+
+    private async Task RunRemoteRegistrar(CancellationToken token)
+    {
+        while (_isRunning && !token.IsCancellationRequested)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(SignalingServerUrl)) {
+                    await Task.Delay(5000, token);
+                    continue;
+                }
+
+                var payload = new 
+                { 
+                    name = _deviceName, 
+                    ip = GetLocalIPAddress(), 
+                    code = _pairingCode 
+                };
+                
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                string url = $"{SignalingServerUrl.TrimEnd('/')}/api/discovery/register";
+                var response = await _httpClient.PostAsync(url, content, token);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    // Silent success for registrar to avoid log spam
+                }
+                else
+                {
+                    Console.WriteLine($"[DISCOVERY] Registration failed: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DISCOVERY] Remote Registrar Error: {ex.Message}");
+            }
+
+            await Task.Delay(15000, token);
+        }
+    }
+
     private string GetLocalIPAddress()
     {
         try
@@ -248,32 +320,23 @@ public class DiscoveryService
             var interfaces = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
             foreach (var ni in interfaces)
             {
-                // Skip virtual, loopback and non-up interfaces
                 if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
                 if (ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
                 if (ni.Description.Contains("Virtual", StringComparison.OrdinalIgnoreCase)) continue;
-                if (ni.Description.Contains("Pseudo", StringComparison.OrdinalIgnoreCase)) continue;
-
+                
                 var props = ni.GetIPProperties();
                 foreach (var addr in props.UnicastAddresses)
                 {
                     if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
                     {
                         string ip = addr.Address.ToString();
-                        if (!string.IsNullOrEmpty(ip) && ip != "127.0.0.1")
-                        {
-                            return ip;
-                        }
+                        if (!string.IsNullOrEmpty(ip) && ip != "127.0.0.1") return ip;
                     }
                 }
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[DISCOVERY] IP Detection Error: {ex.Message}");
-        }
+        catch { }
 
-        // Final fallback
         try 
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());

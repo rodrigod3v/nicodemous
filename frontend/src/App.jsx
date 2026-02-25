@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
-import { NicodemouseProvider } from './context/nicodemouseContext';
+import Login from './components/Login';
+import { NicodemouseProvider, usenicodemouse } from './context/nicodemouseContext';
 import './App.css';
 
 console.log('[FRONTEND] App.jsx module loading...');
@@ -31,16 +32,35 @@ class SimpleErrorBoundary extends React.Component {
 
 function App() {
   console.log('[FRONTEND] App component initializing...');
+  const [authToken, setAuthToken] = useState(localStorage.getItem('nicodemouse_token'));
+
+  const handleLogin = (token) => {
+    setAuthToken(token);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('nicodemouse_token');
+    setAuthToken(null);
+  };
 
   return (
     <div className="app">
       <SimpleErrorBoundary>
         <NicodemouseProvider>
-          <Dashboard />
+          {!authToken ? (
+            <LoginWithContext onLogin={handleLogin} />
+          ) : (
+            <Dashboard onLogout={handleLogout} />
+          )}
         </NicodemouseProvider>
       </SimpleErrorBoundary>
     </div>
   );
 }
 
+// Wrapper to consume context inside the same file if needed, or just let Login handle its own context
+const LoginWithContext = ({ onLogin }) => {
+  const { localIp } = usenicodemouse();
+  return <Login onLogin={onLogin} backendIp={localIp?.ip} />;
+};
 export default App;
