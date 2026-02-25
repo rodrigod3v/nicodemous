@@ -29,8 +29,16 @@ class Program
             .SetUseOsDefaultSize(false)
             .SetSize(1280, 850)
             .Center()
-            .SetResizable(true)
-            .SetIconFile(Path.GetFullPath("../frontend/public/favicon.ico"));
+            .SetResizable(true);
+        string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "app_icon.ico");
+        if (File.Exists(iconPath))
+        {
+            window.SetIconFile(iconPath);
+        }
+        else
+        {
+            Console.WriteLine($"[ERROR] Application icon not found at: {iconPath}");
+        }
 
         // Initialize Central Manager
         var settings = new SettingsService();
