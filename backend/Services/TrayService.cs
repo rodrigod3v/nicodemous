@@ -156,10 +156,22 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
-                IntPtr nsWindow = _window.WindowHandle;
-                objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
-                // Also ensure it's not minimized
-                _window.SetMinimized(false);
+                try {
+                    // Update activation policy to show in Dock
+                    IntPtr nsAppCls = objc_getClass("NSApplication");
+                    IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (IntPtr)0); // NSApplicationActivationPolicyRegular
+
+                    IntPtr nsWindow = _window.WindowHandle;
+                    objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
+                    
+                    // Activate app to bring to front
+                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), 1);
+
+                    _window.SetMinimized(false);
+                } catch (Exception ex) {
+                    Console.WriteLine($"[MACTRAY] Error in ShowWindow: {ex}");
+                }
             });
         }
     }
@@ -179,8 +191,17 @@ public class TrayService : IDisposable
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             _window.Invoke(() => {
-                IntPtr nsWindow = _window.WindowHandle;
-                objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
+                try {
+                    IntPtr nsWindow = _window.WindowHandle;
+                    objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
+
+                    // Update activation policy to hide from Dock
+                    IntPtr nsAppCls = objc_getClass("NSApplication");
+                    IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (IntPtr)1); // NSApplicationActivationPolicyAccessory
+                } catch (Exception ex) {
+                    Console.WriteLine($"[MACTRAY] Error in HideWindow: {ex}");
+                }
             });
         }
     }
@@ -311,9 +332,15 @@ public class TrayService : IDisposable
         public MacTrayManager(TrayService parent)
         {
             _parent = parent;
-            _onShow = (self, cmd, sender) => _parent.ShowWindow();
-            _onExit = (self, cmd, sender) => _parent.ExitApplication();
-            _onDisconnect = (self, cmd, sender) => _parent.Disconnect();
+            _onShow = (self, cmd, sender) => {
+                try { parent.ShowWindow(); } catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Show): {ex}"); }
+            };
+            _onExit = (self, cmd, sender) => {
+                try { parent.ExitApplication(); } catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Exit): {ex}"); }
+            };
+            _onDisconnect = (self, cmd, sender) => {
+                try { parent.Disconnect(); } catch (Exception ex) { Console.WriteLine($"[MACTRAY] Callback Error (Disconnect): {ex}"); }
+            };
 
             try {
                 InitializeTray();
