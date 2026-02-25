@@ -9,7 +9,9 @@ const Login = ({ onLogin, backendIp }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [serverLocation, setServerLocation] = useState('remote');
+
+    // Exclusive production signaling server (VM)
+    const SIGNALING_BASE = 'http://144.22.254.132:8080';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -17,53 +19,38 @@ const Login = ({ onLogin, backendIp }) => {
         setLoading(true);
 
         const endpoint = isSetupMode ? '/api/auth/signup' : '/api/auth/login';
+        const url = `${SIGNALING_BASE}${endpoint}`;
 
-        // Determine points of contact
-        const basesToTry = serverLocation === 'local'
-            ? [
-                'http://localhost:5219',
-                'http://127.0.0.1:5219',
-                ...(backendIp ? [`http://${backendIp}:5219`] : [])
-            ]
-            : [
-                'http://144.22.254.132:8080',
-                'http://localhost:8080' // Just in case it's port-forwarded
-            ];
+        try {
+            console.log(`[AUTH] Attempting ${endpoint} at ${SIGNALING_BASE}`);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+                signal: AbortSignal.timeout(10000)
+            });
 
-        let lastErr = 'Server is unreachable.';
-        for (const base of basesToTry) {
-            try {
-                console.log(`[AUTH] Attempting ${endpoint} at ${base}`);
-                const response = await fetch(`${base}${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password }),
-                    signal: AbortSignal.timeout(10000) // Increase to 10s for slower connections
-                });
-
-                if (response.ok) {
-                    if (isSetupMode) {
-                        alert('System initialized! Please login.');
-                        setIsSetupMode(false);
-                        setPassword('');
-                    } else {
-                        const data = await response.json();
-                        localStorage.setItem('nicodemouse_token', data.token);
-                        onLogin(data.token);
-                    }
-                    setLoading(false);
-                    return; // Success!
+            if (response.ok) {
+                if (isSetupMode) {
+                    alert('System initialized! Please login.');
+                    setIsSetupMode(false);
+                    setPassword('');
                 } else {
-                    const text = await response.text();
-                    lastErr = text || 'Action failed.';
+                    const data = await response.json();
+                    localStorage.setItem('nicodemouse_token', data.token);
+                    onLogin(data.token);
                 }
-            } catch (err) {
-                console.error(`[AUTH] Failed to connect to ${base}:`, err);
-                lastErr = `Could not connect to ${base}. Check if Signaling Server is running.`;
+                setLoading(false);
+                return;
+            } else {
+                const text = await response.text();
+                setError(text || 'Action failed.');
             }
+        } catch (err) {
+            console.error(`[AUTH] Failed to connect to ${SIGNALING_BASE}:`, err);
+            setError(`Could not connect to VM Signaling Server. Check your internet connection or firewall.`);
         }
 
-        setError(lastErr);
         setLoading(false);
     };
 
@@ -139,25 +126,6 @@ const Login = ({ onLogin, backendIp }) => {
                 </form>
 
                 <div className="login-footer" style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    <div className="server-toggle" style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                        <button
-                            type="button"
-                            className={`glass-btn-small ${serverLocation === 'local' ? 'active' : ''}`}
-                            onClick={() => setServerLocation('local')}
-                            style={{ opacity: serverLocation === 'local' ? 1 : 0.5 }}
-                        >
-                            Local Server
-                        </button>
-                        <button
-                            type="button"
-                            className={`glass-btn-small ${serverLocation === 'remote' ? 'active' : ''}`}
-                            onClick={() => setServerLocation('remote')}
-                            style={{ opacity: serverLocation === 'remote' ? 1 : 0.5 }}
-                        >
-                            Remote (VM)
-                        </button>
-                    </div>
-
                     <span
                         onClick={() => setIsSetupMode(!isSetupMode)}
                         className="setup-link"
