@@ -162,8 +162,11 @@ public class TrayService : IDisposable
                     IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
                     objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (IntPtr)0); // NSApplicationActivationPolicyRegular
 
-                    IntPtr nsWindow = _window.WindowHandle;
-                    objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
+                    IntPtr nsWindow = GetMacWindowHandle();
+                    if (nsWindow != IntPtr.Zero)
+                    {
+                        objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
+                    }
                     
                     // Activate app to bring to front
                     objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), 1);
@@ -192,8 +195,11 @@ public class TrayService : IDisposable
         {
             _window.Invoke(() => {
                 try {
-                    IntPtr nsWindow = _window.WindowHandle;
-                    objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
+                    IntPtr nsWindow = GetMacWindowHandle();
+                    if (nsWindow != IntPtr.Zero)
+                    {
+                        objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
+                    }
 
                     // Update activation policy to hide from Dock
                     IntPtr nsAppCls = objc_getClass("NSApplication");
@@ -204,6 +210,43 @@ public class TrayService : IDisposable
                 }
             });
         }
+    }
+
+    private IntPtr GetMacWindowHandle()
+    {
+        try {
+            // First attempt: Reflection to get internal 'nativeWindow'
+            var field = typeof(PhotinoWindow).GetField("nativeWindow", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (field != null)
+            {
+                var val = field.GetValue(_window);
+                if (val is IntPtr handle) return handle;
+            }
+        } catch (Exception ex) {
+            Console.WriteLine($"[MACTRAY] Reflection failed for handle: {ex.Message}");
+        }
+
+        // Second attempt: iterate windows via Obj-C
+        try {
+            IntPtr nsAppCls = objc_getClass("NSApplication");
+            IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+            IntPtr windows = objc_msgSend(sharedApp, sel_registerName("windows"));
+            int count = (int)(long)objc_msgSend(windows, sel_registerName("count"));
+            
+            for (int i = 0; i < count; i++)
+            {
+                IntPtr win = objc_msgSend(windows, sel_registerName("objectAtIndex:"), (double)i);
+                IntPtr titleNS = objc_msgSend(win, sel_registerName("title"));
+                IntPtr utf8Ptr = objc_msgSend(titleNS, sel_registerName("UTF8String"));
+                string? title = Marshal.PtrToStringUTF8(utf8Ptr);
+                
+                if (title == "nicodemouse") return win;
+            }
+        } catch (Exception ex) {
+            Console.WriteLine($"[MACTRAY] Window iteration failed: {ex.Message}");
+        }
+
+        return IntPtr.Zero;
     }
 
     private void Disconnect()
