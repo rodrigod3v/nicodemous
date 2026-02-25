@@ -20,38 +20,46 @@ const Login = ({ onLogin }) => {
 
         const endpoint = isSetupMode ? '/api/auth/signup' : '/api/auth/login';
 
-        // Robust server detection with override
-        const signalingServerBase = serverLocation === 'local'
-            ? 'http://localhost:5219'
-            : 'http://144.22.254.132:8080';
+        // Try multiple bases if local, otherwise just remote
+        const basesToTry = serverLocation === 'local'
+            ? ['http://localhost:5219', 'http://127.0.0.1:5219']
+            : ['http://144.22.254.132:8080'];
 
-        try {
-            console.log(`[AUTH] Attempting ${endpoint} at ${signalingServerBase}`);
-            const response = await fetch(`${signalingServerBase}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
+        let lastErr = '';
+        for (const base of basesToTry) {
+            try {
+                console.log(`[AUTH] Attempting ${endpoint} at ${base}`);
+                const response = await fetch(`${base}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password }),
+                    signal: AbortSignal.timeout(3000) // 3s timeout
+                });
 
-            if (response.ok) {
-                if (isSetupMode) {
-                    alert('System initialized! Please login.');
-                    setIsSetupMode(false);
-                    setPassword('');
+                if (response.ok) {
+                    if (isSetupMode) {
+                        alert('System initialized! Please login.');
+                        setIsSetupMode(false);
+                        setPassword('');
+                    } else {
+                        const data = await response.json();
+                        localStorage.setItem('nicodemouse_token', data.token);
+                        onLogin(data.token);
+                    }
+                    setLoading(false);
+                    return; // Success!
                 } else {
-                    const data = await response.json();
-                    localStorage.setItem('nicodemouse_token', data.token);
-                    onLogin(data.token);
+                    const text = await response.text();
+                    lastErr = text || 'Action failed.';
                 }
-            } else {
-                const text = await response.text();
-                setError(text || 'Action failed.');
+            } catch (err) {
+                console.warn(`[AUTH] Failed to connect to ${base}:`, err);
+                lastErr = 'Could not connect to Signaling Server.';
             }
-        } catch (err) {
-            setError('Could not connect to Signaling Server.');
-        } finally {
-            setLoading(false);
         }
+
+        setError(lastErr);
+        setLoading(false);
     };
 
     return (
