@@ -31,7 +31,7 @@ const Sidebar = ({ activeTab, onTabChange, onLogout }) => {
                     flexShrink: 0,
                     filter: 'drop-shadow(0 0 20px var(--accent-primary))'
                 }}>
-                    <img src="/nicodemous_brand_v1.svg" alt="nicodemous Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <img src="/logo.svg" alt="nicodemous Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
             </div>
 
