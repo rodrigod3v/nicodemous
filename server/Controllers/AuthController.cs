@@ -38,12 +38,11 @@ public class AuthController : ControllerBase
     [HttpPost("signup")]
     public async Task<IActionResult> Signup([FromBody] SignupRequest request)
     {
-        // Simple protection: only allow signup if no users exist (initial setup)
-        if (await _context.Users.AnyAsync())
+        // Check if user already exists
+        if (await _context.Users.AnyAsync(u => u.Username == request.Username))
         {
-            return BadRequest("Signup is disabled.");
+            return BadRequest("User already exists.");
         }
-
         var user = new User
         {
             Username = request.Username,
