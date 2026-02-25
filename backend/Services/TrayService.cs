@@ -2,7 +2,9 @@ using System;
 using System.IO;
 using System.Drawing;
 using System.Runtime.InteropServices;
+#if WINDOWS
 using System.Windows.Forms;
+#endif
 using Photino.NET;
 using nicodemouse.Backend.Services;
 
@@ -12,7 +14,9 @@ public class TrayService : IDisposable
 {
     private readonly PhotinoWindow _window;
     private readonly UniversalControlManager _controlManager;
-    private readonly NotifyIcon _notifyIcon;
+#if WINDOWS
+    private readonly NotifyIcon? _notifyIcon;
+#endif
     private bool _isExiting = false;
 
     public TrayService(PhotinoWindow window, UniversalControlManager controlManager)
@@ -20,6 +24,7 @@ public class TrayService : IDisposable
         _window = window;
         _controlManager = controlManager;
 
+#if WINDOWS
         string iconPath = Path.GetFullPath("../frontend/public/favicon.ico");
         _notifyIcon = new NotifyIcon
         {
@@ -42,19 +47,25 @@ public class TrayService : IDisposable
 
         _notifyIcon.ContextMenuStrip = contextMenu;
         _notifyIcon.DoubleClick += (s, e) => ShowWindow();
+#endif
 
         // Handle window close event to minimize to tray
         _window.WindowClosing += (sender, args) =>
         {
             if (!_isExiting)
             {
+#if WINDOWS
                 HideWindow();
                 return true; // Cancel close, just hide
+#else
+                return false; // Allow close on other platforms (for now)
+#endif
             }
             return false; // Allow close if exiting from tray
         };
     }
 
+#if WINDOWS
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
     
@@ -64,10 +75,12 @@ public class TrayService : IDisposable
     private const int SW_HIDE = 0;
     private const int SW_SHOW = 5;
     private const int SW_RESTORE = 9;
+#endif
 
     public void ShowWindow()
     {
         Console.WriteLine("[TRAY] ShowWindow called.");
+#if WINDOWS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             _window.Invoke(() => {
@@ -77,11 +90,13 @@ public class TrayService : IDisposable
                 SetForegroundWindow(_window.WindowHandle);
             });
         }
+#endif
     }
 
     public void HideWindow()
     {
         Console.WriteLine("[TRAY] HideWindow called.");
+#if WINDOWS
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             _window.Invoke(() => {
@@ -89,23 +104,30 @@ public class TrayService : IDisposable
                 ShowWindow(_window.WindowHandle, SW_HIDE);
             });
         }
+#endif
     }
 
     private void Disconnect()
     {
         _controlManager.ToggleService("disconnect", true);
-        _notifyIcon.ShowBalloonTip(2000, "nicodemouse", "Disconnected from remote session.", ToolTipIcon.Info);
+#if WINDOWS
+        _notifyIcon?.ShowBalloonTip(2000, "nicodemouse", "Disconnected from remote session.", ToolTipIcon.Info);
+#endif
     }
 
     private void ExitApplication()
     {
         _isExiting = true;
-        _notifyIcon.Visible = false;
+#if WINDOWS
+        if (_notifyIcon != null) _notifyIcon.Visible = false;
+#endif
         _window.Close();
     }
 
     public void Dispose()
     {
-        _notifyIcon.Dispose();
+#if WINDOWS
+        _notifyIcon?.Dispose();
+#endif
     }
 }
