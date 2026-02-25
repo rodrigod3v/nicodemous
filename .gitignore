@@ -36,11 +36,11 @@ Thumbs.db
 .env.test.local
 .env.production.local
 
-# --- Project Guides ---
-GUIDE_RELEASE.md
-GUIDE_LOCAL_SETUP.md
-ARCHITECTURE.md
-DEPLOYMENT.md
-
-# --- Artifacts ---
+# --- Build & Artifacts ---
 publish/
+releases/
+
+# --- Databases ---
+*.db
+*.db-shm
+*.db-wal

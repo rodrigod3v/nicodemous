@@ -1,4 +1,4 @@
-name: Nicodemous CI/CD
+name: Nicodemouse CI/CD
 
 on:
   push:
@@ -38,13 +38,13 @@ jobs:
           cp -r frontend/dist/* backend/wwwroot/
 
       - name: Publish Windows Standalone
-        run: dotnet publish backend/nicodemous_backend.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -f net8.0-windows -o ./publish/win
+        run: dotnet publish backend/nicodemouse_backend.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -f net8.0-windows -o ./publish/win
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nicodemous-windows
-          path: ./publish/win/nicodemous_backend.exe
+          name: nicodemouse-windows
+          path: ./publish/win/nicodemouse_backend.exe
 
   build-macos:
     name: Build macOS (osx-arm64)
@@ -76,13 +76,13 @@ jobs:
           cp -r frontend/dist/* backend/wwwroot/
 
       - name: Publish macOS Standalone
-        run: dotnet publish backend/nicodemous_backend.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -f net8.0 -o ./publish/mac
+        run: dotnet publish backend/nicodemouse_backend.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -f net8.0 -o ./publish/mac
 
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nicodemous-macos
-          path: ./publish/mac/nicodemous_backend
+          name: nicodemouse-macos
+          path: ./publish/mac/nicodemouse_backend
 
   release:
     name: Create Release
@@ -93,19 +93,19 @@ jobs:
       - name: Download Windows Artifact
         uses: actions/download-artifact@v4
         with:
-          name: nicodemous-windows
+          name: nicodemouse-windows
           path: ./release
 
       - name: Download macOS Artifact
         uses: actions/download-artifact@v4
         with:
-          name: nicodemous-macos
+          name: nicodemouse-macos
           path: ./release
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ./release/nicodemous_backend.exe
-            ./release/nicodemous_backend
+            ./release/nicodemouse_backend.exe
+            ./release/nicodemouse_backend
           generate_release_notes: true
