@@ -1,0 +1,6 @@
+@nicodemouse_server_HostAddress = http://localhost:5219
+
+GET {{nicodemouse_server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
