@@ -166,12 +166,18 @@ public class TrayService : IDisposable
                     // Update activation policy to show in Dock
                     IntPtr nsAppCls = objc_getClass("NSApplication");
                     IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (IntPtr)0); // NSApplicationActivationPolicyRegular
+                    Console.WriteLine("[MACTRAY] Setting activation policy to Regular (0)");
+                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (ulong)0); // NSApplicationActivationPolicyRegular
 
                     IntPtr nsWindow = GetMacWindowHandle();
                     if (nsWindow != IntPtr.Zero)
                     {
+                        Console.WriteLine($"[MACTRAY] Showing window: {nsWindow}");
                         objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
+                    }
+                    else
+                    {
+                        Console.WriteLine("[MACTRAY] WARNING: Could not find window handle for ShowWindow");
                     }
                     
                     // Activate app to bring to front
@@ -201,16 +207,24 @@ public class TrayService : IDisposable
         {
             _window.Invoke(() => {
                 try {
+                    IntPtr nsAppCls = objc_getClass("NSApplication");
+                    IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+                    
                     IntPtr nsWindow = GetMacWindowHandle();
                     if (nsWindow != IntPtr.Zero)
                     {
+                        Console.WriteLine($"[MACTRAY] Ordering window out: {nsWindow}");
                         objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
+                    }
+                    else
+                    {
+                        Console.WriteLine("[MACTRAY] WARNING: Could not find window handle for HideWindow");
                     }
 
                     // Update activation policy to hide from Dock
-                    IntPtr nsAppCls = objc_getClass("NSApplication");
-                    IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (IntPtr)1); // NSApplicationActivationPolicyAccessory
+                    Console.WriteLine("[MACTRAY] Setting activation policy to Accessory (1)");
+                    objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (ulong)1); // NSApplicationActivationPolicyAccessory
+                    
                 } catch (Exception ex) {
                     Console.WriteLine($"[MACTRAY] Error in HideWindow: {ex}");
                 }
@@ -230,7 +244,11 @@ public class TrayService : IDisposable
                 if (field != null)
                 {
                     var val = field.GetValue(_window);
-                    if (val is IntPtr handle && handle != IntPtr.Zero) return handle;
+                    if (val is IntPtr handle && handle != IntPtr.Zero) 
+                    {
+                        Console.WriteLine($"[MACTRAY] Found handle via reflection '{fieldName}': {handle}");
+                        return handle;
+                    }
                 }
             }
         } catch (Exception ex) {
@@ -259,8 +277,13 @@ public class TrayService : IDisposable
                 if (utf8Ptr == IntPtr.Zero) continue;
 
                 string? title = Marshal.PtrToStringUTF8(utf8Ptr);
-                if (title == "nicodemouse") return win;
+                if (title == "nicodemouse") 
+                {
+                    Console.WriteLine($"[MACTRAY] Found handle via window iteration: {win}");
+                    return win;
+                }
             }
+            Console.WriteLine("[MACTRAY] Window iteration finished without finding 'nicodemouse'");
         } catch (Exception ex) {
             Console.WriteLine($"[MACTRAY] Window iteration failed: {ex.Message}");
         }
