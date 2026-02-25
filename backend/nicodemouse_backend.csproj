@@ -2,14 +2,17 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <!-- Use TargetFramework (singular) to avoid NETSDK1100 on multi-targeting -->
     <TargetFramework Condition="'$(OS)' == 'Windows_NT'">net8.0-windows</TargetFramework>
     <TargetFramework Condition="'$(OS)' != 'Windows_NT'">net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- Essential for cross-compiling or building on Mac with windows-adjacent references -->
     <EnableWindowsTargeting Condition="'$(OS)' != 'Windows_NT'">true</EnableWindowsTargeting>
     <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- Mac: usa Info.plist customizado com LSUIElement=true para nunca aparecer no Dock -->
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <CFBundleInfoPlistFile>Info.plist</CFBundleInfoPlistFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
@@ -36,6 +39,13 @@
 
   <ItemGroup>
     <None Update="Assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Mac: copia o Info.plist customizado para o output -->
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <None Update="Info.plist">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
