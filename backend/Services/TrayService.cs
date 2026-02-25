@@ -37,6 +37,45 @@ public class TrayService : IDisposable
 #endif
 #if !WINDOWS
     private readonly MacTrayManager? _macTray;
+
+    [DllImport("libdl.dylib")]
+    private static extern IntPtr dlopen(string path, int mode);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_getClass(string name);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr sel_registerName(string name);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, string arg);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, double arg);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, IntPtr arg3);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, NSSize arg);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_allocateClassPair(IntPtr superclass, string name, int extraBytes);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern bool class_addMethod(IntPtr cls, IntPtr name, Delegate imp, string types);
+
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern void objc_registerClassPair(IntPtr cls);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NSSize { public double width; public double height; }
 #endif
 
     public TrayService(PhotinoWindow window, UniversalControlManager controlManager)
@@ -398,7 +437,6 @@ public class TrayService : IDisposable
             IntPtr sep = objc_msgSend(objc_getClass("NSMenuItem"), sel_registerName("separatorItem"));
             objc_msgSend(_menu, sel_registerName("addItem:"), sep);
         }
-
         public void Dispose()
         {
             if (_statusItem != IntPtr.Zero)
@@ -407,45 +445,6 @@ public class TrayService : IDisposable
                 _statusItem = IntPtr.Zero;
             }
         }
-
-        [DllImport("libdl.dylib")]
-        private static extern IntPtr dlopen(string path, int mode);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_getClass(string name);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr sel_registerName(string name);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, string arg);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, double arg);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, IntPtr arg3);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, NSSize arg);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern IntPtr objc_allocateClassPair(IntPtr superclass, string name, int extraBytes);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern bool class_addMethod(IntPtr cls, IntPtr name, Delegate imp, string types);
-
-        [DllImport("/usr/lib/libobjc.A.dylib")]
-        private static extern void objc_registerClassPair(IntPtr cls);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct NSSize { public double width; public double height; }
     }
 #endif
 }
