@@ -108,34 +108,59 @@ public class UiMessageHandler
                     _window.Close();
                     break;
                     
+                case "hide_app":
                 case "minimize_app":
+#if !WINDOWS
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        _window.Invoke(() => {
+                            try
+                            {
+                                IntPtr nsWindow = GetMacWindowHandle();
+                                if (nsWindow != IntPtr.Zero)
+                                {
+                                    objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[MACTRAY] Error hiding window: {ex}");
+                            }
+                        });
+                    }
+                    else
+                    {
+                        _window.Invoke(() => _window.SetMinimized(true));
+                    }
+#else
                     _window.SetMinimized(true);
+#endif
+                    break;
+                    
+                case "move_app":
+#if !WINDOWS
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        using (var doc = JsonDocument.Parse(message))
+                        {
+                            if (doc.RootElement.TryGetProperty("dx", out var dxEl) && doc.RootElement.TryGetProperty("dy", out var dyEl))
+                            {
+                                int dx = dxEl.GetInt32();
+                                int dy = dyEl.GetInt32();
+                                _window.Invoke(() => {
+                                    var loc = _window.Location;
+                                    _window.SetLocation(new System.Drawing.Point(loc.X + dx, loc.Y + dy));
+                                });
+                            }
+                        }
+                    }
+#endif
                     break;
                     
                 case "drag_app":
 #if WINDOWS
                     ReleaseCapture();
                     SendMessage(_window.WindowHandle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
-#else
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                    {
-                        try
-                        {
-                            IntPtr nsAppCls = objc_getClass("NSApplication");
-                            IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-                            IntPtr currentEvent = objc_msgSend(sharedApp, sel_registerName("currentEvent"));
-
-                            IntPtr nsWindow = GetMacWindowHandle();
-                            if (nsWindow != IntPtr.Zero && currentEvent != IntPtr.Zero)
-                            {
-                                objc_msgSend(nsWindow, sel_registerName("performWindowDragWithEvent:"), currentEvent);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[MACTRAY] Error dragging window: {ex}");
-                        }
-                    }
 #endif
                     break;
                     

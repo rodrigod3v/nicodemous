@@ -1,13 +1,62 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Minus, X } from 'lucide-react';
 import './TitleBar.css';
 
 const TitleBar = () => {
     const [showConfirm, setShowConfirm] = useState(false);
 
+    useEffect(() => {
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+        const handleMouseDown = (e) => {
+            if (e.target.closest('.title-bar-btn')) return;
+            if (e.button !== 0) return;
+            if (e.target.closest('.title-bar-drag-area') || e.target.closest('.title-bar')) {
+                if (isMac) {
+                    isDragging = true;
+                    startX = e.screenX;
+                    startY = e.screenY;
+                } else {
+                    if (window.external && window.external.sendMessage) {
+                        window.external.sendMessage(JSON.stringify({ type: "drag_app" }));
+                    }
+                }
+            }
+        };
+
+        const handleMouseMove = (e) => {
+            if (!isDragging) return;
+            const dx = e.screenX - startX;
+            const dy = e.screenY - startY;
+            startX = e.screenX;
+            startY = e.screenY;
+
+            if (window.external && window.external.sendMessage) {
+                window.external.sendMessage(JSON.stringify({ type: "move_app", dx, dy }));
+            }
+        };
+
+        const handleMouseUp = () => {
+            isDragging = false;
+        };
+
+        window.addEventListener('mousedown', handleMouseDown);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            window.removeEventListener('mousedown', handleMouseDown);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, []);
+
     const handleMinimize = () => {
         if (window.external && window.external.sendMessage) {
-            window.external.sendMessage(JSON.stringify({ type: "minimize_app" }));
+            window.external.sendMessage(JSON.stringify({ type: "hide_app" }));
         }
     };
 
@@ -17,7 +66,7 @@ const TitleBar = () => {
 
     const confirmHide = () => {
         if (window.external && window.external.sendMessage) {
-            window.external.sendMessage(JSON.stringify({ type: "close_app" }));
+            window.external.sendMessage(JSON.stringify({ type: "hide_app" }));
         }
         setShowConfirm(false);
     };
@@ -29,17 +78,9 @@ const TitleBar = () => {
         setShowConfirm(false);
     };
 
-    const handleDrag = (e) => {
-        if (e.buttons !== 1) return;
-        if (e.target.closest('.title-bar-btn')) return;
-        if (window.external && window.external.sendMessage) {
-            window.external.sendMessage(JSON.stringify({ type: "drag_app" }));
-        }
-    };
-
     return (
         <>
-            <div className="title-bar" onMouseDown={handleDrag}>
+            <div className="title-bar">
                 <div className="title-bar-drag-area"></div>
 
                 <div className="title-bar-content">
