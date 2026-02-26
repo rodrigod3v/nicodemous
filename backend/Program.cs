@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using Photino.NET;
 using nicodemouse.Backend.Services;
 using nicodemouse.Backend.Handlers;
@@ -16,7 +17,7 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
-        string windowTitle = "nicodemouse - Universal Control";
+        string windowTitle = "nicodemouse";
         
 #if DEBUG
         string initialUrl = "http://localhost:5173"; 
@@ -26,18 +27,43 @@ class Program
 
         var window = new PhotinoWindow()
             .SetTitle(windowTitle)
+            .SetChromeless(true)
             .SetUseOsDefaultSize(false)
+            .SetUseOsDefaultLocation(false)
             .SetSize(1280, 850)
             .Center()
             .SetResizable(true);
-        string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "app_icon.ico");
-        if (File.Exists(iconPath))
+
+        // Robust Icon Loading
+        string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+        bool isMac = RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        string iconFilename = isMac ? "logo_n.png" : "app_icon.ico";
+
+        string[] potentialIconPaths = {
+            Path.GetFullPath(Path.Combine(exeDir, "Assets", iconFilename)),
+            Path.GetFullPath(Path.Combine(exeDir, "backend", "Assets", iconFilename)),
+            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "Assets", iconFilename)),
+            Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", iconFilename))
+        };
+
+        string? iconPath = null;
+        foreach (var path in potentialIconPaths)
+        {
+            if (File.Exists(path))
+            {
+                iconPath = path;
+                break;
+            }
+        }
+
+        if (iconPath != null)
         {
             window.SetIconFile(iconPath);
+            Console.WriteLine($"[INFO] Application icon loaded from: {iconPath}");
         }
         else
         {
-            Console.WriteLine($"[ERROR] Application icon not found at: {iconPath}");
+            Console.WriteLine("[ERROR] Application icon not found in any potential paths.");
         }
 
         // Initialize Central Manager

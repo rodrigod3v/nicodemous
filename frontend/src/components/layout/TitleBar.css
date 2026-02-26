@@ -1,0 +1,193 @@
+.title-bar {
+  width: 100%;
+  height: 40px;
+  background: rgba(15, 15, 20, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  user-select: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.title-bar-drag-area {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-app-region: drag;
+  z-index: 1;
+}
+
+.title-bar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.title-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 15px;
+  color: #a0a0b0;
+}
+
+.title-bar-icon {
+  color: #6366f1;
+}
+
+.title-bar-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  font-family: inherit;
+  background: linear-gradient(135deg, #a0a0b0, #ffffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.animated-n-logo {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+
+.animated-n-logo svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.5));
+  animation: logo-float 3s ease-in-out infinite alternate;
+}
+
+.n-path {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: draw-n 2s cubic-bezier(0.8, 0, 0.2, 1) forwards,
+    glow-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) 2s infinite alternate;
+}
+
+@keyframes draw-n {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0% {
+    filter: drop-shadow(0 0 2px rgba(139, 92, 246, 0.4));
+  }
+
+  100% {
+    filter: drop-shadow(0 0 8px rgba(217, 70, 239, 0.8));
+  }
+}
+
+@keyframes logo-float {
+  0% {
+    transform: translateY(0px) scale(0.95);
+  }
+
+  100% {
+    transform: translateY(-1px) scale(1.05);
+  }
+}
+
+.title-bar-controls {
+  display: flex;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.title-bar-btn {
+  background: transparent;
+  border: none;
+  color: #a0a0b0;
+  width: 46px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: all 0.2s ease;
+}
+
+.title-bar-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.close-btn:hover {
+  background: #ff4444 !important;
+  color: #ffffff !important;
+}
+
+/* Add padding to the main app container so contents are not hidden by fixed title bar */
+.app-content-wrapper {
+  padding-top: 40px;
+  width: 100%;
+}
+
+.close-confirm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.close-confirm-modal {
+  padding: 30px;
+  width: 420px;
+  max-width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: auto;
+  text-align: left;
+}
+
+.close-confirm-modal h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+}
+
+.close-confirm-modal p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #a0a0b0;
+  line-height: 1.5;
+}
+
+.close-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
