@@ -18,6 +18,15 @@ public class UiMessageHandler
     public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
     public const int WM_NCLBUTTONDOWN = 0xA1;
     public const int HT_CAPTION = 0x2;
+#else
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_getClass(string name);
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr sel_registerName(string name);
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg);
 #endif
 
     public UiMessageHandler(UniversalControlManager controlManager, PhotinoWindow window)
@@ -105,6 +114,26 @@ public class UiMessageHandler
 #if WINDOWS
                     ReleaseCapture();
                     SendMessage(_window.WindowHandle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+#else
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        try
+                        {
+                            IntPtr nsAppCls = objc_getClass("NSApplication");
+                            IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+                            IntPtr currentEvent = objc_msgSend(sharedApp, sel_registerName("currentEvent"));
+
+                            IntPtr nsWindow = GetMacWindowHandle();
+                            if (nsWindow != IntPtr.Zero && currentEvent != IntPtr.Zero)
+                            {
+                                objc_msgSend(nsWindow, sel_registerName("performWindowDragWithEvent:"), currentEvent);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[MACTRAY] Error dragging window: {ex}");
+                        }
+                    }
 #endif
                     break;
                     
@@ -118,4 +147,55 @@ public class UiMessageHandler
             Console.WriteLine($"[UI HANDLER ERROR] {ex.Message}");
         }
     }
+
+#if !WINDOWS
+    private IntPtr GetMacWindowHandle()
+    {
+        try
+        {
+            string[] fieldNames = { "nativeWindow", "_nativeWindow" };
+            foreach (var fieldName in fieldNames)
+            {
+                var field = typeof(PhotinoWindow).GetField(
+                    fieldName,
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                if (field != null)
+                {
+                    var val = field.GetValue(_window);
+                    if (val is IntPtr handle && handle != IntPtr.Zero)
+                    {
+                        return handle;
+                    }
+                }
+            }
+
+            // Fallback: iterate windows
+            IntPtr nsAppCls = objc_getClass("NSApplication");
+            IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+            IntPtr windows = objc_msgSend(sharedApp, sel_registerName("windows"));
+            ulong count = (ulong)objc_msgSend(windows, sel_registerName("count"));
+
+            for (ulong i = 0; i < count; i++)
+            {
+                IntPtr win = objc_msgSend(windows, sel_registerName("objectAtIndex:"), i);
+                if (win == IntPtr.Zero) continue;
+
+                IntPtr titleNS = objc_msgSend(win, sel_registerName("title"));
+                if (titleNS == IntPtr.Zero) continue;
+
+                IntPtr utf8Ptr = objc_msgSend(titleNS, sel_registerName("UTF8String"));
+                if (utf8Ptr == IntPtr.Zero) continue;
+
+                string? title = Marshal.PtrToStringUTF8(utf8Ptr);
+                if (title == "nicodemouse")
+                {
+                    return win;
+                }
+            }
+        }
+        catch (Exception) { }
+        return IntPtr.Zero;
+    }
+#endif
 }

@@ -32,7 +32,14 @@ class Program
             .SetUseOsDefaultLocation(false)
             .SetSize(1280, 850)
             .Center()
-            .SetResizable(true);
+            .SetResizable(true)
+#if DEBUG
+            .SetContextMenuEnabled(true)
+            .SetDevToolsEnabled(true);
+#else
+            .SetContextMenuEnabled(false)
+            .SetDevToolsEnabled(false);
+#endif
 
         // Robust Icon Loading
         string exeDir = AppDomain.CurrentDomain.BaseDirectory;

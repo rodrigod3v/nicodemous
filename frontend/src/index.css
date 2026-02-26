@@ -47,6 +47,17 @@ body {
   overflow-x: hidden;
   overflow-y: hidden;
   /* Prevent body scroll, handle inside Dashboard */
+
+  /* Make the app feel native */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+input,
+textarea {
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
 ::-webkit-scrollbar {
