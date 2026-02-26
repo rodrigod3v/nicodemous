@@ -118,6 +118,7 @@ public class UiMessageHandler
                             IntPtr nsAppCls = objc_getClass("NSApplication");
                             IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
                             objc_msgSend(sharedApp, sel_registerName("hide:"), IntPtr.Zero);
+                            objc_msgSend(sharedApp, sel_registerName("setActivationPolicy:"), (ulong)1); // Hide from Dock
                         }
                         catch (Exception ex)
                         {

@@ -211,6 +211,7 @@ public class TrayService : IDisposable
                 IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
 
                 Console.WriteLine("[MACTRAY] Unhiding application...");
+                SetMacActivationPolicy(0); // 0 = NSApplicationActivationPolicyRegular
                 objc_msgSend(sharedApp, sel_registerName("unhide:"), IntPtr.Zero);
                 objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
 
@@ -254,6 +255,7 @@ public class TrayService : IDisposable
                 IntPtr nsAppCls = objc_getClass("NSApplication");
                 IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
                 objc_msgSend(sharedApp, sel_registerName("hide:"), IntPtr.Zero);
+                SetMacActivationPolicy(1); // 1 = NSApplicationActivationPolicyAccessory
             }
             catch (Exception ex)
             {
