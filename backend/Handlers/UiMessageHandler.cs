@@ -27,6 +27,8 @@ public class UiMessageHandler
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
     [DllImport("/usr/lib/libobjc.A.dylib")]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg);
+    [DllImport("/usr/lib/libobjc.A.dylib")]
+    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, ulong arg);
 #endif
 
     public UiMessageHandler(UniversalControlManager controlManager, PhotinoWindow window)
