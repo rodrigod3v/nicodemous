@@ -3,118 +3,93 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Collections.Generic;
 
-class Program
+namespace IconGenerator
 {
-    static void Main(string[] args)
+    class Program
     {
-        string baseDir = args.Length > 0 ? args[0] : Path.Combine(Directory.GetCurrentDirectory(), "..", "backend", "Assets");
-        if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
-
-        GenerateMultipleIcons(baseDir);
-    }
-
-    static void GenerateMultipleIcons(string dir)
-    {
-        // App Icon (Multiple sizes)
-        CreateIcon(Path.Combine(dir, "app_icon.ico"), new[] { 16, 24, 32, 48, 64, 128, 256 });
-        
-        // Tray Icons
-        CreateIcon(Path.Combine(dir, "tray_idle.ico"), new[] { 16, 32 });
-        CreateIcon(Path.Combine(dir, "tray_connected.ico"), new[] { 16, 32 }, Color.LightGreen);
-        
-        for (int i = 1; i <= 6; i++)
+        static void Main(string[] args)
         {
-            CreateIcon(Path.Combine(dir, $"tray_active_{i}.ico"), new[] { 16, 32 }, Color.Violet);
-        }
-
-        Console.WriteLine($"Icons generated in: {dir}");
-    }
-
-    static void CreateIcon(string path, int[] sizes, Color? overlayColor = null)
-    {
-        using var fs = new FileStream(path, FileMode.Create);
-        using var writer = new BinaryWriter(fs);
-
-        // ICO Header
-        writer.Write((short)0);    // Reserved
-        writer.Write((short)1);    // Type 1 = Icon
-        writer.Write((short)sizes.Length);
-
-        var imageData = new List<byte[]>();
-        long offset = 6 + (sizes.Length * 16);
-
-        foreach (var size in sizes)
-        {
-            using var bitmap = GenerateNLogo(size, overlayColor);
-            byte[] data;
-            
-            using (var ms = new MemoryStream())
+            try
             {
-                // BMP format for smaller icons, PNG for 256
-                if (size >= 256)
-                {
-                    bitmap.Save(ms, ImageFormat.Png);
-                }
-                else
-                {
-                    // For ICO, we need DIB (no BMP file header)
-                    // But Bitmap.Save(ms, ImageFormat.Png) is actually very compatible for all sizes in modern Windows
-                    // Let's stick to PNG as it's cleaner and usually works if the header is correct
-                    bitmap.Save(ms, ImageFormat.Png);
-                }
-                data = ms.ToArray();
+                string baseDir = @"C:\Users\777\Desktop\nicodemous\backend\Assets";
+                if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
+
+                GenerateIcon(Path.Combine(baseDir, "tray_idle.ico"), Color.FromArgb(248, 250, 252), Color.FromArgb(26, 28, 46));
+                GenerateIcon(Path.Combine(baseDir, "tray_connected.ico"), Color.FromArgb(139, 92, 246), Color.FromArgb(217, 70, 239));
+
+                Console.WriteLine("Icons generated successfully.");
             }
-
-            imageData.Add(data);
-
-            // Directory Entry
-            writer.Write((byte)(size >= 256 ? 0 : size));
-            writer.Write((byte)(size >= 256 ? 0 : size));
-            writer.Write((byte)0); // Color count
-            writer.Write((byte)0); // Reserved
-            writer.Write((short)1); // Planes
-            writer.Write((short)32); // Bit count
-            writer.Write(data.Length);
-            writer.Write((int)offset);
-
-            offset += data.Length;
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error: " + ex.Message);
+            }
         }
 
-        foreach (var data in imageData)
+        static void GenerateIcon(string path, Color fillColor, Color outlineColor)
         {
-            writer.Write(data);
+            int size = 64;
+            using (Bitmap bmp = new Bitmap(size, size))
+            {
+                using (Graphics g = Graphics.FromImage(bmp))
+                {
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.Clear(Color.Transparent);
+
+                    // Draw a mouse pointer
+                    PointF[] points = {
+                        new PointF(20, 10),
+                        new PointF(20, 50),
+                        new PointF(32, 38),
+                        new PointF(52, 38)
+                    };
+
+                    using (GraphicsPath gp = new GraphicsPath())
+                    {
+                        gp.AddPolygon(points);
+                        using (SolidBrush brush = new SolidBrush(fillColor))
+                        {
+                            g.FillPath(brush, gp);
+                        }
+                        using (Pen pen = new Pen(outlineColor, 3f))
+                        {
+                            pen.LineJoin = LineJoin.Round;
+                            g.DrawPath(pen, gp);
+                        }
+                    }
+                }
+
+                // Simple conversion to ICO format handling 1 image
+                using (FileStream fs = new FileStream(path, FileMode.Create))
+                {
+                    using (BinaryWriter bw = new BinaryWriter(fs))
+                    {
+                        // ICO header
+                        bw.Write((short)0); // reserved
+                        bw.Write((short)1); // type (1 = ico)
+                        bw.Write((short)1); // count
+
+                        using (MemoryStream ms = new MemoryStream())
+                        {
+                            bmp.Save(ms, ImageFormat.Png);
+                            byte[] pngBytes = ms.ToArray();
+
+                            // Directory entry
+                            bw.Write((byte)size);     // width
+                            bw.Write((byte)size);     // height
+                            bw.Write((byte)0);        // colors
+                            bw.Write((byte)0);        // reserved
+                            bw.Write((short)1);       // color planes
+                            bw.Write((short)32);      // BPP
+                            bw.Write((int)pngBytes.Length); // size of data
+                            bw.Write((int)22);        // offset to data
+
+                            // Image data
+                            bw.Write(pngBytes);
+                        }
+                    }
+                }
+            }
         }
-    }
-
-    static Bitmap GenerateNLogo(int size, Color? overlayColor = null)
-    {
-        var bitmap = new Bitmap(size, size);
-        using var g = Graphics.FromImage(bitmap);
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        g.Clear(Color.Transparent);
-
-        Color colorStart = overlayColor ?? ColorTranslator.FromHtml("#8B5CF6");
-        Color colorEnd = overlayColor ?? ColorTranslator.FromHtml("#D946EF");
-
-        using var brush = new LinearGradientBrush(
-            new Rectangle(0, 0, size, size),
-            colorStart,
-            colorEnd,
-            LinearGradientMode.ForwardDiagonal);
-
-        float margin = size * 0.15f;
-        float strokeWidth = size * 0.20f;
-        using var pen = new Pen(brush, strokeWidth);
-        pen.StartCap = LineCap.Round;
-        pen.EndCap = LineCap.Round;
-        pen.LineJoin = LineJoin.Round;
-
-        g.DrawLine(pen, margin, size - margin, margin, margin);
-        g.DrawLine(pen, margin, margin, size - margin, size - margin);
-        g.DrawLine(pen, size - margin, size - margin, size - margin, margin);
-
-        return bitmap;
     }
 }
