@@ -252,10 +252,8 @@ public class TrayService : IDisposable
         {
             try
             {
-                Console.WriteLine("[MACTRAY] HideWindow: Hiding entire Mac application...");
-                IntPtr nsAppCls = objc_getClass("NSApplication");
-                IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-                objc_msgSend(sharedApp, sel_registerName("hide:"), IntPtr.Zero);
+                Console.WriteLine("[MACTRAY] HideWindow: Minimizing window and hiding from Dock...");
+                _window.Invoke(() => _window.SetMinimized(true));
                 SetMacActivationPolicy(1); // 1 = NSApplicationActivationPolicyAccessory
             }
             catch (Exception ex)
