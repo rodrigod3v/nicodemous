@@ -205,29 +205,30 @@ public class TrayService : IDisposable
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            try
-            {
-                IntPtr nsAppCls  = objc_getClass("NSApplication");
-                IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-
-                Console.WriteLine("[MACTRAY] Unhiding application...");
-                SetMacActivationPolicy(0); // 0 = NSApplicationActivationPolicyRegular
-                objc_msgSend(sharedApp, sel_registerName("unhide:"), IntPtr.Zero);
-                objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
-
-                IntPtr nsWindow = GetMacWindowHandle();
-                if (nsWindow != IntPtr.Zero)
+            _window.Invoke(() => {
+                try
                 {
-                    objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
+                    IntPtr nsAppCls  = objc_getClass("NSApplication");
+                    IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+
+                    Console.WriteLine("[MACTRAY] Unhiding application...");
+                    SetMacActivationPolicy(0); // 0 = NSApplicationActivationPolicyRegular
+                    objc_msgSend(sharedApp, sel_registerName("unhide:"), IntPtr.Zero);
+                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
+
+                    IntPtr nsWindow = GetMacWindowHandle();
+                    if (nsWindow != IntPtr.Zero)
+                    {
+                        objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
+                    }
+                    
+                    _window.SetMinimized(false);
                 }
-                
-                // Photino needs to know it's not minimized
-                Task.Run(() => _window.Invoke(() => _window.SetMinimized(false)));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MACTRAY] Error in ShowWindow: {ex}");
-            }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MACTRAY] Error in ShowWindow: {ex}");
+                }
+            });
         }
     }
 
