@@ -20,14 +20,32 @@ In a world of multiple devices, nicodemouse aims to make transitions invisible. 
 - **Opus Compression**: High-fidelity audio capture with intelligent bitrate management.
 - **Real-time Sync**: Low-latency system audio sharing for a unified sound experience.
 
-### 📋 Clipboard & File synchronization
+### 📋 Clipboard synchronization
 - **Instant Clipboard**: Automatic synchronization of text and binary clipboard data.
-- **Secure File Transfer**: High-speed TCP streaming for dragging and dropping files between machines.
+- **Secure Handling**: Optimized for fast synchronization between machines.
 
 ### 🛰️ Connectivity & Discovery
-- **Pairing Code System**: Each instance generates a unique local "Pairing Code" (IP) for instant manual link.
+- **Pairing Code System**: Each instance generates a unique local "Pairing Code" for instant manual link.
 - **mDNS/Zeroconf**: Automatic background discovery for a "it just works" experience.
 - **Universal Mode**: A single binary acts as either Controller (Server) or Receiver (Client) dynamically.
+
+---
+
+## 💻 System Requirements
+
+### 🖥️ Supported Operating Systems
+*   **Windows**: 10 or 11 (x64 / ARM64)
+*   **macOS**: 11.0 Big Sur or later (Intel / Apple Silicon)
+
+### 🔌 Network Requirements
+*   **Local Area Network (LAN)**: Devices must be on the same subnet.
+*   **Connectivity**: High-speed Wi-Fi or Ethernet recommended for optimal audio and input performance.
+
+### 🛠️ Software Dependencies
+*   **.NET 8 Runtime**: Required to run the application (unless using a self-contained build).
+*   **Permissions**: 
+    *   **Windows**: Administrative privileges may be required for global input hooks.
+    *   **macOS**: Accessibility and Screen Recording permissions are required for input capture and injection.
 
 ---
 
@@ -37,8 +55,8 @@ nicodemouse is built on a modern, distributed architecture combining the power o
 
 -   **Backend**: [.NET 8](https://dotnet.microsoft.com/download/dotnet/8.0) + C#
     -   **GUI Layer**: [Photino.NET](https://www.tryphotino.io/) (Lightweight native windowing)
-    -   **Networking**: UDP for real-time input/audio, TCP for reliable file/clipboard streams.
-    -   **Audio Proccessing**: Opus codec for low-latency compression.
+    -   **Networking**: UDP for real-time input/audio, TCP for reliable clipboard streams.
+    -   **Audio Processing**: Opus codec for low-latency compression.
 -   **Frontend**: [React 19](https://reactjs.org/) + [Vite](https://vitejs.dev/)
     -   **UI Design**: Modern Glassmorphism aesthetic using [Framer Motion](https://www.framer.com/motion/) and [Lucide React](https://lucide.dev/).
     -   **State Management**: Real-time service status monitoring.
@@ -49,13 +67,10 @@ nicodemouse is built on a modern, distributed architecture combining the power o
 
 ```text
 nicodemouse/
-├── backend/            # .NET 8 Core Services
-│   ├── Services/       # Input, Audio, Discovery, and Network layers
-│   └── Program.cs      # Photino Host Entry Point
-├── frontend/           # React + Vite Premium UI
-│   ├── src/            # Components, Hooks, and Styles
-│   └── public/         # Static Assets
-└── .agent/             # Project blueprints and AI context
+├── backend/            # .NET 8 Core Services (Input, Audio, Clipboard, Discovery)
+├── frontend/           # React 19 + Vite Premium UI
+├── server/             # ASP.NET Core Signaling Server (Docker ready)
+└── scripts/            # Build and utility scripts
 ```
 
 For a detailed technical breakdown of services, protocol, and internal logic, see the [Architecture Documentation](ARCHITECTURE.md).
@@ -63,9 +78,9 @@ For information on how to deploy the signaling server and distribute the applica
 
 ---
 
-## 🛠️ Getting Started
+## 🚀 Getting Started
 
-### Prerequisites
+### Prerequisites for Developers
 - **.NET 8 SDK**
 - **Node.js** (v18 or higher)
 - **NPM** or **PNPM**
