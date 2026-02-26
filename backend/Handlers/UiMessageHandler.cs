@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Photino.NET;
+using System.Runtime.InteropServices;
 using nicodemouse.Backend.Models;
 using nicodemouse.Backend.Services;
 
@@ -9,6 +10,15 @@ public class UiMessageHandler
 {
     private readonly UniversalControlManager _controlManager;
     private readonly PhotinoWindow _window;
+
+#if WINDOWS
+    [DllImport("user32.dll")]
+    public static extern bool ReleaseCapture();
+    [DllImport("user32.dll")]
+    public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+    public const int WM_NCLBUTTONDOWN = 0xA1;
+    public const int HT_CAPTION = 0x2;
+#endif
 
     public UiMessageHandler(UniversalControlManager controlManager, PhotinoWindow window)
     {
@@ -77,6 +87,25 @@ public class UiMessageHandler
 
                 case "reset_settings":
                     _controlManager.ResetSettings();
+                    break;
+                    
+                case "exit_app":
+                    Environment.Exit(0);
+                    break;
+                    
+                case "close_app":
+                    _window.Close();
+                    break;
+                    
+                case "minimize_app":
+                    _window.SetMinimized(true);
+                    break;
+                    
+                case "drag_app":
+#if WINDOWS
+                    ReleaseCapture();
+                    SendMessage(_window.WindowHandle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+#endif
                     break;
                     
                 default:

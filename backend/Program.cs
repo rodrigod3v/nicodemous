@@ -27,7 +27,9 @@ class Program
 
         var window = new PhotinoWindow()
             .SetTitle(windowTitle)
+            .SetChromeless(true)
             .SetUseOsDefaultSize(false)
+            .SetUseOsDefaultLocation(false)
             .SetSize(1280, 850)
             .Center()
             .SetResizable(true);

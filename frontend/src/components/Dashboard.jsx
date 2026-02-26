@@ -49,7 +49,7 @@ const Dashboard = ({ onLogout }) => {
     };
 
     return (
-        <div className="dashboard-container" style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <div className="dashboard-container" style={{ display: 'flex', minHeight: 'calc(100vh - 40px)', height: 'calc(100vh - 40px)', width: '100%' }}>
             <Sidebar activeTab={activeTab} onTabChange={setActiveTab} onLogout={onLogout} />
 
             <main style={{ flexGrow: 1, padding: 'var(--content-padding)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '30px', transition: 'padding 0.3s ease' }}>

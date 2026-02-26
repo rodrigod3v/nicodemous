@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
+import TitleBar from './components/layout/TitleBar';
 import { NicodemouseProvider, useNicodemouse } from './context/nicodemouseContext';
 import './App.css';
 
@@ -45,15 +46,18 @@ function App() {
 
   return (
     <div className="app">
-      <SimpleErrorBoundary>
-        <NicodemouseProvider>
-          {!authToken ? (
-            <LoginWithContext onLogin={handleLogin} />
-          ) : (
-            <Dashboard onLogout={handleLogout} />
-          )}
-        </NicodemouseProvider>
-      </SimpleErrorBoundary>
+      <TitleBar />
+      <div className="app-content-wrapper">
+        <SimpleErrorBoundary>
+          <NicodemouseProvider>
+            {!authToken ? (
+              <LoginWithContext onLogin={handleLogin} />
+            ) : (
+              <Dashboard onLogout={handleLogout} />
+            )}
+          </NicodemouseProvider>
+        </SimpleErrorBoundary>
+      </div>
     </div>
   );
 }
