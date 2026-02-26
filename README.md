@@ -45,7 +45,7 @@ In a world of multiple devices, nicodemouse aims to make transitions invisible. 
 *   **.NET 8 Runtime**: Required to run the application (unless using a self-contained build).
 *   **Permissions**: 
     *   **Windows**: Administrative privileges may be required for global input hooks.
-    *   **macOS**: Accessibility and Screen Recording permissions are required for input capture and injection.
+    *   **macOS**: Accessibility and Screen Recording permissions are required. **See the [macOS Setup Guide](MACOS_SETUP.md) for detailed instructions.**
 
 ---
 
