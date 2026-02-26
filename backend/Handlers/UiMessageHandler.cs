@@ -113,24 +113,20 @@ public class UiMessageHandler
 #if !WINDOWS
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                     {
-                        _window.Invoke(() => {
-                            try
-                            {
-                                IntPtr nsWindow = GetMacWindowHandle();
-                                if (nsWindow != IntPtr.Zero)
-                                {
-                                    objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"[MACTRAY] Error hiding window: {ex}");
-                            }
-                        });
+                        try
+                        {
+                            IntPtr nsAppCls = objc_getClass("NSApplication");
+                            IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+                            objc_msgSend(sharedApp, sel_registerName("hide:"), IntPtr.Zero);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[MACTRAY] Error hiding app: {ex}");
+                        }
                     }
                     else
                     {
-                        _window.Invoke(() => _window.SetMinimized(true));
+                        _window.SetMinimized(true);
                     }
 #else
                     _window.SetMinimized(true);
@@ -147,10 +143,8 @@ public class UiMessageHandler
                             {
                                 int dx = dxEl.GetInt32();
                                 int dy = dyEl.GetInt32();
-                                _window.Invoke(() => {
-                                    var loc = _window.Location;
-                                    _window.SetLocation(new System.Drawing.Point(loc.X + dx, loc.Y + dy));
-                                });
+                                var loc = _window.Location;
+                                _window.SetLocation(new System.Drawing.Point(loc.X + dx, loc.Y + dy));
                             }
                         }
                     }

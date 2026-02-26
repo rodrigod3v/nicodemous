@@ -210,18 +210,15 @@ public class TrayService : IDisposable
                 IntPtr nsAppCls  = objc_getClass("NSApplication");
                 IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
 
+                Console.WriteLine("[MACTRAY] Unhiding application...");
+                objc_msgSend(sharedApp, sel_registerName("unhide:"), IntPtr.Zero);
+                objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
+
                 IntPtr nsWindow = GetMacWindowHandle();
                 if (nsWindow != IntPtr.Zero)
                 {
-                    Console.WriteLine($"[MACTRAY] Showing window: {nsWindow}");
                     objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
                 }
-                else
-                {
-                    Console.WriteLine("[MACTRAY] WARNING: Could not find window handle for ShowWindow");
-                }
-
-                objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
                 
                 // Photino needs to know it's not minimized
                 Task.Run(() => _window.Invoke(() => _window.SetMinimized(false)));
@@ -253,18 +250,10 @@ public class TrayService : IDisposable
         {
             try
             {
-                Console.WriteLine("[MACTRAY] HideWindow: Starting hiding sequence...");
-
-                IntPtr nsWindow = GetMacWindowHandle();
-                if (nsWindow != IntPtr.Zero)
-                {
-                    Console.WriteLine($"[MACTRAY] HideWindow: Ordering window out: {nsWindow}");
-                    objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
-                }
-                else
-                {
-                    Console.WriteLine("[MACTRAY] HideWindow WARNING: Could not find window handle");
-                }
+                Console.WriteLine("[MACTRAY] HideWindow: Hiding entire Mac application...");
+                IntPtr nsAppCls = objc_getClass("NSApplication");
+                IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
+                objc_msgSend(sharedApp, sel_registerName("hide:"), IntPtr.Zero);
             }
             catch (Exception ex)
             {
