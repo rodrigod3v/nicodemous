@@ -96,8 +96,17 @@ public class TrayService : IDisposable
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
     private const int SW_HIDE    = 0;
     private const int SW_RESTORE = 9;
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int WS_EX_APPWINDOW = 0x00040000;
 #endif
 
     public TrayService(PhotinoWindow window, UniversalControlManager controlManager)
@@ -151,6 +160,20 @@ public class TrayService : IDisposable
         }
 #endif
 
+#if WINDOWS
+        _window.WindowCreated += (sender, args) =>
+        {
+            var handle = _window.WindowHandle;
+            if (handle != IntPtr.Zero)
+            {
+                int exStyle = GetWindowLong(handle, GWL_EXSTYLE);
+                exStyle |= WS_EX_TOOLWINDOW;
+                exStyle &= ~WS_EX_APPWINDOW;
+                SetWindowLong(handle, GWL_EXSTYLE, exStyle);
+            }
+        };
+#endif
+
         _window.WindowClosing += (sender, args) =>
         {
             if (!_isExiting)
@@ -187,10 +210,6 @@ public class TrayService : IDisposable
                 {
                     IntPtr nsAppCls  = objc_getClass("NSApplication");
                     IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
-
-                    // Volta para Regular para mostrar no Dock enquanto a janela estiver aberta
-                    Console.WriteLine("[MACTRAY] ShowWindow: Setting activation policy to Regular (0)");
-                    SetMacActivationPolicy(0); // 0 = NSApplicationActivationPolicyRegular
 
                     IntPtr nsWindow = GetMacWindowHandle();
                     if (nsWindow != IntPtr.Zero)
@@ -247,10 +266,6 @@ public class TrayService : IDisposable
                     {
                         Console.WriteLine("[MACTRAY] HideWindow WARNING: Could not find window handle");
                     }
-
-                    // Volta para Accessory para sumir do Dock
-                    Console.WriteLine("[MACTRAY] HideWindow: Setting activation policy to Accessory (1)");
-                    SetMacActivationPolicy(1); // 1 = NSApplicationActivationPolicyAccessory
                 }
                 catch (Exception ex)
                 {
