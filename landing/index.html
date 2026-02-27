@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nicodemouse | Controle Universal & Áudio de Alta Fidelidade</title>
+    <meta name="description"
+        content="Compartilhe mouse, teclado e áudio entre dispositivos com latência próxima de zero. A solução definitiva para workflow multi-dispositivo.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Mesh Glow Blobs -->
+    <div class="background-overlay">
+        <div class="glow-blob blob-1"></div>
+        <div class="glow-blob blob-2"></div>
+        <div class="glow-blob blob-3"></div>
+    </div>
+    <div id="particles-js"></div>
+
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+                <img src="nicodemouse_n_logo_1772127456654.png" alt="nicodemouse Logo" class="logo-img">
+                <span>nicodemouse</span>
+            </div>
+            <button class="mobile-toggle" id="menu-toggle">
+                <i data-lucide="menu"></i>
+            </button>
+            <ul class="nav-links" id="nav-links">
+                <li><a href="#instructions">Instruções</a></li>
+                <li><a href="#requirements">Requisitos</a></li>
+                <li><a href="#license">Licença</a></li>
+                <li><a href="#faq">FAQ</a></li>
+                <li><a href="javascript:void(0)" class="nav-btn-highlight" id="download-trigger">Download</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero glass-hero">
+            <div class="container text-center">
+                <div class="reveal">
+                    <span class="badge">Versão Beta v1.0.1</span>
+                    <h1 class="main-title">A Gravidade do seu <br> <span class="gradient-text">Workflow Digital</span>
+                    </h1>
+                    <p class="hero-description">
+                        Controle universal, sincronização de área de transferência e áudio em tempo real.
+                        Conecte seu Mac e Windows de forma tão fluida que as bordas desaparecem.
+                    </p>
+                </div>
+
+                <div id="downloads" class="download-section flex flex-column align-center gap-10 mt-4">
+                    <div class="grid grid-cols-2 gap-6 responsive-grid">
+                        <div class="glass-card download-card text-center">
+                            <span class="small-header">Desktop App</span>
+                            <div class="card-icon mx-auto"><i data-lucide="monitor"></i></div>
+                            <h3>Windows 11 / 10</h3>
+                            <p class="text-dim mb-8">Execute com latência ultra-baixa usando nossa engine dedicada para
+                                Windows.</p>
+                            <button class="btn btn-primary" id="download-win">
+                                <i data-lucide="download"></i> Download para Windows
+                            </button>
+                            <div class="version-info">
+                                <span>Version 1.0.1</span>
+                                <span>Multi-language</span>
+                            </div>
+                        </div>
+
+                        <div class="glass-card download-card text-center">
+                            <span class="small-header">Desktop App</span>
+                            <div class="card-icon mx-auto"><i data-lucide="apple"></i></div>
+                            <h3>macOS Silicon / Intel</h3>
+                            <p class="text-dim mb-8">Nativo e otimizado para a arquitetura Apple, com suporte a gestos e
+                                áudio.</p>
+                            <button class="btn btn-secondary" id="download-mac">
+                                <i data-lucide="download"></i> Download para Mac
+                            </button>
+                            <div class="version-info">
+                                <span>Version 1.0.1</span>
+                                <span>Multi-language</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Instructions Section -->
+        <section id="instructions" class="instructions-section py-20">
+            <div class="container overflow-hidden">
+                <div class="text-center mb-16">
+                    <h2 class="section-title">Guia de Instalação</h2>
+                </div>
+
+                <div class="tab-switcher-container mb-12 flex justify-center">
+                    <div class="tab-switcher glass-card p-1 flex">
+                        <button class="tab-btn active" data-platform="windows">
+                            <i data-lucide="monitor"></i> Windows
+                        </button>
+                        <button class="tab-btn" data-platform="macos">
+                            <i data-lucide="apple"></i> macOS
+                        </button>
+                        <div class="tab-indicator"></div>
+                    </div>
+                </div>
+
+                <div class="instructions-content-wrapper">
+                    <div class="instruction-card glass-card active" id="content-windows">
+                        <div class="card-grid">
+                            <div class="card-visual">
+                                <div class="platform-display">
+                                    <i data-lucide="monitor" class="hero-icon"></i>
+                                    <div class="glow-bg"></div>
+                                </div>
+                            </div>
+                            <div class="card-text">
+                                <span class="small-header">Workflow Windows</span>
+                                <h3>Comece em Minutos</h3>
+                                <ol class="premium-step-list">
+                                    <li>
+                                        <div class="step-num">01</div>
+                                        <div class="step-desc">
+                                            <strong>Download</strong>
+                                            <p>Baixe o instalador <code>.exe</code> no topo e escolha um diretório.</p>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="step-num">02</div>
+                                        <div class="step-desc">
+                                            <strong>Início</strong>
+                                            <p>Execute e escolha "Executar assim mesmo" no Windows SmartScreen.</p>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="step-num">03</div>
+                                        <div class="step-desc">
+                                            <strong>Firewall</strong>
+                                            <p>Conceda acesso à rede privada/pública para permitir a conexão LAN.</p>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="instruction-card glass-card" id="content-macos">
+                        <div class="card-grid">
+                            <div class="card-visual">
+                                <div class="platform-display">
+                                    <i data-lucide="apple" class="hero-icon"></i>
+                                    <div class="glow-bg apple-glow"></div>
+                                </div>
+                            </div>
+                            <div class="card-text">
+                                <span class="small-header">Ecossistema Apple</span>
+                                <h3>Integração Nativa</h3>
+                                <ol class="premium-step-list">
+                                    <li>
+                                        <div class="step-num">01</div>
+                                        <div class="step-desc">
+                                            <strong>Instalação</strong>
+                                            <p>Mova o App para <code>Applications</code> e abra via Launchpad.</p>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="step-num">02</div>
+                                        <div class="step-desc">
+                                            <strong>Permissões</strong>
+                                            <p>Habilite <strong>Acessibilidade</strong> em Segurança & Privacidade.</p>
+                                        </div>
+                                    </li>
+                                    <li>
+                                        <div class="step-num">03</div>
+                                        <div class="step-desc">
+                                            <strong>Conclusão</strong>
+                                            <p>O ícone aparecerá na <code>Menu Bar</code>. Tudo pronto!</p>
+                                        </div>
+                                    </li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Requirements Section -->
+        <section id="requirements" class="requirements-section py-20">
+            <div class="container">
+                <div class="text-center mb-16">
+                    <h2 class="section-title">Especificações Técnicas</h2>
+                </div>
+
+                <div class="grid grid-cols-3 gap-6 responsive-grid">
+                    <div class="glass-card">
+                        <span class="small-header">Computadores Windows</span>
+                        <div class="flex align-center gap-4 mb-6">
+                            <i data-lucide="monitor" class="text-indigo-400"></i>
+                            <h3>Windows Core</h3>
+                        </div>
+                        <ul class="check-list">
+                            <li>Windows 10 ou 11 (64-bit)</li>
+                            <li>Arquitetura x64 ou ARM64</li>
+                            <li>Microsoft .NET 8 Runtime</li>
+                            <li>DirectX 11 ou superior</li>
+                        </ul>
+                    </div>
+
+                    <div class="glass-card">
+                        <span class="small-header">Ecossistema Apple</span>
+                        <div class="flex align-center gap-4 mb-6">
+                            <i data-lucide="apple" class="text-indigo-400"></i>
+                            <h3>macOS Engine</h3>
+                        </div>
+                        <ul class="check-list">
+                            <li>macOS 11.0 (Big Sur) +</li>
+                            <li>Nativo Apple Silicon (M1/M2/M3)</li>
+                            <li>Suporte Intel Core (x64)</li>
+                            <li>Metal Hardware Support</li>
+                        </ul>
+                    </div>
+
+                    <div class="glass-card">
+                        <span class="small-header">Infraestrutura</span>
+                        <div class="flex align-center gap-4 mb-6">
+                            <i data-lucide="wifi" class="text-green-400"></i>
+                            <h3>Conectividade</h3>
+                        </div>
+                        <ul class="check-list">
+                            <li>Rede Local (LAN) idêntica</li>
+                            <li>Recomendado Wi-Fi 5GHz/6GHz</li>
+                            <li>Suporte Ethernet (Cabo)</li>
+                            <li>Acesso livre ao Firewall local</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- License & Community -->
+        <section id="license" class="license-section py-20">
+            <div class="container">
+                <div class="glass-card text-center p-20">
+                    <i data-lucide="" class=""></i>
+                    <h2 class="section-title mb-8">Código Aberto & Transparência</h2>
+                    <div class="text-left max-w-3xl mx-auto">
+                        <span class="small-header text-center mx-auto mb-6">Licença MIT</span>
+                        <p class="text-dim mb-6 text-center">
+                            O nicodemouse é construído sobre os pilares da privacidade e liberdade. Nosso código é 100%
+                            auditável e gratuito para uso pessoal e comercial.
+                        </p>
+                        <div class="flex justify-between mt-10 p-6 glass-card"
+                            style="border-radius: 16px; padding: 1.5rem;">
+                            <span class="text-xs">Copyright © 2026 rodrigod3v</span>
+                            <a href="https://github.com" target="_blank" class="text-xs gradient-text"
+                                style="font-weight: 700; text-decoration: none;">Ver no GitHub →</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="faq-section py-20">
+            <div class="container max-w-4xl">
+                <div class="text-center mb-16">
+                    <h2 class="section-title">Dúvidas Comuns</h2>
+                </div>
+
+                <div class="faq-list flex flex-column gap-6">
+                    <details class="glass-card faq-item">
+                        <summary>O áudio realmente não tem atraso?</summary>
+                        <p class="p-6 text-dim mt-4 border-t border-white/5">Utilizamos compressão Opus de latência
+                            ultra-baixa com streaming UDP direto. Em uma rede Wi-Fi estável ou cabo, o atraso é inferior
+                            a 10ms.</p>
+                    </details>
+                    <details class="glass-card faq-item">
+                        <summary>Como funciona a segurança do pareamento?</summary>
+                        <p class="p-6 text-dim mt-4 border-t border-white/5">O pareamento ocorre apenas na rede local
+                            através de um handshake criptografado. Nenhum dado de entrada sai da sua rede doméstica.</p>
+                    </details>
+                    <details class="glass-card faq-item">
+                        <summary>Posso controlar o Mac através do Windows?</summary>
+                        <p class="p-6 text-dim mt-4 border-t border-white/5">Sim! O controle é bidirecional. Você pode
+                            definir qualquer dispositivo como host ou cliente em tempo real.</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-20 border-t border-white/5">
+        <div class="container text-center flex flex-column align-center gap-6">
+            <div class="logo mb-4">
+                <img src="nicodemouse_n_logo_1772127456654.png" alt="nicodemouse Logo" class="logo-img"
+                    style="height: 24px;">
+                <span class="text-xs">nicodemouse</span>
+            </div>
+            <p class="text-xs text-dim">© 2026 nicodemouse project. Crafted by rodrigod3v</p>
+            <div class="social-links">
+                <a href="https://www.linkedin.com/in/rodrigod3v/" class="btn btn-secondary text-xs" target="_blank"
+                    style="padding: 0.5rem 1rem; width: auto;">
+                    <i data-lucide="linkedin" size="14"></i> LinkedIn Profile
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Download Modal -->
+    <div class="modal-overlay" id="download-modal">
+        <div class="modal-content glass-card p-12 text-center">
+            <button class="modal-close" id="modal-close">
+                <i data-lucide="x"></i>
+            </button>
+            <div class="modal-header mb-8">
+                <div class="card-icon mx-auto mb-4"><i data-lucide="download"></i></div>
+                <h2 class="section-title mb-2">Escolha sua Plataforma</h2>
+                <p class="text-dim">Download direto com latência ultra-baixa.</p>
+            </div>
+            <div class="modal-buttons flex flex-column gap-4">
+                <a href="#" class="btn btn-primary" id="modal-download-win">
+                    <i data-lucide="monitor"></i> Windows (64-bit)
+                </a>
+                <a href="#" class="btn btn-secondary" id="modal-download-mac">
+                    <i data-lucide="apple"></i> macOS (Silicon / Intel)
+                </a>
+            </div>
+            <div class="modal-footer mt-8">
+                <p class="text-xs text-dim">Versão Estável v1.0.1 | Licença MIT</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Final refresh to catch dynamic changes
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // Download Modal Logic
+        const downloadModal = document.getElementById('download-modal');
+        const downloadTrigger = document.getElementById('download-trigger');
+        const modalClose = document.getElementById('modal-close');
+
+        const openModal = () => {
+            downloadModal.style.display = 'flex';
+            setTimeout(() => downloadModal.classList.add('active'), 10);
+            document.body.style.overflow = 'hidden';
+        };
+
+        const closeModal = () => {
+            downloadModal.classList.remove('active');
+            setTimeout(() => {
+                downloadModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }, 300);
+        };
+
+        downloadTrigger.addEventListener('click', openModal);
+        modalClose.addEventListener('click', closeModal);
+        downloadModal.addEventListener('click', (e) => {
+            if (e.target === downloadModal) closeModal();
+        });
+
+        // Tab Switcher Logic
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const instructionCards = document.querySelectorAll('.instruction-card');
+        const tabIndicator = document.querySelector('.tab-indicator');
+
+        tabBtns.forEach((btn, index) => {
+            btn.addEventListener('click', () => {
+                // Update buttons
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Move indicator
+                const offset = btn.offsetLeft;
+                const width = btn.offsetWidth;
+                tabIndicator.style.left = `${offset}px`;
+                tabIndicator.style.width = `${width}px`;
+
+                // Update content
+                const platform = btn.getAttribute('data-platform');
+                instructionCards.forEach(card => {
+                    card.classList.remove('active');
+                    if (card.id === `content-${platform}`) {
+                        card.classList.add('active');
+                    }
+                });
+            });
+        });
+
+        // Initialize indicator position
+        const activeTab = document.querySelector('.tab-btn.active');
+        if (activeTab) {
+            tabIndicator.style.left = `${activeTab.offsetLeft}px`;
+            tabIndicator.style.width = `${activeTab.offsetWidth}px`;
+        }
+
+        // Handle Escape Key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && downloadModal.classList.contains('active')) {
+                closeModal();
+            }
+        });
+
+        // Mobile Menu Toggle
+        const menuToggle = document.getElementById('menu-toggle');
+        const navLinks = document.getElementById('nav-links');
+
+        menuToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            const icon = menuToggle.querySelector('i');
+            if (navLinks.classList.contains('active')) {
+                icon.setAttribute('data-lucide', 'x');
+            } else {
+                icon.setAttribute('data-lucide', 'menu');
+            }
+            lucide.createIcons();
+        });
+
+        // Close menu when clicking a link
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+                const icon = menuToggle.querySelector('i');
+                icon.setAttribute('data-lucide', 'menu');
+                lucide.createIcons();
+            });
+        });
+
+        // Reveal logic
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('section, .glass-card, .main-title').forEach(el => {
+            el.classList.add('reveal-on-scroll');
+            observer.observe(el);
+        });
+    </script>
+</body>
+
+</html>
