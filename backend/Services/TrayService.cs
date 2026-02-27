@@ -211,18 +211,17 @@ public class TrayService : IDisposable
                     IntPtr nsAppCls  = objc_getClass("NSApplication");
                     IntPtr sharedApp = objc_msgSend(nsAppCls, sel_registerName("sharedApplication"));
 
+                    Console.WriteLine("[MACTRAY] Unhiding application...");
+                    SetMacActivationPolicy(0); // 0 = NSApplicationActivationPolicyRegular
+                    objc_msgSend(sharedApp, sel_registerName("unhide:"), IntPtr.Zero);
+                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
+
                     IntPtr nsWindow = GetMacWindowHandle();
                     if (nsWindow != IntPtr.Zero)
                     {
-                        Console.WriteLine($"[MACTRAY] Showing window: {nsWindow}");
                         objc_msgSend(nsWindow, sel_registerName("makeKeyAndOrderFront:"), IntPtr.Zero);
                     }
-                    else
-                    {
-                        Console.WriteLine("[MACTRAY] WARNING: Could not find window handle for ShowWindow");
-                    }
-
-                    objc_msgSend(sharedApp, sel_registerName("activateIgnoringOtherApps:"), (byte)1);
+                    
                     _window.SetMinimized(false);
                 }
                 catch (Exception ex)
@@ -251,27 +250,16 @@ public class TrayService : IDisposable
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            _window.Invoke(() => {
-                try
-                {
-                    Console.WriteLine("[MACTRAY] HideWindow: Starting hiding sequence...");
-
-                    IntPtr nsWindow = GetMacWindowHandle();
-                    if (nsWindow != IntPtr.Zero)
-                    {
-                        Console.WriteLine($"[MACTRAY] HideWindow: Ordering window out: {nsWindow}");
-                        objc_msgSend(nsWindow, sel_registerName("orderOut:"), IntPtr.Zero);
-                    }
-                    else
-                    {
-                        Console.WriteLine("[MACTRAY] HideWindow WARNING: Could not find window handle");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[MACTRAY] Error in HideWindow: {ex}");
-                }
-            });
+            try
+            {
+                Console.WriteLine("[MACTRAY] HideWindow: Minimizing window and hiding from Dock...");
+                _window.Invoke(() => _window.SetMinimized(true));
+                SetMacActivationPolicy(1); // 1 = NSApplicationActivationPolicyAccessory
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MACTRAY] Error in HideWindow: {ex}");
+            }
         }
     }
 

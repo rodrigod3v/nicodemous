@@ -49,19 +49,36 @@ const Dashboard = ({ onLogout }) => {
     };
 
     return (
-        <div className="dashboard-container" style={{ display: 'flex', minHeight: 'calc(100vh - 40px)', height: 'calc(100vh - 40px)', width: '100%' }}>
+        <div className="dashboard-container" style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', backgroundColor: 'var(--bg-color)', paddingTop: '40px' }}>
             <Sidebar activeTab={activeTab} onTabChange={setActiveTab} onLogout={onLogout} />
 
-            <main style={{ flexGrow: 1, padding: 'var(--content-padding)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '30px', transition: 'padding 0.3s ease' }}>
-                <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <main style={{
+                flexGrow: 1,
+                padding: 'var(--content-padding)',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '32px',
+                height: '100%',
+                position: 'relative'
+            }}>
+                <header style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingBottom: '24px',
+                    borderBottom: '1px solid rgba(255,255,255,0.05)'
+                }}>
                     <div>
-                        <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Control Center</h1>
-                        <p style={{ color: 'var(--text-dim)' }}>Manage and discover devices on your local network</p>
+                        <h1 style={{ fontSize: '32px', marginBottom: '8px', fontWeight: '800', letterSpacing: '-0.5px' }}>Control Center</h1>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '15px' }}>Manage and discover devices on your local network</p>
                     </div>
                     <button
                         className={`glow-button ${isScanning ? 'scanning' : ''}`}
                         onClick={handleStartDiscovery}
                         disabled={isScanning}
+                        style={{ padding: '12px 28px', fontSize: '15px' }}
                     >
                         {isScanning ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><div className="spinner"></div>Scanning...</div>

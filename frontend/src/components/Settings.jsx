@@ -26,6 +26,8 @@ const Settings = () => {
 
     const [connectionStatus, setConnectionStatus] = useState('Disconnected');
     const [remoteDeviceName, setRemoteDeviceName] = useState('');
+    const [showToast, setShowToast] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
 
     const isInitialLoad = useRef(true);
 
@@ -117,13 +119,19 @@ const Settings = () => {
         setConfig(prev => ({ ...prev, lockInput: !prev.lockInput }));
     };
 
-    const restoreDefaults = () => {
-        if (confirm('Restore all settings to factory defaults? This will also reset your active services.')) {
-            const message = JSON.stringify({ type: 'reset_settings' });
-            if (window.external && window.external.sendMessage) window.external.sendMessage(message);
-            else if (window.photino && window.photino.send) window.photino.send(message);
-            else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) window.chrome.webview.postMessage(message);
-        }
+    const requestRestoreDefaults = () => {
+        setShowConfirmModal(true);
+    };
+
+    const confirmRestoreDefaults = () => {
+        const message = JSON.stringify({ type: 'reset_settings' });
+        if (window.external && window.external.sendMessage) window.external.sendMessage(message);
+        else if (window.photino && window.photino.send) window.photino.send(message);
+        else if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) window.chrome.webview.postMessage(message);
+
+        setShowConfirmModal(false);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
     };
 
     return (
@@ -134,7 +142,7 @@ const Settings = () => {
                     <p style={{ margin: '5px 0 0 0', fontSize: '14px', color: 'var(--text-dim)' }}>Manage core application behavior and defaults.</p>
                 </div>
                 <button
-                    onClick={restoreDefaults}
+                    onClick={requestRestoreDefaults}
                     style={{
                         background: 'rgba(239, 68, 68, 0.1)',
                         border: '1px solid rgba(239, 68, 68, 0.2)',
@@ -288,6 +296,61 @@ const Settings = () => {
                 </div>
             </div>
 
+            {/* Success Toast */}
+            {showToast && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '40px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    color: '#4ade80',
+                    padding: '12px 24px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 1000
+                }}>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span style={{ fontWeight: '600', fontSize: '14px' }}>System defaults restored successfully!</span>
+                </div>
+            )}
+
+            {/* Custom Confirm Modal */}
+            {showConfirmModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(4px)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 2000
+                }}>
+                    <div className="glass animate-fade" style={{ padding: '30px', maxWidth: '400px', width: '90%', display: 'flex', flexDirection: 'column', gap: '20px', borderTop: '4px solid #ef4444', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', borderRadius: '16px' }}>
+                        <div>
+                            <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <svg width="24" height="24" fill="none" stroke="#ef4444" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                Restore Defaults?
+                            </h3>
+                            <p style={{ margin: 0, color: 'var(--text-dim)', fontSize: '14px', lineHeight: '1.5' }}>
+                                This will reset all your settings to their factory defaults. This action cannot be undone. Are you sure you want to proceed?
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
+                            <button onClick={() => setShowConfirmModal(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: 'all 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}>Cancel</button>
+                            <button onClick={confirmRestoreDefaults} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#ef4444', color: 'white', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>Confirm Reset</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

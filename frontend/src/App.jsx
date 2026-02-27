@@ -47,7 +47,7 @@ function App() {
   return (
     <div className="app">
       <TitleBar />
-      <div className="app-content-wrapper">
+      <div className="app-content-wrapper" style={{ height: '100vh', padding: 0 }}>
         <SimpleErrorBoundary>
           <NicodemouseProvider>
             {!authToken ? (
