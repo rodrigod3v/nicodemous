@@ -85,6 +85,11 @@ jobs:
           cp "publish/mac/nicodemouse_backend" "publish/nicodemouse.app/Contents/MacOS/nicodemouse"
           chmod +x "publish/nicodemouse.app/Contents/MacOS/nicodemouse"
 
+          # Copy Icon if exists
+          if [ -f "backend/Assets/logo_n.png" ]; then
+            cp "backend/Assets/logo_n.png" "publish/nicodemouse.app/Contents/Resources/AppIcon.png"
+          fi
+
           # Create Info.plist
           cat <<EOF > "publish/nicodemouse.app/Contents/Info.plist"
           <?xml version="1.0" encoding="UTF-8"?>
@@ -109,9 +114,15 @@ jobs:
               <true/>
               <key>NSPrincipalClass</key>
               <string>NSApplication</string>
+              <key>CFBundleIconFile</key>
+              <string>AppIcon</string>
           </dict>
           </plist>
           EOF
+
+      - name: Ad-hoc Sign App
+        run: |
+          codesign --force --deep --sign - "publish/nicodemouse.app"
 
       - name: Install create-dmg
         run: brew install create-dmg
