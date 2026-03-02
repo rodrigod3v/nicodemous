@@ -52,3 +52,18 @@ public class UpdateSettingsMessage : UiMessage
     [JsonPropertyName("activeMonitor")]
     public string? ActiveMonitor { get; set; }
 }
+
+public class ProxyRequestMessage : UiMessage
+{
+    [JsonPropertyName("requestId")]
+    public string RequestId { get; set; } = string.Empty;
+
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
+
+    [JsonPropertyName("method")]
+    public string Method { get; set; } = "GET";
+
+    [JsonPropertyName("body")]
+    public string? Body { get; set; }
+}

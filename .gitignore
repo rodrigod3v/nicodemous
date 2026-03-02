@@ -5,11 +5,17 @@
 .gemini/
 .serena/
 task_boundary_history.json
+task_boundary_history.json.md
 
 # --- .NET / Backend ---
 [Bb]in/
 [Oo]bj/
 [Ww]wwroot/
+*test_publish/
+test_photino/
+out.txt
+out_utf8.txt
+list_resources.cs
 *.user
 *.userosscache
 *.sln.docstates

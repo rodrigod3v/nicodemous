@@ -379,30 +379,25 @@ public class TrayService : IDisposable
     {
         try
         {
-            string exeDir = AppDomain.CurrentDomain.BaseDirectory;
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            
+            _idleIcon = LoadEmbeddedIcon(assembly, "tray_idle.ico");
+            _connectedIcon = LoadEmbeddedIcon(assembly, "tray_connected.ico") ?? _idleIcon;
 
-            string[] potentialAssetsPaths = {
-                Path.Combine(exeDir, "Assets"),
-                Path.Combine(exeDir, "..", "..", "..", "Assets"),
-                Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets"),
-                Path.Combine(exeDir, "..", "..", "..", "..", "Assets"),
-                exeDir
-            };
+            _idleIcon ??= SystemIcons.Application;
+            _connectedIcon ??= _idleIcon;
 
-            string? baseDir = null;
-            foreach (var p in potentialAssetsPaths)
+            _activeFrames.Clear();
+            for (int i = 1; i <= 6; i++)
             {
-                if (Directory.Exists(p) && File.Exists(Path.Combine(p, "tray_idle.ico")))
+                var frame = LoadEmbeddedIcon(assembly, $"tray_active_{i}.ico");
+                if (frame != null)
                 {
-                    baseDir = p;
-                    break;
+                    _activeFrames.Add(frame);
                 }
             }
 
-            if (baseDir == null) baseDir = exeDir;
-            Console.WriteLine($"[TRAY] Final Icon Path: {baseDir}");
-
-            LoadIconSet(baseDir);
+            Console.WriteLine($"[TRAY] Embedded Icons Loaded. Frames: {_activeFrames.Count}");
         }
         catch (Exception ex)
         {
@@ -412,37 +407,21 @@ public class TrayService : IDisposable
         }
     }
 
-    private void LoadIconSet(string baseDir)
+    private Icon? LoadEmbeddedIcon(System.Reflection.Assembly assembly, string filename)
     {
-        string idlePath      = Path.Combine(baseDir, "tray_idle.ico");
-        string connectedPath = Path.Combine(baseDir, "tray_connected.ico");
-
         try
         {
-            if (File.Exists(idlePath))      _idleIcon      = new Icon(idlePath);
-            if (File.Exists(connectedPath)) _connectedIcon = new Icon(connectedPath);
+            using var stream = assembly.GetManifestResourceStream($"nicodemouse_backend.Assets.{filename}");
+            if (stream != null)
+            {
+                return new Icon(stream);
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[TRAY] Critical: Failed to load idle/connected icons: {ex.Message}");
+            Console.WriteLine($"[TRAY] Failed to load embedded {filename}: {ex.Message}");
         }
-
-        _idleIcon      ??= SystemIcons.Application;
-        _connectedIcon ??= _idleIcon;
-
-        _activeFrames.Clear();
-        for (int i = 1; i <= 6; i++)
-        {
-            string framePath = Path.Combine(baseDir, $"tray_active_{i}.ico");
-            try
-            {
-                if (File.Exists(framePath)) _activeFrames.Add(new Icon(framePath));
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[TRAY] Error loading active frame {i}: {ex.Message}");
-            }
-        }
+        return null;
     }
 
     private void UpdateTrayIcon()
@@ -606,27 +585,25 @@ public class TrayService : IDisposable
         {
             try
             {
-                string exeDir = AppDomain.CurrentDomain.BaseDirectory;
-                string[] paths = {
-                    Path.GetFullPath(Path.Combine(exeDir, "logo_n.png")),
-                    Path.GetFullPath(Path.Combine(exeDir, "Assets", "logo_n.png")),
-                    Path.GetFullPath(Path.Combine(exeDir, "backend", "Assets", "logo_n.png")),
-                    Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "Assets", "logo_n.png")),
-                    Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "backend", "Assets", "logo_n.png"))
-                };
+                var iconStream = System.Reflection.Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("nicodemouse_backend.Assets.logo_n.png");
 
-                foreach (var p in paths)
+                if (iconStream != null)
                 {
-                    if (File.Exists(p))
+                    var tempIconPath = Path.Combine(Path.GetTempPath(), "nicodemouse_temp_logo_n.png");
+                    using (var fileStream = File.Create(tempIconPath))
                     {
-                        Console.WriteLine($"[MACTRAY] Found icon at: {p}");
-                        return p;
+                        iconStream.CopyTo(fileStream);
                     }
+                    Console.WriteLine($"[MACTRAY] Embedded icon extracted to: {tempIconPath}");
+                    return tempIconPath;
                 }
+                
+                Console.WriteLine("[MACTRAY] WARNING: Embedded logo_n.png not found.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MACTRAY] Error finding icon: {ex.Message}");
+                Console.WriteLine($"[MACTRAY] Error extracting embedded icon: {ex.Message}");
             }
             return "";
         }

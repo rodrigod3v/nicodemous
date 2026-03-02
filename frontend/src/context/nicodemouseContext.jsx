@@ -72,9 +72,18 @@ export const NicodemouseProvider = ({ children }) => {
                 case 'settings_data':
                     setSettings(typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings);
                     break;
+                case 'proxy_response':
+                    // Explicitly handled for async flows in components
+                    break;
                 default:
                     console.log('[FRONTEND] Unhandled message type:', data.type);
             }
+
+            // RE-DISPATCH: Send the message to the window object so components 
+            // can listen for specific request/response IDs if they need to.
+            window.dispatchEvent(new MessageEvent('message', {
+                data: data
+            }));
         } catch (e) {
             console.error('[FRONTEND] Error processing backend message:', e);
         }

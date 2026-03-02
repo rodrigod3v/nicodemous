@@ -21,6 +21,64 @@ const Login = ({ onLogin, backendIp }) => {
         const endpoint = isSetupMode ? '/api/auth/signup' : '/api/auth/login';
         const url = `${SIGNALING_BASE}${endpoint}`;
 
+        // Check if we are running in the Photino/WebView2 context
+        const isPhotino = (window.external && window.external.sendMessage) || (window.chrome && window.chrome.webview);
+
+        if (isPhotino) {
+            const requestId = Math.random().toString(36).substring(7);
+
+            const handleProxyResponse = (message) => {
+                try {
+                    const data = typeof message === 'string' ? JSON.parse(message) : message;
+                    if (data.type === 'proxy_response' && data.requestId === requestId) {
+                        // Cleanup listener
+                        if (window.external && window.external.receiveMessage) {
+                            // Note: Photino external.receiveMessage doesn't easily support multiple listeners
+                            // but our context handler already captures this. 
+                            // However, we need a way to handle it HERE for the async flow.
+                        }
+
+                        if (data.success) {
+                            if (isSetupMode) {
+                                alert('System initialized! Please login.');
+                                setIsSetupMode(false);
+                                setPassword('');
+                            } else {
+                                const authData = JSON.parse(data.body);
+                                localStorage.setItem('nicodemouse_token', authData.token);
+                                onLogin(authData.token);
+                            }
+                        } else {
+                            setError(data.error || 'Connection failed via Backend Proxy.');
+                        }
+                        setLoading(false);
+                        window.removeEventListener('message', handleBridge);
+                    }
+                } catch (err) {
+                    console.error('[AUTH] Proxy parse error:', err);
+                }
+            };
+
+            const handleBridge = (e) => handleProxyResponse(e.data || e);
+            window.addEventListener('message', handleBridge);
+
+            const message = JSON.stringify({
+                type: 'proxy_request',
+                requestId,
+                url,
+                method: 'POST',
+                body: JSON.stringify({ username, password })
+            });
+
+            console.log(`[AUTH] Using Backend Proxy for ${url}`);
+            if (window.external && window.external.sendMessage) {
+                window.external.sendMessage(message);
+            } else if (window.chrome && window.chrome.webview) {
+                window.chrome.webview.postMessage(message);
+            }
+            return;
+        }
+
         try {
             console.log(`[AUTH] Attempting ${endpoint} at ${SIGNALING_BASE}`);
             const response = await fetch(url, {

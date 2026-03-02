@@ -1,13 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType Condition="'$(OS)' == 'Windows_NT'">WinExe</OutputType>
-    <OutputType Condition="'$(OS)' != 'Windows_NT'">Exe</OutputType>
-    <TargetFramework Condition="'$(OS)' == 'Windows_NT'">net8.0-windows</TargetFramework>
-    <TargetFramework Condition="'$(OS)' != 'Windows_NT'">net8.0</TargetFramework>
+    <IsWindowsTarget>true</IsWindowsTarget>
+    <IsWindowsTarget Condition="'$(RuntimeIdentifier)' != '' And !$(RuntimeIdentifier.StartsWith('win'))">false</IsWindowsTarget>
+    <IsWindowsTarget Condition="'$(RuntimeIdentifier)' == '' And '$(OS)' != 'Windows_NT'">false</IsWindowsTarget>
+
+    <OutputType Condition="'$(IsWindowsTarget)' == 'true'">WinExe</OutputType>
+    <OutputType Condition="'$(IsWindowsTarget)' == 'false'">Exe</OutputType>
+    <TargetFramework Condition="'$(IsWindowsTarget)' == 'true'">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(IsWindowsTarget)' == 'false'">net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <EnableWindowsTargeting Condition="'$(OS)' != 'Windows_NT'">true</EnableWindowsTargeting>
+    <EnableWindowsTargeting Condition="'$(IsWindowsTarget)' == 'false'">true</EnableWindowsTargeting>
     <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -35,9 +39,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Assets\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="Assets\**\*" />
+    <EmbeddedResource Include="..\frontend\dist\**\*">
+       <LogicalName>nicodemouse_backend.wwwroot.$([System.String]::Copy('%(RecursiveDir)').Replace('\','.'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 

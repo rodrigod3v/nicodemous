@@ -3,6 +3,7 @@ using Photino.NET;
 using System.Runtime.InteropServices;
 using nicodemouse.Backend.Models;
 using nicodemouse.Backend.Services;
+using System.Net.Http;
 
 namespace nicodemouse.Backend.Handlers;
 
@@ -10,6 +11,7 @@ public class UiMessageHandler
 {
     private readonly UniversalControlManager _controlManager;
     private readonly PhotinoWindow _window;
+    private static readonly HttpClient _httpClient = new HttpClient();
 
 #if WINDOWS
     [DllImport("user32.dll")]
@@ -157,6 +159,41 @@ public class UiMessageHandler
                     ReleaseCapture();
                     SendMessage(_window.WindowHandle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
 #endif
+                    break;
+
+                case "proxy_request":
+                    var proxyMsg = JsonSerializer.Deserialize<ProxyRequestMessage>(message, options);
+                    if (proxyMsg != null)
+                    {
+                        _ = Task.Run(async () => {
+                            try {
+                                var request = new HttpRequestMessage(new HttpMethod(proxyMsg.Method), proxyMsg.Url);
+                                if (!string.IsNullOrEmpty(proxyMsg.Body))
+                                {
+                                    request.Content = new StringContent(proxyMsg.Body, System.Text.Encoding.UTF8, "application/json");
+                                }
+
+                                var response = await _httpClient.SendAsync(request);
+                                var responseBody = await response.Content.ReadAsStringAsync();
+                                
+                                _window.SendWebMessage(JsonSerializer.Serialize(new {
+                                    type = "proxy_response",
+                                    requestId = proxyMsg.RequestId,
+                                    success = response.IsSuccessStatusCode,
+                                    status = (int)response.StatusCode,
+                                    body = responseBody
+                                }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                            }
+                            catch (Exception ex) {
+                                _window.SendWebMessage(JsonSerializer.Serialize(new {
+                                    type = "proxy_response",
+                                    requestId = proxyMsg.RequestId,
+                                    success = false,
+                                    error = ex.Message
+                                }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+                            }
+                        });
+                    }
                     break;
                     
                 default:
