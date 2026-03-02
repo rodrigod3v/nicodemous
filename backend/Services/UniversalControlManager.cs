@@ -575,13 +575,15 @@ public class UniversalControlManager : IDisposable
         }
     }
 
-    [DllImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
+
+    [DllImport(CoreGraphicsLib)]
     private static extern uint CGMainDisplayID();
 
     [StructLayout(LayoutKind.Sequential)]
     private struct CGRect { public double X; public double Y; public double Width; public double Height; }
 
-    [DllImport("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")]
+    [DllImport(CoreGraphicsLib)]
     private static extern CGRect CGDisplayBounds(uint display);
 
     // -----------------------------------------------------------------------

@@ -72,7 +72,7 @@
                             <h3>Windows 11 / 10</h3>
                             <p class="text-dim mb-8">Execute com latência ultra-baixa usando nossa engine dedicada para
                                 Windows.</p>
-                            <a href="https://github.com/rodrigod3v/nicodemous/releases/download/v1.0.0/nicodemouse-windows-x64_20260302_133333.zip"
+                            <a href="https://github.com/rodrigod3v/nicodemous/releases/latest/download/nicodemouse-windows-x64.zip"
                                 class="btn btn-primary" id="download-win">
                                 <i data-lucide="download"></i> Download para Windows
                             </a>
@@ -88,7 +88,7 @@
                             <h3>macOS Silicon / Intel</h3>
                             <p class="text-dim mb-8">Nativo e otimizado para a arquitetura Apple, com suporte a gestos e
                                 áudio.</p>
-                            <a href="https://github.com/rodrigod3v/nicodemous/releases/download/v1.0.0/nicodemouse-macos-universal_20260302_133344.zip"
+                            <a href="https://github.com/rodrigod3v/nicodemous/releases/latest/download/nicodemouse-macos-arm64.dmg"
                                 class="btn btn-secondary" id="download-mac">
                                 <i data-lucide="download"></i> Download para Mac
                             </a>
@@ -176,21 +176,26 @@
                                         <div class="step-num">01</div>
                                         <div class="step-desc">
                                             <strong>Instalação</strong>
-                                            <p>Mova o App para <code>Applications</code> e abra via Launchpad.</p>
+                                            <p>Baixe o <code>.dmg</code>, arraste para <code>Applications</code> e abra
+                                                via Launchpad.</p>
                                         </div>
                                     </li>
                                     <li>
                                         <div class="step-num">02</div>
                                         <div class="step-desc">
-                                            <strong>Permissões</strong>
-                                            <p>Habilite <strong>Acessibilidade</strong> em Segurança & Privacidade.</p>
+                                            <strong>Segurança (Gatekeeper)</strong>
+                                            <p>Clique em <strong>OK</strong> no aviso. Vá em <strong>Ajustes do Sistema
+                                                    > Privacidade e Segurança</strong>. Role até o fim e clique em
+                                                <strong>"Abrir Mesmo Assim"</strong> e confirme com sua senha.
+                                            </p>
                                         </div>
                                     </li>
                                     <li>
                                         <div class="step-num">03</div>
                                         <div class="step-desc">
-                                            <strong>Conclusão</strong>
-                                            <p>O ícone aparecerá na <code>Menu Bar</code>. Tudo pronto!</p>
+                                            <strong>Permissões</strong>
+                                            <p>Habilite <strong>Acessibilidade</strong> e <strong>Disco Total</strong>
+                                                para controle total e clipboard.</p>
                                         </div>
                                     </li>
                                 </ol>
@@ -300,8 +305,23 @@
                         <summary>Posso controlar o Mac através do Windows?</summary>
                         <p class="p-6 text-dim mt-4 border-t border-white/5">Sim! O controle é bidirecional. Você pode
                             definir qualquer dispositivo como host ou cliente em tempo real.</p>
-                    </details>
+                        <details class="glass-card faq-item">
+                            <summary>O macOS diz que o app está "danificado" ou "não pode ser verificado".</summary>
+                            <div class="p-6 text-dim mt-4 border-t border-white/5">
+                                <p class="mb-4">Isso é um comportamento padrão do macOS (Gatekeeper) para apps sem
+                                    certificado
+                                    pago da Apple.</p>
+                                <ol class="flex flex-column gap-2">
+                                    <li>1. Tente abrir pelo <strong>Finder</strong> (clique direito > Abrir).</li>
+                                    <li>2. Se persistir, vá em <strong>Ajustes do Sistema > Privacidade e
+                                            Segurança</strong>.
+                                    </li>
+                                    <li>3. Role até o fim e clique em <strong>"Abrir Mesmo Assim"</strong>.</li>
+                                </ol>
+                            </div>
+                        </details>
                 </div>
+
             </div>
         </section>
     </main>
@@ -335,15 +355,16 @@
                 <p class="text-dim">Download direto com latência ultra-baixa.</p>
             </div>
             <div class="modal-buttons flex flex-column gap-4">
-                <a href="https://github.com/rodrigod3v/nicodemous/releases/download/v1.0.0/nicodemouse-windows-x64_20260302_133333.zip"
+                <a href="https://github.com/rodrigod3v/nicodemous/releases/latest/download/nicodemouse-windows-x64.zip"
                     class="btn btn-primary" id="modal-download-win">
                     <i data-lucide="monitor"></i> Windows (64-bit)
                 </a>
-                <a href="https://github.com/rodrigod3v/nicodemous/releases/download/v1.0.0/nicodemouse-macos-universal_20260302_133344.zip"
+                <a href="https://github.com/rodrigod3v/nicodemous/releases/latest/download/nicodemouse-macos-arm64.dmg"
                     class="btn btn-secondary" id="modal-download-mac">
-                    <i data-lucide="apple"></i> macOS (Silicon / Intel)
+                    <i data-lucide="apple"></i> macOS (Silicon / ARM64)
                 </a>
             </div>
+
             <div class="modal-footer mt-8">
                 <p class="text-xs text-dim">Versão Estável v1.0 | Licença MIT</p>
             </div>

@@ -995,3 +995,50 @@ h3,
 .p-12 {
     padding: 3rem;
 }
+
+/* Modal Instructions */
+.mac-instructions {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: rgba(139, 92, 246, 0.05);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    text-align: left;
+}
+
+.mac-instructions summary {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mac-instructions summary i {
+    transition: transform 0.3s ease;
+}
+
+.mac-instructions[open] summary i {
+    transform: rotate(180deg);
+}
+
+.mac-step-list {
+    margin-top: 1rem;
+    padding-left: 1.2rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mac-step-list li {
+    line-height: 1.4;
+}
+
+.mac-step-list strong {
+    color: white;
+}

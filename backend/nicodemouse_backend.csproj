@@ -13,6 +13,7 @@
     <Nullable>enable</Nullable>
     <EnableWindowsTargeting Condition="'$(IsWindowsTarget)' == 'false'">true</EnableWindowsTargeting>
     <ApplicationIcon>Assets\app_icon.ico</ApplicationIcon>
+    <DefineConstants Condition="'$(IsWindowsTarget)' == 'true'">$(DefineConstants);WINDOWS</DefineConstants>
   </PropertyGroup>
 
 

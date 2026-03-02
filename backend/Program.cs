@@ -18,6 +18,23 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
+        try 
+        {
+            RunApp(args);
+        }
+        catch (Exception ex)
+        {
+            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash_log.txt"), ex.ToString());
+            Console.WriteLine("**************************************************");
+            Console.WriteLine("CRITICAL ERROR: Unhandled Exception in Main");
+            Console.WriteLine(ex.ToString());
+            Console.WriteLine("**************************************************");
+            throw; // Re-throw to let the OS handle the final crash if needed
+        }
+    }
+
+    static void RunApp(string[] args)
+    {
         string windowTitle = "nicodemouse";
         
         string exeDir = AppContext.BaseDirectory;
@@ -69,17 +86,10 @@ class Program
                     stream = assembly.GetManifestResourceStream("nicodemouse_backend.wwwroot.index.html");
                 }
                 
-                // If it's not a local resource and not index.html, don't fallback to index.html 
-                // to avoid confusing the browser/JS logic for failed assets
                 return stream;
             })
             .SetContextMenuEnabled(true)
             .SetDevToolsEnabled(true);
-#if DEBUG
-            // Already set above
-#else
-            // Already set above
-#endif
 
         window.StartUrl = initialUrl;
         window.StartString = "<html></html>";
@@ -102,7 +112,7 @@ class Program
         }
         else
         {
-            Console.WriteLine("[ERROR] Application embedded icon not found.");
+            Console.WriteLine($"[ERROR] Application embedded icon not found: nicodemouse_backend.Assets.{iconFilename}");
         }
 #else
         string[] potentialIconPaths = {
@@ -137,27 +147,37 @@ class Program
         _uiHandler = new UiMessageHandler(_controlManager, window);
 
         // Initialize Tray Support
-        using var trayService = new TrayService(window, _controlManager);
-
-        // UI Callbacks
-        window.RegisterWebMessageReceivedHandler((object? sender, string message) => 
+        try 
         {
-            _ = _uiHandler.HandleMessageAsync(message);
-        });
+            using var trayService = new TrayService(window, _controlManager);
+            
+            // UI Callbacks
+            window.RegisterWebMessageReceivedHandler((object? sender, string message) => 
+            {
+                _ = _uiHandler.HandleMessageAsync(message);
+            });
 
-        _controlManager.Start();
-        
-        window.Load(initialUrl);
+            _controlManager.Start();
+            
+            window.Load(initialUrl);
 
-        // Send actual Pairing Code and IP to UI
-        Task.Run(async () => {
-            await Task.Delay(3000); // Give UI time to fully load
-            _controlManager!.NotifyWindowReady();
-            _controlManager!.SendLocalIpToWeb();
-        });
+            // Send actual Pairing Code and IP to UI
+            Task.Run(async () => {
+                await Task.Delay(3000); // Give UI time to fully load
+                _controlManager!.NotifyWindowReady();
+                _controlManager!.SendLocalIpToWeb();
+            });
 
-        window.WaitForClose();
+            window.WaitForClose();
 
-        _controlManager.Stop();
+            _controlManager.Stop();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] TrayService initialization failed: {ex.Message}");
+            // Continue app even if tray fails
+            window.Load(initialUrl);
+            window.WaitForClose();
+        }
     }
 }

@@ -41,53 +41,53 @@ public class TrayService : IDisposable
 #endif
 
     // --- Native P/Invoke Declarations (Global scope for TrayService/MacTrayManager) ---
+    private const string ObjCLib = "/usr/lib/libobjc.A.dylib";
+
     [DllImport("libdl.dylib")]
     private static extern IntPtr dlopen(string path, int mode);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_getClass(string name);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr sel_registerName(string name);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, string arg);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, double arg);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, ulong arg);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, int arg);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, byte arg);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2, IntPtr arg3);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
-    private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, NSSize arg);
+    // REMOVED: [DllImport(ObjCLib)] private static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, NSSize arg);
+    // Passing structs by value in objc_msgSend is highly ABI-dependent (ARM64 vs x64).
+    // We'll avoid it by not calling setSize: directly or using a different approach.
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern IntPtr objc_allocateClassPair(IntPtr superclass, string name, int extraBytes);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern bool class_addMethod(IntPtr cls, IntPtr name, Delegate imp, string types);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     private static extern void objc_registerClassPair(IntPtr cls);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NSSize { public double width; public double height; }
 
 #if WINDOWS
     [DllImport("user32.dll")]
@@ -541,7 +541,7 @@ public class TrayService : IDisposable
 
                 IntPtr image = objc_msgSend(objc_getClass("NSImage"), sel_registerName("alloc"));
                 objc_msgSend(image, sel_registerName("initWithContentsOfFile:"), nsStringPath);
-                objc_msgSend(image, sel_registerName("setSize:"), new NSSize { width = 18, height = 18 });
+                // objc_msgSend(image, sel_registerName("setSize:"), new NSSize { width = 18, height = 18 }); // AVOID STRUCTS
                 objc_msgSend(image, sel_registerName("setTemplate:"), 1); // adapta ao dark/light mode
 
                 IntPtr button = objc_msgSend(_statusItem, sel_registerName("button"));
@@ -554,19 +554,26 @@ public class TrayService : IDisposable
             }
 
             // 5. Menu
-            _menu = objc_msgSend(objc_getClass("NSMenu"), sel_registerName("alloc"));
-            objc_msgSend(_menu, sel_registerName("initWithTitle:"),
-                objc_msgSend(objc_getClass("NSString"),
-                    sel_registerName("stringWithUTF8String:"), "nicodemouse"));
+            try 
+            {
+                _menu = objc_msgSend(objc_getClass("NSMenu"), sel_registerName("alloc"));
+                objc_msgSend(_menu, sel_registerName("initWithTitle:"),
+                    objc_msgSend(objc_getClass("NSString"),
+                        sel_registerName("stringWithUTF8String:"), "nicodemouse"));
 
-            AddMenuItem("Show / Restore", sel_registerName("onShow:"));
-            AddMenuSeparator();
-            AddMenuItem("Disconnect",     sel_registerName("onDisconnect:"));
-            AddMenuSeparator();
-            AddMenuItem("Exit",           sel_registerName("onExit:"));
+                AddMenuItem("Show / Restore", sel_registerName("onShow:"));
+                AddMenuSeparator();
+                AddMenuItem("Disconnect",     sel_registerName("onDisconnect:"));
+                AddMenuSeparator();
+                AddMenuItem("Exit",           sel_registerName("onExit:"));
 
-            objc_msgSend(_statusItem, sel_registerName("setMenu:"), _menu);
-            Console.WriteLine("[MACTRAY] Tray initialized successfully.");
+                objc_msgSend(_statusItem, sel_registerName("setMenu:"), _menu);
+                Console.WriteLine("[MACTRAY] Tray initialized successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MACTRAY] Error creating menu: {ex}");
+            }
         }
 
         private IntPtr CreateTargetInstance()

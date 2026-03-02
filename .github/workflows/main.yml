@@ -40,11 +40,16 @@ jobs:
       - name: Publish Windows Standalone
         run: dotnet publish backend/nicodemouse_backend.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -f net8.0-windows -o ./publish/win
 
+      - name: Zip Windows Release
+        shell: pwsh
+        run: |
+          Compress-Archive -Path ./publish/win/nicodemouse_backend.exe -DestinationPath ./publish/nicodemouse-windows-x64.zip
+
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: nicodemouse-windows
-          path: ./publish/win/nicodemouse_backend.exe
+          path: ./publish/nicodemouse-windows-x64.zip
 
   build-macos:
     name: Build macOS (osx-arm64)
@@ -170,6 +175,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ./release/nicodemouse_backend.exe
+            ./release/nicodemouse-windows-x64.zip
             ./release/nicodemouse-macos-arm64.dmg
           generate_release_notes: true
