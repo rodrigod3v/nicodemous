@@ -165,16 +165,17 @@ const Login = ({ onLogin }) => {
                         {isForgotMode ? (
                             <motion.div
                                 key="forgot"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
+                                variants={containerVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="hidden"
                                 className="forgot-view"
                             >
-                                <div className="info-box">
+                                <motion.div variants={itemVariants} className="info-box">
                                     <Shield className="info-icon" size={24} />
                                     <p>Para sua segurança, a recuperação de senha é realizada através de um administrador físico ou via chave de segurança mestre.</p>
-                                </div>
-                                <div className="support-actions">
+                                </motion.div>
+                                <motion.div variants={itemVariants} className="support-actions">
                                     <p className="support-text">Siga as instruções do seu manual de implantação ou contate o suporte interno.</p>
                                     <motion.button
                                         whileHover={{ scale: 1.05 }}
@@ -185,20 +186,19 @@ const Login = ({ onLogin }) => {
                                     >
                                         Voltar ao Login
                                     </motion.button>
-                                </div>
+                                </motion.div>
                             </motion.div>
                         ) : (
                             <motion.div
                                 key="login-form"
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 20 }}
+                                variants={containerVariants}
+                                initial="hidden"
+                                animate="visible"
+                                exit="hidden"
                             >
                                 {error && (
                                     <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
+                                        variants={itemVariants}
                                         className="login-error"
                                     >
                                         <AlertCircle size={18} />
