@@ -54,5 +54,18 @@ sudo tccutil reset Accessibility
 ```
 *Note: This will reset permissions for ALL apps.*
 
+### 🛠️ Manual Build Troubleshooting
+If you downloaded a raw binary or the app still says it "cannot be opened", try these Terminal commands:
+
+1. **Remove Quarantine Flag**:
+   ```bash
+   sudo xattr -cr /path/to/nicodemouse.app
+   ```
+
+2. **Fix Execution Permissions**:
+   ```bash
+   chmod +x /path/to/nicodemouse.app/Contents/MacOS/nicodemouse
+   ```
+
 ---
 *Created with ❤️ by rodrigod3v*

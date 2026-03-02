@@ -78,11 +78,62 @@ jobs:
       - name: Publish macOS Standalone
         run: dotnet publish backend/nicodemouse_backend.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -f net8.0 -o ./publish/mac
 
+      - name: Create .app Bundle
+        run: |
+          mkdir -p "publish/nicodemouse.app/Contents/MacOS"
+          mkdir -p "publish/nicodemouse.app/Contents/Resources"
+          cp "publish/mac/nicodemouse_backend" "publish/nicodemouse.app/Contents/MacOS/nicodemouse"
+          chmod +x "publish/nicodemouse.app/Contents/MacOS/nicodemouse"
+
+          # Create Info.plist
+          cat <<EOF > "publish/nicodemouse.app/Contents/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>nicodemouse</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.rodrigod3v.nicodemouse</string>
+              <key>CFBundleName</key>
+              <string>nicodemouse</string>
+              <key>CFBundleVersion</key>
+              <string>1.0.0</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0.0</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>11.0</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>NSPrincipalClass</key>
+              <string>NSApplication</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Generate DMG
+        run: |
+          create-dmg \
+            --volname "nicodemouse Installer" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "nicodemouse.app" 175 190 \
+            --hide-extension "nicodemouse.app" \
+            --app-drop-link 425 190 \
+            "publish/nicodemouse-macos-arm64.dmg" \
+            "publish/nicodemouse.app"
+
       - name: Upload macOS Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nicodemouse-macos
-          path: ./publish/mac/nicodemouse_backend
+          name: nicodemouse-macos-dmg
+          path: ./publish/nicodemouse-macos-arm64.dmg
 
   release:
     name: Create Release
@@ -99,7 +150,7 @@ jobs:
       - name: Download macOS Artifact
         uses: actions/download-artifact@v4
         with:
-          name: nicodemouse-macos
+          name: nicodemouse-macos-dmg
           path: ./release
 
       - name: Create GitHub Release
@@ -107,5 +158,5 @@ jobs:
         with:
           files: |
             ./release/nicodemouse_backend.exe
-            ./release/nicodemouse_backend
+            ./release/nicodemouse-macos-arm64.dmg
           generate_release_notes: true
