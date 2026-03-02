@@ -6,6 +6,7 @@ import './Login.css';
 
 const Login = ({ onLogin }) => {
     const [isSetupMode, setIsSetupMode] = useState(false);
+    const [isForgotMode, setIsForgotMode] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -154,88 +155,135 @@ const Login = ({ onLogin }) => {
                             <AnimatedLogo size={100} />
                         </div>
                         <h1 className="gradient-text">nicodemouse</h1>
-                        <p>{isSetupMode ? 'System Initialization' : 'Digital Fortress Access'}</p>
+                        <p>
+                            {isForgotMode ? 'Protocolo de Recuperação' :
+                                isSetupMode ? 'System Initialization' : 'Digital Fortress Access'}
+                        </p>
                     </motion.div>
 
                     <AnimatePresence mode="wait">
-                        {error && (
+                        {isForgotMode ? (
                             <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="login-error"
+                                key="forgot"
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                className="forgot-view"
                             >
-                                <AlertCircle size={18} />
-                                <span>{error}</span>
+                                <div className="info-box">
+                                    <Shield className="info-icon" size={24} />
+                                    <p>Para sua segurança, a recuperação de senha é realizada através de um administrador físico ou via chave de segurança mestre.</p>
+                                </div>
+                                <div className="support-actions">
+                                    <p className="support-text">Siga as instruções do seu manual de implantação ou contate o suporte interno.</p>
+                                    <motion.button
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setIsForgotMode(false)}
+                                        className="secondary-button"
+                                        style={{ width: '100%', marginTop: '20px' }}
+                                    >
+                                        Voltar ao Login
+                                    </motion.button>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="login-form"
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                            >
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="login-error"
+                                    >
+                                        <AlertCircle size={18} />
+                                        <span>{error}</span>
+                                    </motion.div>
+                                )}
+
+                                <form onSubmit={handleSubmit}>
+                                    <motion.div variants={itemVariants} className="form-group">
+                                        <label>Identificador</label>
+                                        <div className="input-wrapper">
+                                            <User size={20} />
+                                            <input
+                                                type="text"
+                                                className="login-input"
+                                                placeholder="Nome de usuário"
+                                                value={username}
+                                                onChange={(e) => setUsername(e.target.value)}
+                                                required
+                                                autoComplete="username"
+                                            />
+                                        </div>
+                                    </motion.div>
+
+                                    <motion.div variants={itemVariants} className="form-group">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <label>Senha de Acesso</label>
+                                            <span
+                                                className="forgot-link"
+                                                onClick={() => setIsForgotMode(true)}
+                                            >
+                                                Esqueceu?
+                                            </span>
+                                        </div>
+                                        <div className="input-wrapper">
+                                            <Lock size={20} />
+                                            <input
+                                                type="password"
+                                                className="login-input"
+                                                placeholder="••••••••••••"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                                required
+                                                autoComplete="current-password"
+                                            />
+                                        </div>
+                                    </motion.div>
+
+                                    <motion.button
+                                        variants={itemVariants}
+                                        whileHover={{ scale: 1.02, y: -2 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        type="submit"
+                                        disabled={loading}
+                                        className="glow-button login-button"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="animate-spin" size={20} />
+                                                <span>Autenticando...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span>{isSetupMode ? 'Criar Administrador' : 'Entrar no Sistema'}</span>
+                                                <ArrowRight size={20} />
+                                            </>
+                                        )}
+                                    </motion.button>
+                                </form>
                             </motion.div>
                         )}
                     </AnimatePresence>
 
-                    <form onSubmit={handleSubmit}>
-                        <motion.div variants={itemVariants} className="form-group">
-                            <label>Identificador</label>
-                            <div className="input-wrapper">
-                                <User size={20} />
-                                <input
-                                    type="text"
-                                    className="login-input"
-                                    placeholder="Nome de usuário"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    required
-                                    autoComplete="username"
-                                />
-                            </div>
-                        </motion.div>
-
-                        <motion.div variants={itemVariants} className="form-group">
-                            <label>Senha de Acesso</label>
-                            <div className="input-wrapper">
-                                <Lock size={20} />
-                                <input
-                                    type="password"
-                                    className="login-input"
-                                    placeholder="••••••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    autoComplete="current-password"
-                                />
-                            </div>
-                        </motion.div>
-
-                        <motion.button
-                            variants={itemVariants}
-                            whileHover={{ scale: 1.02, y: -2 }}
-                            whileTap={{ scale: 0.98 }}
-                            type="submit"
-                            disabled={loading}
-                            className="glow-button login-button"
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="animate-spin" size={20} />
-                                    <span>Autenticando...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span>{isSetupMode ? 'Criar Administrador' : 'Entrar no Sistema'}</span>
-                                    <ArrowRight size={20} />
-                                </>
-                            )}
-                        </motion.button>
-                    </form>
-
                     <motion.div variants={itemVariants} className="login-footer">
-                        <span
-                            onClick={() => {
-                                setIsSetupMode(!isSetupMode);
-                                setError('');
-                            }}
-                            className="setup-link"
-                        >
-                            {isSetupMode ? '← Voltar para o Login' : 'Primeiro acesso? Configurar sistema'}
-                        </span>
+                        {!isForgotMode && (
+                            <span
+                                onClick={() => {
+                                    setIsSetupMode(!isSetupMode);
+                                    setError('');
+                                }}
+                                className="setup-link"
+                            >
+                                {isSetupMode ? '← Voltar para o Login' : 'Primeiro acesso? Configurar sistema'}
+                            </span>
+                        )}
                     </motion.div>
                 </motion.div>
             </motion.div>
