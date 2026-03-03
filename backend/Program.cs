@@ -84,7 +84,7 @@ class Program
             .SetSize(1280, 850)
             .Center()
             .SetResizable(true)
-            .RegisterCustomSchemeHandler("http", (object sender, string scheme, string url, out string contentType) =>
+            .RegisterCustomSchemeHandler("http", (object sender, string scheme, string url, out string? contentType) =>
             {
                 contentType = "text/html";
                 
