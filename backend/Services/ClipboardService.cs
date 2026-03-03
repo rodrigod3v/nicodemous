@@ -285,35 +285,45 @@ internal class ClipboardMonitorWindow : Form
 /// </summary>
 internal static class MacClipboardNative
 {
-    [DllImport("/System/Library/Frameworks/AppKit.framework/AppKit")]
+    private const string ObjCLib = "/usr/lib/libobjc.A.dylib";
+    private const string AppKitLib = "/System/Library/Frameworks/AppKit.framework/AppKit";
+
+    [DllImport(AppKitLib)]
     static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector);
 
-    [DllImport("/System/Library/Frameworks/AppKit.framework/AppKit")]
+    [DllImport(AppKitLib)]
     static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1);
 
-    [DllImport("/System/Library/Frameworks/AppKit.framework/AppKit")]
+    [DllImport(AppKitLib)]
     static extern IntPtr objc_msgSend(IntPtr receiver, IntPtr selector, IntPtr arg1, IntPtr arg2);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     static extern IntPtr sel_registerName(string name);
 
-    [DllImport("/usr/lib/libobjc.A.dylib")]
+    [DllImport(ObjCLib)]
     static extern IntPtr objc_getClass(string name);
 
-    [DllImport("/System/Library/Frameworks/Foundation.framework/Foundation")]
-    static extern IntPtr UTF8String(IntPtr nsString);
-
-    private static IntPtr _nsStringClass = objc_getClass("NSString");
-    private static IntPtr _nsPasteboardClass = objc_getClass("NSPasteboard");
-    private static IntPtr _utf8Type;
+    private static readonly IntPtr _nsStringClass = objc_getClass("NSString");
+    private static readonly IntPtr _nsPasteboardClass = objc_getClass("NSPasteboard");
+    private static readonly IntPtr _utf8Type;
 
     static MacClipboardNative()
     {
-        _utf8Type = CreateNSString("public.utf8-plain-text");
+        if (_nsStringClass != IntPtr.Zero)
+        {
+            _utf8Type = CreateNSString("public.utf8-plain-text");
+        }
+        else
+        {
+            Console.WriteLine("[MAC-CLIP] CRITICAL: NSString class not found.");
+            _utf8Type = IntPtr.Zero;
+        }
     }
 
     private static IntPtr CreateNSString(string str)
     {
+        if (_nsStringClass == IntPtr.Zero) return IntPtr.Zero;
+
         IntPtr alloc = objc_msgSend(_nsStringClass, sel_registerName("alloc"));
         IntPtr init = sel_registerName("initWithUTF8String:");
         byte[] utf8 = System.Text.Encoding.UTF8.GetBytes(str + "\0");
@@ -340,7 +350,9 @@ internal static class MacClipboardNative
     {
         try
         {
+            if (_nsPasteboardClass == IntPtr.Zero) return 0;
             IntPtr pb = objc_msgSend(_nsPasteboardClass, sel_registerName("generalPasteboard"));
+            if (pb == IntPtr.Zero) return 0;
             return (long)objc_msgSend(pb, sel_registerName("changeCount"));
         }
         catch { return 0; }
@@ -350,7 +362,10 @@ internal static class MacClipboardNative
     {
         try
         {
+            if (_nsPasteboardClass == IntPtr.Zero || _utf8Type == IntPtr.Zero) return null;
             IntPtr pb = objc_msgSend(_nsPasteboardClass, sel_registerName("generalPasteboard"));
+            if (pb == IntPtr.Zero) return null;
+
             IntPtr str = objc_msgSend(pb, sel_registerName("stringForType:"), _utf8Type);
             return GetStringFromIntPtr(str);
         }
@@ -361,10 +376,15 @@ internal static class MacClipboardNative
     {
         try
         {
+            if (_nsPasteboardClass == IntPtr.Zero || _utf8Type == IntPtr.Zero) return;
             IntPtr pb = objc_msgSend(_nsPasteboardClass, sel_registerName("generalPasteboard"));
+            if (pb == IntPtr.Zero) return;
+
             objc_msgSend(pb, sel_registerName("clearContents"));
             
             IntPtr nsStr = CreateNSString(text);
+            if (nsStr == IntPtr.Zero) return;
+
             try
             {
                 objc_msgSend(pb, sel_registerName("setString:forType:"), nsStr, _utf8Type);

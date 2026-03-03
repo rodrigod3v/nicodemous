@@ -505,60 +505,108 @@ public class TrayService : IDisposable
         {
             Console.WriteLine("[MACTRAY] Starting initialization...");
 
-            // 0. Garante que AppKit está carregado
+            // 0. Ensure AppKit is loaded
             IntPtr appKit = dlopen("/System/Library/Frameworks/AppKit.framework/AppKit", 2);
+            if (appKit == IntPtr.Zero)
+            {
+                Console.WriteLine("[MACTRAY] CRITICAL: Failed to load AppKit framework via dlopen.");
+                return;
+            }
             Console.WriteLine($"[MACTRAY] AppKit library handle: {appKit}");
 
-            // 1. Cria instância alvo para receber ações de menu
+            // 1. Create target instance for menu actions
             _target = CreateTargetInstance();
+            if (_target == IntPtr.Zero)
+            {
+                Console.WriteLine("[MACTRAY] CRITICAL: Failed to create Objective-C target instance.");
+                return;
+            }
             Console.WriteLine($"[MACTRAY] Target instance created: {_target}");
 
             // 2. NSStatusBar.systemStatusBar
             IntPtr nsStatusBarCls = objc_getClass("NSStatusBar");
-            Console.WriteLine($"[MACTRAY] NSStatusBar class: {nsStatusBarCls}");
-            if (nsStatusBarCls == IntPtr.Zero) return;
+            if (nsStatusBarCls == IntPtr.Zero)
+            {
+                Console.WriteLine("[MACTRAY] CRITICAL: NSStatusBar class not found.");
+                return;
+            }
 
             _statusBar = objc_msgSend(nsStatusBarCls, sel_registerName("systemStatusBar"));
+            if (_statusBar == IntPtr.Zero)
+            {
+                Console.WriteLine("[MACTRAY] CRITICAL: systemStatusBar returned NULL.");
+                return;
+            }
             Console.WriteLine($"[MACTRAY] System status bar handle: {_statusBar}");
-            if (_statusBar == IntPtr.Zero) return;
 
             // 3. statusItemWithLength: -1 (NSSquareStatusItemLength)
             _statusItem = objc_msgSend(_statusBar, sel_registerName("statusItemWithLength:"), (double)-1);
+            if (_statusItem == IntPtr.Zero)
+            {
+                Console.WriteLine("[MACTRAY] CRITICAL: Failed to create status item (statusItemWithLength returned NULL).");
+                return;
+            }
             Console.WriteLine($"[MACTRAY] Status item handle: {_statusItem}");
-            if (_statusItem == IntPtr.Zero) return;
 
             objc_msgSend(_statusItem, sel_registerName("setHighlightMode:"), 1);
 
-            // 4. Ícone
+            // 4. Icon
             string iconPath = FindIcon();
             if (!string.IsNullOrEmpty(iconPath))
             {
                 Console.WriteLine($"[MACTRAY] Loading icon from: {iconPath}");
-                IntPtr nsStringPath = objc_msgSend(
-                    objc_getClass("NSString"),
-                    sel_registerName("stringWithUTF8String:"),
-                    iconPath);
+                IntPtr nsStringCls = objc_getClass("NSString");
+                if (nsStringCls != IntPtr.Zero)
+                {
+                    IntPtr nsStringPath = objc_msgSend(
+                        nsStringCls,
+                        sel_registerName("stringWithUTF8String:"),
+                        iconPath);
 
-                IntPtr image = objc_msgSend(objc_getClass("NSImage"), sel_registerName("alloc"));
-                objc_msgSend(image, sel_registerName("initWithContentsOfFile:"), nsStringPath);
-                // objc_msgSend(image, sel_registerName("setSize:"), new NSSize { width = 18, height = 18 }); // AVOID STRUCTS
-                objc_msgSend(image, sel_registerName("setTemplate:"), 1); // adapta ao dark/light mode
+                    IntPtr nsImageCls = objc_getClass("NSImage");
+                    if (nsImageCls != IntPtr.Zero)
+                    {
+                        IntPtr image = objc_msgSend(nsImageCls, sel_registerName("alloc"));
+                        if (image != IntPtr.Zero)
+                        {
+                            objc_msgSend(image, sel_registerName("initWithContentsOfFile:"), nsStringPath);
+                            objc_msgSend(image, sel_registerName("setTemplate:"), 1); // adapts to dark/light mode
 
-                IntPtr button = objc_msgSend(_statusItem, sel_registerName("button"));
-                Console.WriteLine($"[MACTRAY] Status item button handle: {button}");
-                objc_msgSend(button, sel_registerName("setImage:"), image);
+                            IntPtr button = objc_msgSend(_statusItem, sel_registerName("button"));
+                            if (button != IntPtr.Zero)
+                            {
+                                Console.WriteLine($"[MACTRAY] Applying icon to status item button: {button}");
+                                objc_msgSend(button, sel_registerName("setImage:"), image);
+                            }
+                        }
+                    }
+                }
             }
             else
             {
-                Console.WriteLine("[MACTRAY] WARNING: Icon file not found!");
+                Console.WriteLine("[MACTRAY] WARNING: Icon file not found, tray item may be invisible.");
             }
 
             // 5. Menu
             try 
             {
-                _menu = objc_msgSend(objc_getClass("NSMenu"), sel_registerName("alloc"));
+                IntPtr nsMenuCls = objc_getClass("NSMenu");
+                if (nsMenuCls == IntPtr.Zero)
+                {
+                    Console.WriteLine("[MACTRAY] CRITICAL: NSMenu class not found.");
+                    return;
+                }
+
+                _menu = objc_msgSend(nsMenuCls, sel_registerName("alloc"));
+                if (_menu == IntPtr.Zero)
+                {
+                    Console.WriteLine("[MACTRAY] CRITICAL: Failed to allocate NSMenu.");
+                    return;
+                }
+
+                IntPtr nsStringCls = objc_getClass("NSString");
                 objc_msgSend(_menu, sel_registerName("initWithTitle:"),
-                    objc_msgSend(objc_getClass("NSString"),
+                    objc_msgSend(nsStringCls,
                         sel_registerName("stringWithUTF8String:"), "nicodemouse"));
 
                 AddMenuItem("Show / Restore", sel_registerName("onShow:"));
@@ -578,14 +626,40 @@ public class TrayService : IDisposable
 
         private IntPtr CreateTargetInstance()
         {
-            IntPtr cls = objc_allocateClassPair(objc_getClass("NSObject"), "TrayTarget", 0);
-            class_addMethod(cls, sel_registerName("onShow:"),       _onShow,       "v@:@");
-            class_addMethod(cls, sel_registerName("onExit:"),       _onExit,       "v@:@");
-            class_addMethod(cls, sel_registerName("onDisconnect:"), _onDisconnect, "v@:@");
-            objc_registerClassPair(cls);
-            return objc_msgSend(
-                objc_msgSend(cls, sel_registerName("alloc")),
-                sel_registerName("init"));
+            const string className = "TrayTarget";
+            IntPtr cls = objc_getClass(className);
+            
+            if (cls == IntPtr.Zero)
+            {
+                IntPtr nsObject = objc_getClass("NSObject");
+                if (nsObject == IntPtr.Zero)
+                {
+                    Console.WriteLine("[MACTRAY] CRITICAL: NSObject class not found.");
+                    return IntPtr.Zero;
+                }
+
+                cls = objc_allocateClassPair(nsObject, className, 0);
+                if (cls == IntPtr.Zero)
+                {
+                    Console.WriteLine("[MACTRAY] WARNING: Failed to allocate class pair for TrayTarget (maybe already exists).");
+                    // Try to get it again just in case a race condition occurred
+                    cls = objc_getClass(className);
+                    if (cls == IntPtr.Zero) return IntPtr.Zero;
+                }
+                else
+                {
+                    class_addMethod(cls, sel_registerName("onShow:"),       _onShow,       "v@:@");
+                    class_addMethod(cls, sel_registerName("onExit:"),       _onExit,       "v@:@");
+                    class_addMethod(cls, sel_registerName("onDisconnect:"), _onDisconnect, "v@:@");
+                    objc_registerClassPair(cls);
+                    Console.WriteLine("[MACTRAY] TrayTarget class successfully registered.");
+                }
+            }
+
+            IntPtr alloc = objc_msgSend(cls, sel_registerName("alloc"));
+            if (alloc == IntPtr.Zero) return IntPtr.Zero;
+            
+            return objc_msgSend(alloc, sel_registerName("init"));
         }
 
         private string FindIcon()

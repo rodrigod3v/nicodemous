@@ -18,18 +18,49 @@ class Program
     [STAThread]
     static void Main(string[] args)
     {
+        // Global exception handlers for background threads and tasks
+        AppDomain.CurrentDomain.UnhandledException += (s, e) => 
+            LogCrash("AppDomain.UnhandledException", e.ExceptionObject as Exception);
+        
+        TaskScheduler.UnobservedTaskException += (s, e) => 
+        {
+            LogCrash("TaskScheduler.UnobservedTaskException", e.Exception);
+            e.SetObserved();
+        };
+
         try 
         {
+            Console.WriteLine($"[BOOT] Starting nicodemouse on {RuntimeInformation.OSDescription}");
             RunApp(args);
         }
         catch (Exception ex)
         {
-            File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "crash_log.txt"), ex.ToString());
-            Console.WriteLine("**************************************************");
-            Console.WriteLine("CRITICAL ERROR: Unhandled Exception in Main");
-            Console.WriteLine(ex.ToString());
-            Console.WriteLine("**************************************************");
+            LogCrash("Main.Catch", ex);
             throw; // Re-throw to let the OS handle the final crash if needed
+        }
+    }
+
+    private static void LogCrash(string source, Exception? ex)
+    {
+        try
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string logDir = Path.Combine(appData, "nicodemouse");
+            Directory.CreateDirectory(logDir);
+            string logPath = Path.Combine(logDir, "crash.log");
+
+            string message = $"[{DateTime.Now}] --- CRASH REPORT --- \nSource: {source}\nTime: {DateTime.Now}\nException: {ex?.ToString() ?? "Unknown"}\n\n";
+            File.AppendAllText(logPath, message);
+            
+            Console.WriteLine("**************************************************");
+            Console.WriteLine($"CRITICAL ERROR detected in {source}");
+            Console.WriteLine(ex?.ToString());
+            Console.WriteLine($"A detailed report has been saved to: {logPath}");
+            Console.WriteLine("**************************************************");
+        }
+        catch (Exception logEx)
+        {
+            Console.WriteLine($"[FATAL] Could not even write the crash log: {logEx.Message}");
         }
     }
 
